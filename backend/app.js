@@ -26,7 +26,6 @@ app.use(
     credentials: true,
   })
 );
-app.options(allowedOrigin, cors());
 
 app.use(
   rateLimit({
