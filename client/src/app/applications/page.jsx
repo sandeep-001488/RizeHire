@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { jobsAPI } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { FileText, Clock, MapPin, Eye } from "lucide-react";
-import AuthGuard from "@/components/auth/authGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState([]);

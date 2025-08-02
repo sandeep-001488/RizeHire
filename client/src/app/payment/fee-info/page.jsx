@@ -10,13 +10,12 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import AuthGuard from "@/components/auth/AuthGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 import { paymentsAPI } from "@/lib/api";
 import {
   CreditCard,
   Info,
   ExternalLink,
-  Loader2,
   DollarSign,
 } from "lucide-react";
 

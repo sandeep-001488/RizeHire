@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { aiAPI, authAPI } from "@/lib/api";
 import useAuthStore from "@/stores/authStore";
 import { Brain, Plus, Loader2, Save } from "lucide-react";
-import AuthGuard from "@/components/auth/authGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 
 export default function AISkillsPage() {
   const { user, updateUser } = useAuthStore();

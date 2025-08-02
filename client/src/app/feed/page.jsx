@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import AuthGuard from "@/components/auth/AuthGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 import { jobsAPI } from "@/lib/api";
 import { formatDate, formatSalary } from "@/lib/utils";
 import {

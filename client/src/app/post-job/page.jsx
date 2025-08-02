@@ -14,15 +14,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import AuthGuard from "@/components/auth/AuthGuard";
-import { jobsAPI, paymentsAPI, aiAPI } from "@/lib/api";
+import AuthGuard from "@/components/auth-guard/authGuard";
+import { jobsAPI, aiAPI } from "@/lib/api";
 import {
   AlertTriangle,
   Loader2,
   Brain,
-  Sparkles,
   CreditCard,
-  CheckCircle,
 } from "lucide-react";
 
 export default function PostJobPage() {

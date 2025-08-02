@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -14,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import AuthGuard from "@/components/auth/AuthGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 import { paymentsAPI, jobsAPI } from "@/lib/api";
 import {
   CreditCard,

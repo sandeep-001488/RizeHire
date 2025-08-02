@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import AuthGuard from "@/components/auth/AuthGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 import { jobsAPI, aiAPI } from "@/lib/api";
 import { ArrowLeft, Loader2, Brain, Save } from "lucide-react";
 

@@ -13,20 +13,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import AuthGuard from "@/components/auth/AuthGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 import useAuthStore from "@/stores/authStore";
 import { authAPI, aiAPI } from "@/lib/api";
 import {
-  User,
-  Mail,
-  Calendar,
   Edit,
   Save,
   X,
   Plus,
   Brain,
   Loader2,
-  ExternalLink,
 } from "lucide-react";
 
 export default function ProfilePage() {

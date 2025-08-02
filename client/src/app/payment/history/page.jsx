@@ -4,13 +4,10 @@ import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import AuthGuard from "@/components/auth/AuthGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 import { paymentsAPI } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import {

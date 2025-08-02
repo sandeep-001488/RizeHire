@@ -23,7 +23,7 @@ import {
   Target,
   BookOpen,
 } from "lucide-react";
-import AuthGuard from "@/components/auth/authGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 
 export default function AIRecommendationsPage() {
   const [recommendations, setRecommendations] = useState([]);

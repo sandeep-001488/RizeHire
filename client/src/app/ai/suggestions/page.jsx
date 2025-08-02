@@ -23,7 +23,7 @@ import {
   Loader2,
   Brain,
 } from "lucide-react";
-import AuthGuard from "@/components/auth/authGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 
 export default function CareerSuggestionsPage() {
   const { user } = useAuthStore();

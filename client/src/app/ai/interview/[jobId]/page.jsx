@@ -22,7 +22,7 @@ import {
   HelpCircle,
   Loader2,
 } from "lucide-react";
-import AuthGuard from "@/components/auth/authGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 
 export default function InterviewQuestionsPage({ params }) {
   const { jobId } = params;
