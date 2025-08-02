@@ -12,10 +12,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import AuthGuard from "@/components/auth/AuthGuard";
 import { aiAPI, authAPI } from "@/lib/api";
 import useAuthStore from "@/stores/authStore";
 import { Brain, Plus, Loader2, Save } from "lucide-react";
+import AuthGuard from "@/components/auth/authGuard";
 
 export default function AISkillsPage() {
   const { user, updateUser } = useAuthStore();

@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import AuthGuard from "@/components/auth/AuthGuard";
 import { aiAPI } from "@/lib/api";
 import useAuthStore from "@/stores/authStore";
 import {
@@ -24,6 +23,7 @@ import {
   Loader2,
   Brain,
 } from "lucide-react";
+import AuthGuard from "@/components/auth/authGuard";
 
 export default function CareerSuggestionsPage() {
   const { user } = useAuthStore();

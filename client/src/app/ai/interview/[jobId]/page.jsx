@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import AuthGuard from "@/components/auth/AuthGuard";
 import { aiAPI, jobsAPI } from "@/lib/api";
 import {
   Brain,
@@ -23,6 +22,7 @@ import {
   HelpCircle,
   Loader2,
 } from "lucide-react";
+import AuthGuard from "@/components/auth/authGuard";
 
 export default function InterviewQuestionsPage({ params }) {
   const { jobId } = params;

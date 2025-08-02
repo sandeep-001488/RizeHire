@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import AuthGuard from "@/components/auth/AuthGuard";
 import { aiAPI } from "@/lib/api";
 import { formatDate, formatSalary } from "@/lib/utils";
 import {
@@ -23,8 +22,8 @@ import {
   Lightbulb,
   Target,
   BookOpen,
-  Loader2,
 } from "lucide-react";
+import AuthGuard from "@/components/auth/authGuard";
 
 export default function AIRecommendationsPage() {
   const [recommendations, setRecommendations] = useState([]);

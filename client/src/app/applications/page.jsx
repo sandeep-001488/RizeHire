@@ -2,21 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import AuthGuard from "@/components/auth/AuthGuard";
 import { jobsAPI } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import {
-  FileText,
-  Clock,
-  MapPin,
-  Eye,
-} from "lucide-react";
+import { FileText, Clock, MapPin, Eye } from "lucide-react";
+import AuthGuard from "@/components/auth/authGuard";
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
