@@ -3,6 +3,9 @@ import axios from "axios";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -23,14 +26,10 @@ export const useAuthStore = create(
 
         try {
           const response = await axios.post(
-            "http://localhost:5000/api/auth/login",
+            `${API_BASE_URL}/auth/login`,
             credentials,
-            {
-              headers: { "Content-Type": "application/json" },
-            }
+            { headers: { "Content-Type": "application/json" } }
           );
-
-        
 
           const { user, tokens } = response.data.data;
 
@@ -45,10 +44,6 @@ export const useAuthStore = create(
 
           return { success: true, user, tokens };
         } catch (error) {
-          console.error(
-            "❌ Login failed",
-            error.response?.data || error.message
-          );
           const errorMessage = error.response?.data?.message || "Login failed";
 
           set({
@@ -67,11 +62,9 @@ export const useAuthStore = create(
 
         try {
           const response = await axios.post(
-            "http://localhost:5000/api/auth/register",
+            `${API_BASE_URL}/auth/register`,
             userData,
-            {
-              headers: { "Content-Type": "application/json" },
-            }
+            { headers: { "Content-Type": "application/json" } }
           );
 
           const { user, tokens } = response.data.data;
@@ -107,7 +100,7 @@ export const useAuthStore = create(
         try {
           if (tokens?.refreshToken) {
             await axios.post(
-              "http://localhost:5000/api/auth/logout",
+              `${API_BASE_URL}/auth/logout`,
               { refreshToken: tokens.refreshToken },
               {
                 headers: {
@@ -151,14 +144,11 @@ export const useAuthStore = create(
         set({ isLoading: true });
 
         try {
-          const response = await axios.get(
-            "http://localhost:5000/api/auth/profile",
-            {
-              headers: {
-                Authorization: `Bearer ${tokens.accessToken}`,
-              },
-            }
-          );
+          const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
+            headers: {
+              Authorization: `Bearer ${tokens.accessToken}`,
+            },
+          });
 
           set({
             user: response.data.data.user,
@@ -167,11 +157,6 @@ export const useAuthStore = create(
             isInitialized: true,
           });
         } catch (error) {
-          console.error("❌ Auth check failed:", {
-            status: error.response?.status,
-            message: error.response?.data?.message || error.message,
-          });
-
           set({
             user: null,
             tokens: null,
@@ -181,6 +166,7 @@ export const useAuthStore = create(
           });
         }
       },
+
       setUser: (user) => {
         set({ user, isAuthenticated: !!user });
       },
