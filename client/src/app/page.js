@@ -214,7 +214,7 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
                 <Link href="/auth/register">
                   <Button size="lg" className="w-full sm:w-auto">
-                    Join Now - It's Free
+                    Join Now - It&apos;s Free
                   </Button>
                 </Link>
                 <Link href="/jobs">

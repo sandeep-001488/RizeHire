@@ -116,7 +116,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold">Welcome back, {user?.name}!</h1>
             <p className="text-muted-foreground mt-2">
-              Here's what's happening with your profile today.
+              Here&apos;s what&apos;s happening with your profile today.
             </p>
           </div>
           <Link href="/post-job">
@@ -151,7 +151,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.applications}</div>
               <p className="text-xs text-muted-foreground">
-                Jobs you've applied to
+                Jobs you&apos;ve applied to
               </p>
             </CardContent>
           </Card>

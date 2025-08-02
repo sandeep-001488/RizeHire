@@ -273,7 +273,7 @@ export default function PaymentVerifyPage({ params }) {
                 <div className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
                   <p>• Check your wallet for the transaction hash</p>
                   <p>• Make sure the transaction is confirmed</p>
-                  <p>• Contact support if you're having issues</p>
+                  <p>• Contact support if you&apos;re having issues</p>
                 </div>
               </div>
             </CardContent>

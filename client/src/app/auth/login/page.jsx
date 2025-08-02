@@ -28,7 +28,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    clearError(); 
+    clearError();
 
     const result = await login(formData);
 
@@ -119,7 +119,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm">
             <span className="text-muted-foreground">
-              Don't have an account?{" "}
+              Don&apos;t have an account?
             </span>
             <Link
               href="/auth/register"
