@@ -32,8 +32,46 @@ const createJobSchema = Joi.object({
   tags: Joi.array().items(Joi.string().max(30)).max(10).optional(),
 });
 
+// const createJob = async (req, res) => {
+//   try {
+//     const { error, value } = createJobSchema.validate(req.body);
+//     if (error) {
+//       return res.status(400).json({
+//         success: false,
+//         message: error.details[0].message,
+//       });
+//     }
+
+//     const job = await Job.create({
+//       ...value,
+//       postedBy: req.user._id,
+//     });
+
+//     await job.populate("postedBy", "name email profileImage");
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Job posted successfully",
+//       data: { job },
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
 const createJob = async (req, res) => {
   try {
+    if (!req.user.walletAddress || req.user.walletAddress.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Wallet address required to post a job",
+        requiresWalletAddress: true,
+      });
+    }
+
     const { error, value } = createJobSchema.validate(req.body);
     if (error) {
       return res.status(400).json({
@@ -61,7 +99,6 @@ const createJob = async (req, res) => {
     });
   }
 };
-
 const getJobs = async (req, res) => {
   try {
     const {

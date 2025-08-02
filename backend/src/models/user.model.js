@@ -49,6 +49,7 @@ const userSchema = new mongoose.Schema(
     ],
     walletAddress: {
       type: String,
+      unique: true,
       sparse: true,
       validate: {
         validator: function (v) {
@@ -111,6 +112,6 @@ userSchema.statics.findByEmailWithPassword = function (email) {
   return this.findOne({ email }).select("+password");
 };
 
-const User  = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
 
-export default User
+export default User;
