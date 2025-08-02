@@ -27,6 +27,7 @@ import {
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuthStore();
+  const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isExtractingSkills, setIsExtractingSkills] = useState(false);
@@ -53,6 +54,7 @@ export default function ProfilePage() {
     }
   }, [user]);
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -73,6 +75,33 @@ export default function ProfilePage() {
       alert(error.response?.data?.message || "Failed to update profile");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const connectMetaMask = async () => {
+    setIsConnectingWallet(true);
+    try {
+      if (typeof window.ethereum !== "undefined") {
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
+
+        if (accounts.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            walletAddress: accounts[0],
+          }));
+        }
+      } else {
+        alert(
+          "MetaMask is not installed. Please install MetaMask to connect your wallet."
+        );
+      }
+    } catch (error) {
+      console.error("Error connecting wallet:", error);
+      alert("Failed to connect wallet. Please try again.");
+    } finally {
+      setIsConnectingWallet(false);
     }
   };
 
@@ -167,7 +196,7 @@ export default function ProfilePage() {
                     name="email"
                     type="email"
                     value={formData.email}
-                    disabled={true} 
+                    disabled={true}
                   />
                 </div>
               </div>
@@ -200,14 +229,41 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <Label htmlFor="walletAddress">Wallet Address</Label>
-                  <Input
-                    id="walletAddress"
-                    name="walletAddress"
-                    placeholder="0x..."
-                    value={formData.walletAddress}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="walletAddress"
+                      name="walletAddress"
+                      placeholder="0x... or connect MetaMask"
+                      value={formData.walletAddress}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                      className="flex-1"
+                    />
+                    {isEditing && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={connectMetaMask}
+                        disabled={isConnectingWallet}
+                        className="whitespace-nowrap"
+                      >
+                        {isConnectingWallet ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          "Connect MetaMask"
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  {!formData.walletAddress && isEditing && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      A wallet address is required to post jobs. You can enter
+                      it manually or connect MetaMask.
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

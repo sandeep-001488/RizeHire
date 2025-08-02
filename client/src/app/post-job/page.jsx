@@ -70,35 +70,69 @@ export default function PostJobPage() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
 
-    if (!formData.paymentTxHash) {
-      setFormData((prev) => ({
-        ...prev,
-        paymentTxHash: "demo_tx_" + Date.now(),
-      }));
+  //   if (!formData.paymentTxHash) {
+  //     setFormData((prev) => ({
+  //       ...prev,
+  //       paymentTxHash: "demo_tx_" + Date.now(),
+  //     }));
+  //   }
+
+  //   setIsSubmitting(true);
+
+  //   try {
+  //     const jobData = {
+  //       ...formData,
+  //       budget: formData.budget.min ? formData.budget : undefined,
+  //       location: formData.location.city ? formData.location : undefined,
+  //       paymentTxHash: formData.paymentTxHash || "demo_tx_" + Date.now(),
+  //     };
+
+  //     const response = await jobsAPI.createJob(jobData);
+  //     router.push(`/jobs`);
+  //   } catch (error) {
+  //     alert(error.response?.data?.message || "Failed to post job");
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!formData.paymentTxHash) {
+    setFormData((prev) => ({
+      ...prev,
+      paymentTxHash: "demo_tx_" + Date.now(),
+    }));
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    const jobData = {
+      ...formData,
+      budget: formData.budget.min ? formData.budget : undefined,
+      location: formData.location.city ? formData.location : undefined,
+      paymentTxHash: formData.paymentTxHash || "demo_tx_" + Date.now(),
+    };
+
+    const response = await jobsAPI.createJob(jobData);
+    router.push(`/jobs`);
+  } catch (error) {
+    if (error.response?.data?.requiresWalletAddress) {
+      alert(
+        "Please add a valid wallet address to your profile before posting a job."
+      );
+      router.push("/profile");
+      return;
     }
-
-    setIsSubmitting(true);
-
-    try {
-      const jobData = {
-        ...formData,
-        budget: formData.budget.min ? formData.budget : undefined,
-        location: formData.location.city ? formData.location : undefined,
-        paymentTxHash: formData.paymentTxHash || "demo_tx_" + Date.now(),
-      };
-
-      const response = await jobsAPI.createJob(jobData);
-      router.push(`/jobs`);
-    } catch (error) {
-      alert(error.response?.data?.message || "Failed to post job");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
+    alert(error.response?.data?.message || "Failed to post job");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   const handleChange = (e) => {
     const { name, value } = e.target;
 
