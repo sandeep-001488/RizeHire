@@ -1,4 +1,3 @@
-// src/components/Header.jsx or Header.tsx
 "use client";
 
 import { useState } from "react";
@@ -12,7 +11,6 @@ import {
   Sun,
   User,
   LogOut,
-  Settings,
   Briefcase,
   PlusCircle,
   FileText,

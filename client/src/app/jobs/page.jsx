@@ -4,10 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import useJobStore from "@/stores/jobStore";
@@ -237,7 +234,7 @@ export default function JobsPage() {
         </div>
       ) : jobs.length > 0 ? (
         <div className="space-y-4">
-          {jobs.map((job) => (
+          {jobs?.map((job) => (
             <Card key={job._id} className="hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between">
@@ -248,7 +245,7 @@ export default function JobsPage() {
                       </h3>
                     </Link>
                     <p className="text-muted-foreground mt-1">
-                      {job.postedBy.name}
+                      {job.postedBy?.name}
                     </p>
 
                     <p className="mt-3 text-sm text-muted-foreground line-clamp-2">
