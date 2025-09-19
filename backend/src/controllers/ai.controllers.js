@@ -194,11 +194,11 @@ EXPECTED OUTPUT FORMAT (example):
 
 YOUR RESPONSE:`;
 
-      console.log("📤 Sending to Gemini AI...");
-      console.log("📤 Prompt preview:", prompt.substring(0, 300) + "...");
+      // console.log("📤 Sending to Gemini AI...");
+      // console.log("📤 Prompt preview:", prompt.substring(0, 300) + "...");
 
       aiResponse = await generateContent(prompt);
-      console.log("📥 Raw AI Response:", aiResponse);
+      // console.log("📥 Raw AI Response:", aiResponse);
 
       let jsonMatch = null;
 

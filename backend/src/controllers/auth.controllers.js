@@ -148,8 +148,8 @@ const refreshToken = async (req, res) => {
 
     const tokens = generateTokenPair({ userId: user._id, email: user.email });
 
-    await user.removeRefreshToken(refreshToken);
-    await user.addRefreshToken(tokens.refreshToken);
+    // await user.removeRefreshToken(refreshToken);
+    // await user.addRefreshToken(tokens.refreshToken);
 
     res.json({
       success: true,

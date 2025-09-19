@@ -127,7 +127,6 @@ export default function AISkillsPage() {
             </Button>
           </CardContent>
         </Card>
-
         {extractedSkills.length > 0 && (
           <Card>
             <CardHeader>

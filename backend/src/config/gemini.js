@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
-
+// new model name of gemini
 const model = genAI ? genAI.getGenerativeModel({ model: "gemini-pro" }) : null;
 
 const generateContent = async (prompt) => {
@@ -12,7 +12,6 @@ const generateContent = async (prompt) => {
       "Gemini API key not configured. Please set GEMINI_API_KEY in environment variables."
     );
   }
-
   if (!model) {
     throw new Error("Failed to initialize Gemini model");
   }
@@ -23,7 +22,7 @@ const generateContent = async (prompt) => {
     const response = await result.response;
     const text = response.text();
 
-    console.log("✅ Gemini response received:", text.substring(0, 100) + "...");
+    // console.log("✅ Gemini response received:", text.substring(0, 100) + "...");
     return text;
   } catch (error) {
     console.error("❌ Gemini API Error:", error);
