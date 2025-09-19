@@ -3,8 +3,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
+<<<<<<< HEAD
 // new model name of gemini
+=======
+
+
+// model name of gemini
+>>>>>>> 42aa94f2a651f57e990a566a5ee22f4d54bbe9c6
 const model = genAI ? genAI.getGenerativeModel({ model: "gemini-pro" }) : null;
+
 
 const generateContent = async (prompt) => {
   if (!genAI) {
