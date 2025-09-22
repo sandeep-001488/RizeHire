@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import useAuthStore from "@/stores/authStore";
-import { jobsAPI, aiAPI } from "@/lib/api";
+import { jobsAPI, aiAPI, applicationsAPI } from "@/lib/api";
 import { formatDate, formatSalary } from "@/lib/utils";
 import {
   MapPin,
@@ -32,7 +32,8 @@ import {
 } from "lucide-react";
 
 export default function JobDetailPage({ params }) {
-  const { jobId } = params;
+  const unwrappedParams = React.use(params);
+  const { jobId } = unwrappedParams;
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -113,7 +114,6 @@ export default function JobDetailPage({ params }) {
       } else if (error.response?.status === 404) {
         errorMessage = "Job not found";
       }
-
       alert(errorMessage);
     } finally {
       setIsDeleting(false);
@@ -140,7 +140,7 @@ export default function JobDetailPage({ params }) {
         return;
       }
 
-      const response = await jobsAPI.applyToJob(jobId, {
+      const response = await applicationsAPI.applyToJob(jobId, {
         coverLetter: coverLetter.trim(),
       });
 
@@ -174,17 +174,14 @@ export default function JobDetailPage({ params }) {
         console.error("⚠️ Other error:", error.message);
         errorMessage = error.message || "An unexpected error occurred";
       }
-
-      alert(errorMessage);
     } finally {
       setIsApplying(false);
     }
   };
 
   const isJobPoster = user && job && job.postedBy._id === user._id;
-  const hasApplied = job?.applications?.some(
-    (app) => app.user._id === user?._id
-  );
+
+  const hasApplied = job?.hasApplied || false;
 
   if (isLoading) {
     return (

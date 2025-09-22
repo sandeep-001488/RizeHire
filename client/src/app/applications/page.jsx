@@ -5,14 +5,23 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { jobsAPI } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
-import { FileText, Clock, MapPin, Eye } from "lucide-react";
 import AuthGuard from "@/components/auth-guard/authGuard";
+import { applicationsAPI } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
+import { FileText, Clock, MapPin, Eye, MessageSquare } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedApplication, setSelectedApplication] = useState(null);
 
   useEffect(() => {
     fetchApplications();
@@ -20,10 +29,12 @@ export default function ApplicationsPage() {
 
   const fetchApplications = async () => {
     try {
-      const response = await jobsAPI.getMyApplications();
+      console.log("Fetching applications...");
+      const response = await applicationsAPI.getMyApplications();
+      console.log("Applications response:", response.data);
       setApplications(response.data.data.applications);
     } catch (error) {
-      console.error("Error fetching applications:", error);
+      console.error("Error fetching applications:", error.response?.data);
     } finally {
       setIsLoading(false);
     }
@@ -41,6 +52,69 @@ export default function ApplicationsPage() {
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
+    }
+  };
+
+  const getStatusInfo = (status) => {
+    switch (status) {
+      case "pending":
+        return {
+          color:
+            "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+          description: "Your application is under review",
+        };
+      case "viewed":
+        return {
+          color:
+            "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+          description: "Recruiter has reviewed your application",
+        };
+      case "moving-forward":
+        return {
+          color:
+            "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+          description: "You're moving forward in the process!",
+        };
+      case "accepted":
+        return {
+          color:
+            "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+          description: "Congratulations! Your application was accepted",
+        };
+      case "rejected":
+        return {
+          color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+          description: "Application was not selected this time",
+        };
+      default:
+        return {
+          color:
+            "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+          description: "Status unknown",
+        };
+    }
+  };
+  const getFeedbackStatusColor = (feedbackIndex, totalFeedbacks) => {
+    const statusProgression = [
+      "pending",
+      "viewed",
+      "moving-forward",
+      "accepted",
+    ];
+    const progressIndex = Math.min(feedbackIndex, statusProgression.length - 1);
+    const status = statusProgression[progressIndex];
+
+    switch (status) {
+      case "pending":
+        return "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400";
+      case "viewed":
+        return "bg-blue-50 dark:bg-blue-900/20 border-blue-400";
+      case "moving-forward":
+        return "bg-purple-50 dark:bg-purple-900/20 border-purple-400";
+      case "accepted":
+        return "bg-green-50 dark:bg-green-900/20 border-green-400";
+      default:
+        return "bg-gray-50 dark:bg-gray-900/20 border-gray-400";
     }
   };
 
@@ -94,8 +168,7 @@ export default function ApplicationsPage() {
                       <div className="flex flex-wrap gap-3 mt-3 text-sm text-muted-foreground">
                         <div className="flex items-center">
                           <Clock className="h-4 w-4 mr-1" />
-                          Applied{" "}
-                          {formatDate(application.application.appliedAt)}
+                          Applied {formatDate(application.appliedAt)}
                         </div>
                         {application.job.location && (
                           <div className="flex items-center">
@@ -113,25 +186,75 @@ export default function ApplicationsPage() {
                         <Badge variant="outline">
                           {application.job.workMode}
                         </Badge>
-                        <Badge
-                          className={getStatusColor(
-                            application.application.status
-                          )}
-                        >
-                          {application.application.status || "pending"}
+                        <Badge className={getStatusColor(application.status)}>
+                          {application.status || "pending"}
                         </Badge>
                       </div>
 
-                      {application.application.coverLetter && (
+                      {application.coverLetter && (
                         <div className="mt-4 p-3 bg-muted rounded-lg">
                           <h4 className="font-medium text-sm mb-2">
                             Your Cover Letter:
                           </h4>
                           <p className="text-sm text-muted-foreground line-clamp-3">
-                            {application.application.coverLetter}
+                            {application.coverLetter}
                           </p>
+                          {application.coverLetter.length > 150 && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="p-0 h-auto text-xs mt-2"
+                                  onClick={() =>
+                                    setSelectedApplication(application)
+                                  }
+                                >
+                                  Read more...
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl max-h-[60vh] md:max-h-[80vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle>Cover Letter</DialogTitle>
+                                  <DialogDescription>
+                                    Application for {application.job.title}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="mt-4">
+                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                                    {application.coverLetter}
+                                  </p>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          )}
                         </div>
                       )}
+                      {/* {added } */}
+                      {application.feedback &&
+                        application.feedback.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            <h4 className="font-medium text-sm flex items-center">
+                              <MessageSquare className="h-4 w-4 mr-1" />
+                              Recruiter Feedback:
+                            </h4>
+
+                            {application.feedback.map((feedback, index) => (
+                              <div
+                                key={index}
+                                className={`relative p-3 rounded-lg border-l-4 ${getFeedbackStatusColor(
+                                  index,
+                                  application.feedback?.length
+                                )}`}
+                              >
+                                <p className="text-sm">{feedback.message}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {formatDate(feedback.createdAt)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                     </div>
 
                     <div className="flex flex-col gap-2 mt-4 md:mt-0 md:ml-6">
@@ -142,11 +265,17 @@ export default function ApplicationsPage() {
                         </Button>
                       </Link>
 
-                      {application.application.status === "accepted" && (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 text-center">
-                          🎉 Congratulations!
+                      {/* added */}
+                      <div className="flex flex-col gap-1">
+                        <Badge
+                          className={getStatusInfo(application.status).color}
+                        >
+                          {application.status || "pending"}
                         </Badge>
-                      )}
+                        <p className="text-xs text-muted-foreground">
+                          {getStatusInfo(application.status).description}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

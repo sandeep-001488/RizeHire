@@ -1,21 +1,11 @@
 import { create } from "zustand";
+import api from "@/lib/api";
 
 const useJobStore = create((set, get) => ({
+  // State
   jobs: [],
   currentJob: null,
-  jobApplicants: [],
-  applicantsStats: {
-    totalApplications: 0,
-    pendingApplications: 0,
-    acceptedApplications: 0,
-    rejectedApplications: 0,
-  },
-  applicantsPagination: {
-    current: 1,
-    pages: 1,
-    total: 0,
-    limit: 10,
-  },
+  myJobs: [],
   filters: {
     search: "",
     jobType: "",
@@ -30,31 +20,41 @@ const useJobStore = create((set, get) => ({
     total: 0,
     limit: 10,
   },
+  myJobsPagination: {
+    current: 1,
+    pages: 1,
+    total: 0,
+    limit: 10,
+  },
   isLoading: false,
-  isLoadingApplicants: false,
+  isLoadingMyJobs: false,
 
+  // Setters
   setJobs: (jobs) => set({ jobs }),
   setCurrentJob: (job) => set({ currentJob: job }),
-  setJobApplicants: (applicants) => set({ jobApplicants: applicants }),
-  setApplicantsStats: (stats) => set({ applicantsStats: stats }),
-  setApplicantsPagination: (pagination) =>
-    set({ applicantsPagination: pagination }),
+  setMyJobs: (jobs) => set({ myJobs: jobs }),
   setFilters: (filters) =>
     set((state) => ({
       filters: { ...state.filters, ...filters },
     })),
   setPagination: (pagination) => set({ pagination }),
+  setMyJobsPagination: (pagination) => set({ myJobsPagination: pagination }),
   setLoading: (isLoading) => set({ isLoading }),
-  setLoadingApplicants: (isLoadingApplicants) => set({ isLoadingApplicants }),
+  setLoadingMyJobs: (isLoadingMyJobs) => set({ isLoadingMyJobs }),
 
+  // Actions
   addJob: (job) =>
     set((state) => ({
       jobs: [job, ...state.jobs],
+      myJobs: [job, ...state.myJobs],
     })),
 
   updateJob: (jobId, updates) =>
     set((state) => ({
       jobs: state.jobs.map((job) =>
+        job._id === jobId ? { ...job, ...updates } : job
+      ),
+      myJobs: state.myJobs.map((job) =>
         job._id === jobId ? { ...job, ...updates } : job
       ),
       currentJob:
@@ -66,16 +66,8 @@ const useJobStore = create((set, get) => ({
   removeJob: (jobId) =>
     set((state) => ({
       jobs: state.jobs.filter((job) => job._id !== jobId),
+      myJobs: state.myJobs.filter((job) => job._id !== jobId),
       currentJob: state.currentJob?._id === jobId ? null : state.currentJob,
-    })),
-
-  updateApplicantStatus: (applicationId, newStatus) =>
-    set((state) => ({
-      jobApplicants: state.jobApplicants.map((applicant) =>
-        applicant.applicationId === applicationId
-          ? { ...applicant, status: newStatus }
-          : applicant
-      ),
     })),
 
   clearFilters: () =>
@@ -90,22 +82,134 @@ const useJobStore = create((set, get) => ({
       },
     }),
 
-  clearJobApplicants: () =>
-    set({
-      jobApplicants: [],
-      applicantsStats: {
-        totalApplications: 0,
-        pendingApplications: 0,
-        acceptedApplications: 0,
-        rejectedApplications: 0,
-      },
-      applicantsPagination: {
-        current: 1,
-        pages: 1,
-        total: 0,
-        limit: 10,
-      },
-    }),
+  // API Actions
+  fetchJobs: async (params = {}) => {
+    try {
+      set({ isLoading: true });
+      const state = get();
+
+      const queryParams = {
+        page: state.pagination.current,
+        limit: state.pagination.limit,
+        ...state.filters,
+        ...params,
+      };
+
+      // Remove empty filters
+      Object.keys(queryParams).forEach((key) => {
+        if (
+          queryParams[key] === "" ||
+          (Array.isArray(queryParams[key]) && queryParams[key].length === 0)
+        ) {
+          delete queryParams[key];
+        }
+      });
+
+      const response = await api.get("/jobs", { params: queryParams });
+
+      if (response.data.success) {
+        set({
+          jobs: response.data.data.jobs,
+          pagination: response.data.data.pagination,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching jobs:", error);
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchJob: async (jobId) => {
+    try {
+      set({ isLoading: true });
+      const response = await api.get(`/jobs/${jobId}`);
+
+      if (response.data.success) {
+        set({ currentJob: response.data.data.job });
+        return response.data.data.job;
+      }
+    } catch (error) {
+      console.error("Error fetching job:", error);
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchMyJobs: async (params = {}) => {
+    try {
+      set({ isLoadingMyJobs: true });
+      const state = get();
+
+      const queryParams = {
+        page: state.myJobsPagination.current,
+        limit: state.myJobsPagination.limit,
+        ...params,
+      };
+
+      const response = await api.get("/jobs/my-posted-jobs", {
+        params: queryParams,
+      });
+
+      if (response.data.success) {
+        set({
+          myJobs: response.data.data.jobs,
+          myJobsPagination: response.data.data.pagination,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching my jobs:", error);
+      throw error;
+    } finally {
+      set({ isLoadingMyJobs: false });
+    }
+  },
+
+  createJob: async (jobData) => {
+    try {
+      const response = await api.post("/jobs", jobData);
+
+      if (response.data.success) {
+        const newJob = response.data.data.job;
+        get().addJob(newJob);
+        return newJob;
+      }
+    } catch (error) {
+      console.error("Error creating job:", error);
+      throw error;
+    }
+  },
+
+  updateJobById: async (jobId, updates) => {
+    try {
+      const response = await api.put(`/jobs/${jobId}`, updates);
+
+      if (response.data.success) {
+        const updatedJob = response.data.data.job;
+        get().updateJob(jobId, updatedJob);
+        return updatedJob;
+      }
+    } catch (error) {
+      console.error("Error updating job:", error);
+      throw error;
+    }
+  },
+
+  deleteJob: async (jobId) => {
+    try {
+      const response = await api.delete(`/jobs/${jobId}`);
+
+      if (response.data.success) {
+        get().removeJob(jobId);
+        return true;
+      }
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      throw error;
+    }
+  },
 }));
 
 export default useJobStore;

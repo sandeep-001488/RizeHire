@@ -234,101 +234,118 @@ export default function JobsPage() {
         </div>
       ) : jobs.length > 0 ? (
         <div className="space-y-4">
-          {jobs?.map((job) => (
-            <Card key={job._id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between">
-                  <div className="flex-1">
-                    <Link href={`/jobs/${job._id}`}>
-                      <h3 className="text-xl font-semibold hover:text-primary transition-colors cursor-pointer">
-                        {job.title}
-                      </h3>
-                    </Link>
-                    <p className="text-muted-foreground mt-1">
-                      {job.postedBy?.name}
-                    </p>
+          {jobs
+            .filter((job) => !isJobOwner(job))
+            .map((job) => (
+              <Card key={job._id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between">
+                    <div className="flex-1">
+                      <Link href={`/jobs/${job._id}`}>
+                        <h3 className="text-xl font-semibold hover:text-primary transition-colors cursor-pointer">
+                          {job.title}
+                        </h3>
+                      </Link>
+                      <p className="text-muted-foreground mt-1">
+                        {job.postedBy.name}
+                      </p>
 
-                    <p className="mt-3 text-sm text-muted-foreground line-clamp-2">
-                      {job.description}
-                    </p>
+                      <p className="mt-3 text-sm text-muted-foreground line-clamp-2">
+                        {job.description}
+                      </p>
 
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <Badge variant="secondary">{job.jobType}</Badge>
-                      <Badge variant="outline">{job.workMode}</Badge>
-                      {job.experienceLevel && (
-                        <Badge variant="outline">{job.experienceLevel}</Badge>
-                      )}
-                      {job.location && (
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {job.location.city}, {job.location.country}
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <Badge variant="secondary">{job.jobType}</Badge>
+                        <Badge variant="outline">{job.workMode}</Badge>
+                        {job.experienceLevel && (
+                          <Badge variant="outline">{job.experienceLevel}</Badge>
+                        )}
+                        {job.location && (
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {job.location.city}, {job.location.country}
+                          </div>
+                        )}
+                      </div>
+
+                      {job.skills && job.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-3">
+                          {job.skills.slice(0, 5).map((skill, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {skill}
+                            </Badge>
+                          ))}
+                          {job.skills.length > 5 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{job.skills.length - 5} more
+                            </Badge>
+                          )}
                         </div>
                       )}
                     </div>
 
-                    {job.skills && job.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-3">
-                        {job.skills.slice(0, 5).map((skill, index) => (
-                          <Badge
-                            key={index}
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            {skill}
-                          </Badge>
-                        ))}
-                        {job.skills.length > 5 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{job.skills.length - 5} more
-                          </Badge>
-                        )}
+                    <div className="flex flex-col items-end mt-4 md:mt-0 md:ml-6">
+                      {job.budget && (
+                        <div className="text-lg font-semibold text-primary mb-2">
+                          {formatSalary(
+                            job.budget.min,
+                            job.budget.max,
+                            job.budget.currency,
+                            job.budget.period
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center text-sm text-muted-foreground mb-3">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {formatDate(job.createdAt)}
                       </div>
-                    )}
-                  </div>
 
-                  <div className="flex flex-col items-end mt-4 md:mt-0 md:ml-6">
-                    {job.budget && (
-                      <div className="text-lg font-semibold text-primary mb-2">
-                        {formatSalary(
-                          job.budget.min,
-                          job.budget.max,
-                          job.budget.currency,
-                          job.budget.period
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center text-sm text-muted-foreground mb-3">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {formatDate(job.createdAt)}
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <Link href={`/jobs/${job._id}`}>
-                        <Button>
-                          View Details
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </Link>
-
-                      {isJobOwner(job) && (
-                        <Link href={`/jobs/${job._id}/applicants`}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                          >
-                            <Users className="mr-2 h-4 w-4" />
-                            View Applicants
+                      <div className="flex flex-col gap-2">
+                        <Link href={`/jobs/${job._id}`}>
+                          <Button>
+                            View Details
+                            <ArrowRight className="ml-2 h-4 w-4" />
                           </Button>
                         </Link>
-                      )}
+
+                        {isJobOwner(job) && (
+                          <Link href={`/jobs/${job._id}/applicants`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                            >
+                              <Users className="mr-2 h-4 w-4" />
+                              View Applicants
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            ))}
+          {/* //added */}
+          {jobs.filter((job) => !isJobOwner(job)).length === 0 && (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Briefcase className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-medium mb-2">
+                  No other jobs found
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  All available jobs are posted by you. Try different filters or
+                  check back later.
+                </p>
               </CardContent>
             </Card>
-          ))}
+          )}
 
           {pagination.pages > 1 && (
             <div className="flex justify-center space-x-2 mt-8">

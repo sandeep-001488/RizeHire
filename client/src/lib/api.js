@@ -1,8 +1,7 @@
 import axios from "axios";
 import useAuthStore from "@/stores/authStore";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -19,7 +18,6 @@ api.interceptors.request.use(
     } else {
       console.log("⚠️ API Request without auth header:", config.url);
     }
-    // config.headers["Cache-Control"] = "no-cache";
     return config;
   },
   (error) => Promise.reject(error)
@@ -84,26 +82,28 @@ export const jobsAPI = {
   createJob: (data) => api.post("/jobs", data),
   updateJob: (id, data) => api.put(`/jobs/${id}`, data),
   deleteJob: (id) => api.delete(`/jobs/${id}`),
-  applyToJob: (id, data) => {
-    return api.post(`/jobs/${id}/apply`, data);
+  getMyJobs: (params) => api.get("/jobs/my-posted-jobs", { params }),
+};
+
+export const applicationsAPI = {
+  applyToJob: (jobId, data) => {
+    return api.post(`/applications/jobs/${jobId}/apply`, data);
   },
-  getMyJobs: (params) => api.get("/jobs/user/my-jobs", { params }),
-  getMyApplications: () => api.get("/jobs/user/my-applications"),
+  getMyApplications: (params) => {
+    return api.get("/applications/my-applications", { params });
+  },
   getJobApplicants: (jobId, params) => {
-    console.log("🔗 API: getJobApplicants called with:", { jobId, params });
-    const url = `/jobs/${jobId}/applicants`;
-    console.log("🌐 Final URL:", url);
+    const url = `/applications/jobs/${jobId}/applicants`;
     return api.get(url, { params });
   },
-  updateApplicationStatus: (jobId, applicationId, data) => {
-    console.log("🔗 API: updateApplicationStatus called with:", {
-      jobId,
-      applicationId,
-      data,
-    });
-    const url = `/jobs/${jobId}/applications/${applicationId}`;
-    console.log("🌐 Final URL:", url);
-    return api.put(url, data);
+  getApplication: (applicationId) => {
+    return api.get(`/applications/${applicationId}`);
+  },
+  updateApplicationStatus: (applicationId, data) => {
+    return api.put(`/applications/${applicationId}/status`, data);
+  },
+  addFeedback: (applicationId, data) => {
+    return api.post(`/applications/${applicationId}/feedback`, data);
   },
 };
 
@@ -119,6 +119,7 @@ export const aiAPI = {
 export const paymentsAPI = {
   verifyPayment: (data) => api.post("/payments/verify", data),
   getPaymentStatus: (jobId) => api.get(`/payments/status/${jobId}`),
+  updateWalletAddress: (data) => api.put("/payments/wallet", data),
   updatePaymentVerification: (jobId, data) =>
     api.put(`/payments/verify/${jobId}`, data),
   getPaymentHistory: () => api.get("/payments/history"),

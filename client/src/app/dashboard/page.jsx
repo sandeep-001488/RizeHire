@@ -13,17 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import useAuthStore from "@/stores/authStore";
-import { jobsAPI, aiAPI } from "@/lib/api";
-import {
-  Briefcase,
-  PlusCircle,
-  FileText,
-  Brain,
-  TrendingUp,
-  Users,
-  Eye,
-  Clock,
-} from "lucide-react";
+import { jobsAPI, aiAPI, applicationsAPI } from "@/lib/api";
+import { Briefcase, PlusCircle, FileText, Brain, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -35,6 +27,7 @@ export default function DashboardPage() {
   const [recentJobs, setRecentJobs] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     fetchDashboardData();
@@ -45,7 +38,7 @@ export default function DashboardPage() {
       const [myJobsRes, applicationsRes, recommendationsRes] =
         await Promise.allSettled([
           jobsAPI.getMyJobs({ limit: 5 }),
-          jobsAPI.getMyApplications(),
+          applicationsAPI.getMyApplications({ limit: 5 }), // Changed from jobsAPI
           aiAPI.getRecommendations(),
         ]);
 
@@ -54,7 +47,7 @@ export default function DashboardPage() {
         setRecentJobs(jobs);
         setStats((prev) => ({
           ...prev,
-          myJobs: jobs.length,
+          myJobs: myJobsRes.value.data.data.pagination.total, // Use total from pagination
           views: jobs.reduce((total, job) => total + (job.views || 0), 0),
         }));
       }
@@ -77,7 +70,6 @@ export default function DashboardPage() {
       setIsLoading(false);
     }
   };
-
   const quickActions = [
     {
       title: "Post New Job",
@@ -197,8 +189,8 @@ export default function DashboardPage() {
           {/* Recent Jobs */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Your Recent Jobs</CardTitle>
-              <Link href="/jobs">
+              <CardTitle>Your Recent Posted Jobs</CardTitle>
+              <Link href="/jobs/my-posted-jobs">
                 <Button variant="ghost" size="sm">
                   View All
                 </Button>
@@ -216,10 +208,11 @@ export default function DashboardPage() {
                 </div>
               ) : recentJobs.length > 0 ? (
                 <div className="space-y-4">
-                  {recentJobs.slice(0, 3).map((job) => (
+                  {recentJobs.slice(0, 5).map((job) => (
                     <div
                       key={job._id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-center justify-between p-3 border rounded-lg cursor-pointer"
+                      onClick={() => router.push(`/jobs/${job._id}/applicants`)}
                     >
                       <div className="flex-1">
                         <h4 className="font-medium">{job.title}</h4>
@@ -229,7 +222,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-medium">
-                          {job.applications?.length || 0} applications
+                          {job.applicationCount || 0} applications
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {job.views || 0} views
@@ -273,18 +266,20 @@ export default function DashboardPage() {
                 </div>
               ) : recommendations.length > 0 ? (
                 <div className="space-y-4">
-                  {recommendations.slice(0, 3).map((rec) => (
-                    <div key={rec.job._id} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">{rec.job.title}</h4>
-                        <Badge variant="secondary">
-                          {rec.matchScore}% match
-                        </Badge>
+                  {recommendations.slice(0, 5).map((rec) => (
+                    <Link key={rec.job._id} href={`/jobs/${rec.job._id}`}>
+                      <div key={rec.job._id} className="p-3 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium">{rec.job.title}</h4>
+                          <Badge variant="secondary">
+                            {rec.matchScore}% match
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {rec.job.postedBy.name} • {rec.job.jobType}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {rec.job.postedBy.name} • {rec.job.jobType}
-                      </p>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
