@@ -32,14 +32,16 @@ export default function Header() {
     router.push("/auth/login");
   };
 
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: User },
-    { name: "Jobs", href: "/jobs", icon: Briefcase },
-    { name: "Post Job", href: "/post-job", icon: PlusCircle },
-    { name: "Applications", href: "/applications", icon: FileText },
-    { name: "AI Tools", href: "/ai/recommendations", icon: Brain },
-    { name: "Payments", href: "/payment/history", icon: CreditCard },
-  ];
+ const navigation = [
+   { name: "Dashboard", href: "/dashboard", icon: User },
+   { name: "Jobs", href: "/jobs", icon: Briefcase },
+   { name: "Post Job", href: "/post-job", icon: PlusCircle },
+   { name: "Applications", href: "/applications", icon: FileText },
+   { name: "AI Tools", href: "/ai/recommendations", icon: Brain },
+   { name: "Payments", href: "/payment/history", icon: CreditCard },
+   { name: "My Jobs", href: "/jobs/my-posted-jobs", icon: Briefcase },
+ ];
+
 
   if (!isHydrated || !isInitialized) {
     return null;
