@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
     },
     bio: {
       type: String,
-      maxlength: [500, "Bio too long"],
+      maxlength: [1000, "Bio too long"],
       default: "",
     },
     linkedinUrl: {
@@ -54,11 +54,24 @@ const userSchema = new mongoose.Schema(
       validate: {
         validator: function (v) {
           if (!v) return true;
-          return /^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$/.test(v);
+          return /^0x[a-fA-F0-9]{40}$/.test(v);
         },
-        message: "Invalid wallet address",
+        message: "Invalid Ethereum wallet address",
       },
     },
+    isPaidUser: {
+      type: Boolean,
+      default: false,
+    },
+    paymentTransactions: [
+      {
+        txHash: String,
+        amount: String,
+        currency: String,
+        verified: { type: Boolean, default: false },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     profileImage: String,
     refreshTokens: [
       {
@@ -66,7 +79,7 @@ const userSchema = new mongoose.Schema(
         createdAt: {
           type: Date,
           default: Date.now,
-          expires: 604800, // 7 days
+          expires: 604800,
         },
       },
     ],

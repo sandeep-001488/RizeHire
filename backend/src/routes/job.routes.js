@@ -5,13 +5,10 @@ import {
   getJob,
   updateJob,
   deleteJob,
-  applyToJob,
   getMyJobs,
-  getMyApplications,
-  getJobApplicants,
-  updateApplicationStatus,
 } from "../controllers/job.controllers.js";
 import { protect, optionalAuth } from "../middleware/auth.middleware.js";
+import { requirePayment } from "../middleware/payment.middleware.js";
 
 const router = express.Router();
 
@@ -19,17 +16,11 @@ router.get("/", optionalAuth, getJobs);
 
 router.use(protect);
 
-router.get("/user/my-jobs", getMyJobs);
-router.get("/user/my-applications", getMyApplications);
-
-router.post("/", createJob);
-
-router.get("/:id/applicants", getJobApplicants);
-router.put("/:jobId/applications/:applicationId", updateApplicationStatus);
+router.post("/", requirePayment, createJob);
+router.get("/my-posted-jobs", getMyJobs);
 
 router.get("/:id", getJob);
 router.put("/:id", updateJob);
 router.delete("/:id", deleteJob);
-router.post("/:id/apply", applyToJob);
 
 export default router;

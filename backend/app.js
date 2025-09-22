@@ -9,13 +9,14 @@ import { errorHandler, notFound } from "./src/middleware/error.middleware.js";
 
 import authRoutes from "./src/routes/auth.routes.js";
 import jobRoutes from "./src/routes/job.routes.js";
+import applicationRoutes from "./src/routes/application.routes.js"; 
 import aiRoutes from "./src/routes/ai.routes.js";
 import paymentRoutes from "./src/routes/payment.route.js";
 
 dotenv.config();
 
 const app = express();
-const allowedOrigin = process.env.FRONTEND_URL;
+const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
 connectDB();
 
 app.use(helmet());
@@ -26,6 +27,7 @@ app.use(
     credentials: true,
   })
 );
+app.options(allowedOrigin, cors());
 
 app.use(
   rateLimit({
@@ -42,22 +44,6 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-app.get("/", (_, res) => {
-  res.json({
-    success: true,
-    message: "Welcome to RizeHire API",
-    version: "1.0.0",
-    endpoints: {
-      health: "/health",
-      auth: "/api/auth",
-      jobs: "/api/jobs",
-      ai: "/api/ai",
-      payments: "/api/payments",
-    },
-    timestamp: new Date().toISOString(),
-  });
-});
-
 app.get("/health", (_, res) => {
   res.json({
     success: true,
@@ -68,6 +54,7 @@ app.get("/health", (_, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
+app.use("/api/applications", applicationRoutes); 
 app.use("/api/ai", aiRoutes);
 app.use("/api/payments", paymentRoutes);
 

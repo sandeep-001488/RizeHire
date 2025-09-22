@@ -429,10 +429,20 @@ const getJobRecommendations = async (req, res) => {
       });
     }
 
+    // Get jobs user has already applied to
+    const appliedJobIds = await Application.find({
+      applicantId: user._id,
+    })
+      .select("jobId")
+      .lean();
+
+    const appliedJobIdsArray = appliedJobIds.map((app) => app.jobId.toString());
+
     const jobs = await Job.find({
       isActive: true,
       skills: { $in: userSkills },
       postedBy: { $ne: user._id },
+      _id: { $nin: appliedJobIdsArray }, // Exclude jobs user has already applied to
     })
       .populate("postedBy", "name email profileImage")
       .limit(10)

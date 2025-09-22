@@ -14,6 +14,7 @@ const generateContent = async (prompt) => {
       "Gemini API key not configured. Please set GEMINI_API_KEY in environment variables."
     );
   }
+  
   if (!model) {
     throw new Error("Failed to initialize Gemini model");
   }

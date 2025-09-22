@@ -8,6 +8,11 @@ const jobSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, "Title too long"],
     },
+    company: {
+      name: { type: String, trim: true },
+      website: { type: String },
+      description: { type: String, maxlength: 1000 },
+    },
     description: {
       type: String,
       required: [true, "Job description is required"],
@@ -18,7 +23,6 @@ const jobSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-
     skills: [
       {
         type: String,
@@ -35,13 +39,11 @@ const jobSchema = new mongoose.Schema(
       enum: ["remote", "hybrid", "onsite"],
       required: true,
     },
-
     location: {
       city: String,
       state: String,
       country: String,
     },
-
     budget: {
       min: {
         type: Number,
@@ -61,22 +63,18 @@ const jobSchema = new mongoose.Schema(
         default: "monthly",
       },
     },
-
     experienceLevel: {
       type: String,
       enum: ["entry", "junior", "mid", "senior", "expert"],
       default: "mid",
     },
-
     applicationUrl: String,
     applicationEmail: String,
     applicationDeadline: Date,
-
     isActive: {
       type: Boolean,
       default: true,
     },
-
     paymentTxHash: {
       type: String,
       required: true,
@@ -85,25 +83,10 @@ const jobSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
     views: {
       type: Number,
       default: 0,
     },
-    applications: [
-      {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-        appliedAt: {
-          type: Date,
-          default: Date.now,
-        },
-        coverLetter: String,
-      },
-    ],
-
     tags: [String],
   },
   {
@@ -117,29 +100,9 @@ jobSchema.index({ jobType: 1 });
 jobSchema.index({ "location.city": 1 });
 jobSchema.index({ createdAt: -1 });
 jobSchema.index({ isActive: 1 });
-jobSchema.virtual("applicationCount").get(function () {
-  return this.applications.length;
-});
 
 jobSchema.methods.incrementViews = function () {
   this.views += 1;
-  return this.save();
-};
-
-jobSchema.methods.addApplication = function (userId, coverLetter = "") {
-  const existingApplication = this.applications.find(
-    (app) => app.user.toString() === userId.toString()
-  );
-
-  if (existingApplication) {
-    throw new Error("User has already applied to this job");
-  }
-
-  this.applications.push({
-    user: userId,
-    coverLetter,
-  });
-
   return this.save();
 };
 
