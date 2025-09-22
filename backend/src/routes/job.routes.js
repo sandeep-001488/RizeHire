@@ -10,6 +10,7 @@ import {
 import { protect, optionalAuth } from "../middleware/auth.middleware.js";
 import { requirePayment } from "../middleware/payment.middleware.js";
 
+
 const router = express.Router();
 
 router.get("/", optionalAuth, getJobs);
