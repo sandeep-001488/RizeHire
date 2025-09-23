@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import AuthGuard from "@/components/auth-guard/AuthGuard";
+import AuthGuard from "@/components/auth-guard/authGuard";
 import { applicationsAPI, jobsAPI } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
