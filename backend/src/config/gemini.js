@@ -20,12 +20,10 @@ const generateContent = async (prompt) => {
   }
 
   try {
-    console.log("🚀 Generating content with Gemini...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    // console.log("✅ Gemini response received:", text.substring(0, 100) + "...");
     return text;
   } catch (error) {
     console.error("❌ Gemini API Error:", error);

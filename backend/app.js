@@ -16,7 +16,7 @@ import paymentRoutes from "./src/routes/payment.route.js";
 dotenv.config();
 
 const app = express();
-const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
+const allowedOrigin = process.env.FRONTEND_URL 
 connectDB();
 
 app.use(helmet());

@@ -140,12 +140,7 @@ const getJobApplicants = async (req, res) => {
     const jobId = req.params.jobId;
     const { page = 1, limit = 10, status = "all" } = req.query;
 
-    console.log("🔍 getJobApplicants called with:", {
-      jobId,
-      page,
-      limit,
-      status,
-    });
+ 
 
     const job = await Job.findById(jobId);
 
@@ -168,7 +163,6 @@ const getJobApplicants = async (req, res) => {
       filter.status = status;
     }
 
-    console.log("🔍 Filter applied:", filter);
 
     const applications = await Application.find(filter)
       .populate(
@@ -181,8 +175,6 @@ const getJobApplicants = async (req, res) => {
 
     const total = await Application.countDocuments(filter);
 
-    console.log("🔍 Found applications:", applications.length);
-    console.log("🔍 Total count:", total);
 
     // Mark applications as viewed by recruiter
     await Application.updateMany(
@@ -201,7 +193,6 @@ const getJobApplicants = async (req, res) => {
       },
     ]);
 
-    console.log("🔍 Stats aggregation result:", stats);
 
     const applicationStats = {
       totalApplications: 0,
@@ -244,16 +235,7 @@ const getJobApplicants = async (req, res) => {
       viewedByRecruiter: app.viewedByRecruiter,
     }));
 
-    console.log("🔍 Final response data:", {
-      applicantsCount: applicants.length,
-      stats: applicationStats,
-      pagination: {
-        current: parseInt(page),
-        pages: Math.ceil(total / limit),
-        total,
-        limit: parseInt(limit),
-      },
-    });
+ 
 
     res.json({
       success: true,
@@ -292,12 +274,7 @@ const updateApplicationStatus = async (req, res) => {
     const { applicationId } = req.params;
     const { status, feedback } = req.body;
 
-    console.log("🔄 updateApplicationStatus called:", {
-      applicationId,
-      status,
-      feedback,
-    });
-
+   
     if (
       !["pending", "viewed", "moving-forward", "accepted", "rejected"].includes(
         status
@@ -345,7 +322,6 @@ const updateApplicationStatus = async (req, res) => {
 
     await application.save();
 
-    console.log("✅ Application status updated successfully");
 
     res.json({
       success: true,
@@ -374,11 +350,7 @@ const addFeedback = async (req, res) => {
     const { applicationId } = req.params;
     const { message, visibleToApplicant = true } = req.body;
 
-    console.log("📝 addFeedback called:", {
-      applicationId,
-      message,
-      visibleToApplicant,
-    });
+ 
 
     if (!message || message.trim().length < 1) {
       return res.status(400).json({
@@ -416,7 +388,6 @@ const addFeedback = async (req, res) => {
     application.feedback.push(feedbackObj);
     await application.save();
 
-    console.log("✅ Feedback added successfully");
 
     res.json({
       success: true,
