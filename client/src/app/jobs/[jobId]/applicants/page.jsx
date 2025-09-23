@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import AuthGuard from "@/components/auth-guard/authGuard";
+import AuthGuard from "@/components/auth-guard/AuthGuard";
 import { applicationsAPI, jobsAPI } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +43,8 @@ import {
   ExternalLink,
   User,
   Loader2,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 
 export default function JobApplicantsPage() {
@@ -77,6 +79,7 @@ export default function JobApplicantsPage() {
     applicationId: null,
   });
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [expandedFeedback, setExpandedFeedback] = useState({});
 
   useEffect(() => {
     if (jobId) {
@@ -179,7 +182,12 @@ export default function JobApplicantsPage() {
       toast.error("Failed to send feedback");
     }
   };
-
+  const toggleFeedback = (applicationId) => {
+    setExpandedFeedback((prev) => ({
+      ...prev,
+      [applicationId]: !prev[applicationId],
+    }));
+  };
   const getStatusColor = (status) => {
     switch (status) {
       case "pending":
@@ -382,8 +390,36 @@ export default function JobApplicantsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Mobile Tabs  */}
+            <div className="md:hidden mb-6">
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value)}
+                className="w-full p-3 border border-input bg-background rounded-md text-sm font-medium"
+              >
+                <option value="all">
+                  All ({applicantsStats.totalApplications})
+                </option>
+                <option value="pending">
+                  Pending ({applicantsStats.pendingApplications})
+                </option>
+                <option value="viewed">
+                  Viewed ({applicantsStats.viewedApplications})
+                </option>
+                <option value="moving-forward">
+                  Moving ({applicantsStats.movingForwardApplications})
+                </option>
+                <option value="accepted">
+                  Accepted ({applicantsStats.acceptedApplications})
+                </option>
+                <option value="rejected">
+                  Rejected ({applicantsStats.rejectedApplications})
+                </option>
+              </select>
+            </div>
+            {/* Desktop tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-6">
+              <TabsList className="hidden md:grid w-full grid-cols-6">
                 <TabsTrigger value="all">
                   All ({applicantsStats.totalApplications})
                 </TabsTrigger>
@@ -435,491 +471,842 @@ export default function JobApplicantsPage() {
                         key={applicant.applicationId}
                         className="hover:shadow-lg transition-shadow"
                       >
-                        <CardContent className="p-6">
-                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-start space-x-4">
-                                <Avatar className="h-12 w-12">
-                                  <AvatarImage
-                                    src={applicant.user.profileImage}
-                                    alt={applicant.user.name}
-                                  />
-                                  <AvatarFallback>
-                                    {getInitials(applicant.user.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h3 className="text-lg font-semibold">
-                                      {applicant.user.name}
-                                    </h3>
-                                    <Badge
-                                      className={getStatusColor(
-                                        applicant.status
-                                      )}
-                                    >
-                                      {applicant.status}
-                                    </Badge>
-                                  </div>
-
-                                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-3">
-                                    <div className="flex items-center">
-                                      <Mail className="h-4 w-4 mr-1" />
-                                      {applicant.user.email}
-                                    </div>
-                                    <div className="flex items-center">
-                                      <Calendar className="h-4 w-4 mr-1" />
-                                      Applied {formatDate(applicant.appliedAt)}
-                                    </div>
-                                    {applicant.user.location && (
-                                      <div className="flex items-center">
-                                        <MapPin className="h-4 w-4 mr-1" />
-                                        {applicant.user.location}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {applicant.user.skills &&
-                                    applicant.user.skills.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 mb-3">
-                                        {applicant.user.skills
-                                          .slice(0, 5)
-                                          .map((skill, index) => (
-                                            <Badge
-                                              key={index}
-                                              variant="outline"
-                                              className="text-xs"
-                                            >
-                                              {skill}
-                                            </Badge>
-                                          ))}
-                                        {applicant.user.skills.length > 5 && (
-                                          <Badge
-                                            variant="outline"
-                                            className="text-xs"
-                                          >
-                                            +{applicant.user.skills.length - 5}{" "}
-                                            more
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    )}
-
-                                  {applicant.coverLetter && (
-                                    <div className="bg-muted p-3 rounded-lg">
-                                      <h4 className="font-medium text-sm mb-2 flex items-center">
-                                        <FileText className="h-4 w-4 mr-1" />
-                                        Cover Letter:
-                                      </h4>
-                                      <p className="text-sm text-muted-foreground line-clamp-3">
-                                        {applicant.coverLetter}
-                                      </p>
-                                      {applicant.coverLetter.length > 150 && (
-                                        <Dialog>
-                                          <DialogTrigger asChild>
-                                            <Button
-                                              variant="link"
-                                              size="sm"
-                                              className="p-0 h-auto text-xs"
-                                              onClick={() =>
-                                                setSelectedApplicant(applicant)
-                                              }
-                                            >
-                                              Read more...
-                                            </Button>
-                                          </DialogTrigger>
-                                          <DialogContent className="max-w-2xl h-100 overflow-y-scroll">
-                                            <DialogHeader>
-                                              <DialogTitle>
-                                                Cover Letter -{" "}
-                                                {applicant.user.name}
-                                              </DialogTitle>
-                                              <DialogDescription>
-                                                Application for{" "}
-                                                {currentJob?.title}
-                                              </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="mt-4">
-                                              <p className="text-sm whitespace-pre-wrap">
-                                                {applicant.coverLetter}
-                                              </p>
-                                            </div>
-                                          </DialogContent>
-                                        </Dialog>
-                                      )}
-                                    </div>
-                                  )}
-                                  {/* View Full Details Button */}
-                                  <div className="mt-3">
-                                    <Dialog>
-                                      <DialogTrigger asChild>
-                                        <Button variant="outline" size="sm">
-                                          <User className="mr-2 h-4 w-4" />
-                                          View Full Details
-                                        </Button>
-                                      </DialogTrigger>
-                                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                                        <DialogHeader>
-                                          <DialogTitle>
-                                            Full Application Details -{" "}
-                                            {applicant.user.name}
-                                          </DialogTitle>
-                                        </DialogHeader>
-                                        <div className="space-y-4 mt-4">
-                                          <div>
-                                            <h4 className="font-semibold mb-2">
-                                              Skills
-                                            </h4>
-                                            {applicant.user.skills &&
-                                            applicant.user.skills.length > 0 ? (
-                                              <div className="flex flex-wrap gap-2">
-                                                {applicant.user.skills.map(
-                                                  (skill, index) => (
-                                                    <Badge
-                                                      key={index}
-                                                      variant="outline"
-                                                    >
-                                                      {skill}
-                                                    </Badge>
-                                                  )
-                                                )}
-                                              </div>
-                                            ) : (
-                                              <p className="text-muted-foreground">
-                                                No skills listed
-                                              </p>
-                                            )}
-                                          </div>
-
-                                          {applicant.user.bio && (
-                                            <div>
-                                              <h4 className="font-semibold mb-2">
-                                                Bio
-                                              </h4>
-                                              <p className="text-sm bg-muted p-3 rounded-lg">
-                                                {applicant.user.bio}
-                                              </p>
-                                            </div>
-                                          )}
-
-                                          {applicant.user.linkedinUrl && (
-                                            <div>
-                                              <h4 className="font-semibold mb-2">
-                                                LinkedIn
-                                              </h4>
-                                              <a
-                                                href={
-                                                  applicant.user.linkedinUrl
-                                                }
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-600 hover:underline"
-                                              >
-                                                {applicant.user.linkedinUrl}
-                                              </a>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </DialogContent>
-                                    </Dialog>
-                                  </div>
-                                  {/* Display Feedback */}
-                                  {applicant.feedback &&
-                                    applicant.feedback.length > 0 && (
-                                      <div className="mt-4 space-y-2">
-                                        <h4 className="font-medium text-sm flex items-center">
-                                          <MessageSquare className="h-4 w-4 mr-1" />
-                                          Feedback:
-                                        </h4>
-
-                                        {applicant.feedback.map(
-                                          (feedback, index) => (
-                                            <div
-                                              key={index}
-                                              className={`relative p-3 rounded-lg border-l-4 ${getFeedbackStatusColor(
-                                                index,
-                                                applicant.feedback?.length
-                                              )}`}
-                                            >
-                                              <p className="text-sm">
-                                                {feedback.message}
-                                              </p>
-                                              {feedback.createdAt && (
-                                                <p className="absolute text-xs text-muted-foreground right-2 bottom-1">
-                                                  {formatDate(
-                                                    feedback.createdAt
-                                                  )}
-                                                </p>
-                                              )}
-                                            </div>
+                        <CardContent className="p-4 md:p-6">
+                          <div className="space-y-4">
+                            {/* Mobile Action Buttons - Show at top on mobile */}
+                            <div className="md:hidden">
+                              <div className="flex flex-col gap-2">
+                                {applicant.status === "pending" && (
+                                  <>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleStatusUpdate(
+                                            applicant.applicationId,
+                                            "viewed"
                                           )
+                                        }
+                                        disabled={
+                                          updatingStatus ===
+                                          applicant.applicationId
+                                        }
+                                        variant="outline"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                                      >
+                                        {updatingStatus ===
+                                        applicant.applicationId ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <>
+                                            {/* <Eye className="mr-1 h-3 w-3" /> */}
+                                            Mark as Viewed
+                                          </>
                                         )}
-                                      </div>
-                                    )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleStatusUpdate(
+                                            applicant.applicationId,
+                                            "moving-forward"
+                                          )
+                                        }
+                                        disabled={
+                                          updatingStatus ===
+                                          applicant.applicationId
+                                        }
+                                        className="bg-purple-600 hover:bg-purple-700 text-xs"
+                                      >
+                                        {updatingStatus ===
+                                        applicant.applicationId ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <>
+                                            {/* <ArrowRight className="mr-1 h-3 w-3" /> */}
+                                            Move Forward
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleStatusUpdate(
+                                            applicant.applicationId,
+                                            "accepted"
+                                          )
+                                        }
+                                        disabled={
+                                          updatingStatus ===
+                                          applicant.applicationId
+                                        }
+                                        className="bg-green-600 hover:bg-green-700 text-xs"
+                                      >
+                                        {updatingStatus ===
+                                        applicant.applicationId ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <Check className="mr-1 h-3 w-3" />
+                                            Accept
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() =>
+                                          handleStatusUpdate(
+                                            applicant.applicationId,
+                                            "rejected"
+                                          )
+                                        }
+                                        disabled={
+                                          updatingStatus ===
+                                          applicant.applicationId
+                                        }
+                                        className="text-xs"
+                                      >
+                                        {updatingStatus ===
+                                        applicant.applicationId ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <X className="mr-1 h-3 w-3" />
+                                            Reject
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </>
+                                )}
+
+                                {applicant.status === "viewed" && (
+                                  <>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleStatusUpdate(
+                                            applicant.applicationId,
+                                            "moving-forward"
+                                          )
+                                        }
+                                        disabled={
+                                          updatingStatus ===
+                                          applicant.applicationId
+                                        }
+                                        className="bg-purple-600 hover:bg-purple-700 text-xs"
+                                      >
+                                        {updatingStatus ===
+                                        applicant.applicationId ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <ArrowRight className="mr-1 h-3 w-3" />
+                                            Move Forward
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleStatusUpdate(
+                                            applicant.applicationId,
+                                            "accepted"
+                                          )
+                                        }
+                                        disabled={
+                                          updatingStatus ===
+                                          applicant.applicationId
+                                        }
+                                        className="bg-green-600 hover:bg-green-700 text-xs"
+                                      >
+                                        {updatingStatus ===
+                                        applicant.applicationId ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <Check className="mr-1 h-3 w-3" />
+                                            Accept
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "rejected"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      className="w-full text-xs"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <X className="mr-1 h-3 w-3" />
+                                          Reject
+                                        </>
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
+
+                                {applicant.status === "moving-forward" && (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "accepted"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      className="bg-green-600 hover:bg-green-700 text-xs"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Check className="mr-1 h-3 w-3" />
+                                          Accept
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "rejected"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      className="text-xs"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <X className="mr-1 h-3 w-3" />
+                                          Reject
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {/* Always show feedback and LinkedIn buttons on mobile */}
+                                <div className="grid grid-cols-1 gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setFeedbackDialog({
+                                        open: true,
+                                        applicationId: applicant.applicationId,
+                                      })
+                                    }
+                                    className="text-xs"
+                                  >
+                                    <MessageSquare className="mr-1 h-3 w-3" />
+                                    Add Feedback
+                                  </Button>
+                                  {applicant.user.linkedinUrl && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      asChild
+                                      className="text-xs"
+                                    >
+                                      <a
+                                        href={applicant.user.linkedinUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <ExternalLink className="mr-1 h-3 w-3" />
+                                        LinkedIn
+                                      </a>
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex flex-col gap-2 md:min-w-[140px]">
-                              {applicant.status === "pending" && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "viewed"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                    variant="outline"
-                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <Eye className="mr-2 h-4 w-4" />
-                                        Mark as Viewed
-                                      </>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "moving-forward"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                    className="bg-purple-600 hover:bg-purple-700"
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <ArrowRight className="mr-2 h-4 w-4" />
-                                        Move Forward
-                                      </>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "accepted"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                    className="bg-green-600 hover:bg-green-700"
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <Check className="mr-2 h-4 w-4" />
-                                        Accept
-                                      </>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "rejected"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <X className="mr-2 h-4 w-4" />
-                                        Reject
-                                      </>
-                                    )}
-                                  </Button>
-                                </>
-                              )}
+                            {/* Main Content */}
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                {" "}
+                                {/* min-w-0 allows flex child to shrink */}
+                                <div className="flex items-start space-x-3 md:space-x-4">
+                                  <Avatar className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0">
+                                    <AvatarImage
+                                      src={applicant.user.profileImage}
+                                      alt={applicant.user.name}
+                                    />
+                                    <AvatarFallback>
+                                      {getInitials(applicant.user.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
 
-                              {applicant.status === "viewed" && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "moving-forward"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                    className="bg-purple-600 hover:bg-purple-700"
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <ArrowRight className="mr-2 h-4 w-4" />
-                                        Move Forward
-                                      </>
+                                  <div className="flex-1 min-w-0">
+                                    {" "}
+                                    {/* min-w-0 allows flex child to shrink */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                      <h3 className="text-base md:text-lg font-semibold break-words">
+                                        {applicant.user.name}
+                                      </h3>
+                                      <Badge
+                                        className={`${getStatusColor(
+                                          applicant.status
+                                        )} w-fit text-xs`}
+                                      >
+                                        {applicant.status}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 text-xs md:text-sm text-muted-foreground mb-3">
+                                      <div className="flex items-center min-w-0">
+                                        <Mail className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
+                                        <span className="break-all">
+                                          {applicant.user.email}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center">
+                                        <Calendar className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                        <span>
+                                          Applied{" "}
+                                          {formatDate(applicant.appliedAt)}
+                                        </span>
+                                      </div>
+                                      {applicant.user.location && (
+                                        <div className="flex items-center min-w-0">
+                                          <MapPin className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
+                                          <span className="break-words">
+                                            {applicant.user.location}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {applicant.user.skills &&
+                                      applicant.user.skills.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mb-3">
+                                          {applicant.user.skills
+                                            .slice(0, 5)
+                                            .map((skill, index) => (
+                                              <Badge
+                                                key={index}
+                                                variant="outline"
+                                                className="text-xs break-words"
+                                              >
+                                                {skill}
+                                              </Badge>
+                                            ))}
+                                          {applicant.user.skills.length > 5 && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-xs"
+                                            >
+                                              +
+                                              {applicant.user.skills.length - 5}{" "}
+                                              more
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      )}
+                                    {applicant.coverLetter && (
+                                      <div className="bg-muted p-3 rounded-lg mb-3">
+                                        <h4 className="font-medium text-xs md:text-sm mb-2 flex items-center">
+                                          <FileText className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                          Cover Letter:
+                                        </h4>
+                                        <p className="text-xs md:text-sm text-muted-foreground line-clamp-3 break-words">
+                                          {applicant.coverLetter}
+                                        </p>
+                                        {applicant.coverLetter.length > 150 && (
+                                          <Dialog>
+                                            <DialogTrigger asChild>
+                                              <Button
+                                                variant="link"
+                                                size="sm"
+                                                className="p-0 h-auto text-xs"
+                                                onClick={() =>
+                                                  setSelectedApplicant(
+                                                    applicant
+                                                  )
+                                                }
+                                              >
+                                                Read more...
+                                              </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-scroll">
+                                              <DialogHeader>
+                                                <DialogTitle>
+                                                  Cover Letter -{" "}
+                                                  {applicant.user.name}
+                                                </DialogTitle>
+                                                <DialogDescription>
+                                                  Application for{" "}
+                                                  {currentJob?.title}
+                                                </DialogDescription>
+                                              </DialogHeader>
+                                              <div className="mt-4">
+                                                <p className="text-sm whitespace-pre-wrap break-words">
+                                                  {applicant.coverLetter}
+                                                </p>
+                                              </div>
+                                            </DialogContent>
+                                          </Dialog>
+                                        )}
+                                      </div>
                                     )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "accepted"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                    className="bg-green-600 hover:bg-green-700"
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <Check className="mr-2 h-4 w-4" />
-                                        Accept
-                                      </>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "rejected"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <X className="mr-2 h-4 w-4" />
-                                        Reject
-                                      </>
-                                    )}
-                                  </Button>
-                                </>
-                              )}
+                                    {/* View Full Details Button */}
+                                    <div className="mb-3">
+                                      <Dialog>
+                                        <DialogTrigger asChild>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-xs md:text-sm"
+                                          >
+                                            <User className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+                                            View Full Details
+                                          </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-2xl w-[95vw] max-h-[80vh] overflow-y-auto">
+                                          <DialogHeader>
+                                            <DialogTitle>
+                                              Full Application Details -{" "}
+                                              {applicant.user.name}
+                                            </DialogTitle>
+                                          </DialogHeader>
+                                          <div className="space-y-4 mt-4">
+                                            <div>
+                                              <h4 className="font-semibold mb-2">
+                                                Skills
+                                              </h4>
+                                              {applicant.user.skills &&
+                                              applicant.user.skills.length >
+                                                0 ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                  {applicant.user.skills.map(
+                                                    (skill, index) => (
+                                                      <Badge
+                                                        key={index}
+                                                        variant="outline"
+                                                      >
+                                                        {skill}
+                                                      </Badge>
+                                                    )
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <p className="text-muted-foreground">
+                                                  No skills listed
+                                                </p>
+                                              )}
+                                            </div>
 
-                              {applicant.status === "moving-forward" && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "accepted"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                    className="bg-green-600 hover:bg-green-700"
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <Check className="mr-2 h-4 w-4" />
-                                        Accept
-                                      </>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        applicant.applicationId,
-                                        "rejected"
-                                      )
-                                    }
-                                    disabled={
-                                      updatingStatus === applicant.applicationId
-                                    }
-                                  >
-                                    {updatingStatus ===
-                                    applicant.applicationId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <X className="mr-2 h-4 w-4" />
-                                        Reject
-                                      </>
-                                    )}
-                                  </Button>
-                                </>
-                              )}
+                                            {applicant.user.bio && (
+                                              <div>
+                                                <h4 className="font-semibold mb-2">
+                                                  Bio
+                                                </h4>
+                                                <p className="text-sm bg-muted p-3 rounded-lg break-words">
+                                                  {applicant.user.bio}
+                                                </p>
+                                              </div>
+                                            )}
 
-                              {/* Feedback Button - Always show */}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  setFeedbackDialog({
-                                    open: true,
-                                    applicationId: applicant.applicationId,
-                                  })
-                                }
-                              >
-                                <MessageSquare className="mr-2 h-4 w-4" />
-                                Add Feedback
-                              </Button>
+                                            {applicant.user.linkedinUrl && (
+                                              <div>
+                                                <h4 className="font-semibold mb-2">
+                                                  LinkedIn
+                                                </h4>
+                                                <a
+                                                  href={
+                                                    applicant.user.linkedinUrl
+                                                  }
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:underline break-all"
+                                                >
+                                                  {applicant.user.linkedinUrl}
+                                                </a>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </DialogContent>
+                                      </Dialog>
+                                    </div>
+                                    {/* Display Feedback */}
+                                    {applicant.feedback &&
+                                      applicant.feedback.length > 0 && (
+                                        <div className="mt-3">
+                                          <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium text-xs md:text-sm flex items-center text-gray-50">
+                                              <MessageSquare
+                                                className="h-3 w-3 md:h-4 md:w-4 mr-1 text-teal-600"
+                                                strokeWidth={3}
+                                              />
+                                              Feedback (
+                                              {applicant.feedback.length}):
+                                            </h4>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() =>
+                                                toggleFeedback(
+                                                  applicant.applicationId
+                                                )
+                                              }
+                                              className="text-xs p-1 h-auto bg-gray-600"
+                                            >
+                                              {expandedFeedback[
+                                                applicant.applicationId
+                                              ] ? (
+                                                <>
+                                                  <ChevronUp
+                                                    className="h-4 w-5 mr-1 text-white"
+                                                    strokeWidth={5}
+                                                  />
+                                                  Hide
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <ChevronDown
+                                                    className="h-4 w-5 mr-1 text-white"
+                                                    strokeWidth={5}
+                                                  />
+                                                  Show
+                                                </>
+                                              )}
+                                            </Button>
+                                          </div>
+                                          {expandedFeedback[
+                                            applicant.applicationId
+                                          ] && (
+                                            <div className="space-y-2">
+                                              {applicant.feedback.map(
+                                                (feedback, index) => (
+                                                  <div
+                                                    key={index}
+                                                    className={`relative p-3 rounded-lg border-l-4 w-full ${getFeedbackStatusColor(
+                                                      index,
+                                                      applicant.feedback?.length
+                                                    )}`}
+                                                  >
+                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                                                      <p className="text-xs md:text-sm break-words flex-1 leading-relaxed">
+                                                        {feedback.message}
+                                                      </p>
+                                                      {feedback.createdAt && (
+                                                        <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                                          {formatDate(
+                                                            feedback.createdAt
+                                                          )}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                  </div>
+                                </div>
+                              </div>
 
-                              {/* LinkedIn Button */}
-                              {applicant.user.linkedinUrl && (
-                                <Button size="sm" variant="outline" asChild>
-                                  <a
-                                    href={applicant.user.linkedinUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    LinkedIn
-                                  </a>
+                              {/* Desktop Action Buttons - Hidden on mobile */}
+                              <div className="hidden md:flex flex-col gap-2 min-w-[140px]">
+                                {applicant.status === "pending" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "viewed"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      variant="outline"
+                                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Eye className="mr-2 h-4 w-4" />
+                                          Mark as Viewed
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "moving-forward"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      className="bg-purple-600 hover:bg-purple-700"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <ArrowRight className="mr-2 h-4 w-4" />
+                                          Move Forward
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "accepted"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Check className="mr-2 h-4 w-4" />
+                                          Accept
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "rejected"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <X className="mr-2 h-4 w-4" />
+                                          Reject
+                                        </>
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
+
+                                {applicant.status === "viewed" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "moving-forward"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      className="bg-purple-600 hover:bg-purple-700"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <ArrowRight className="mr-2 h-4 w-4" />
+                                          Move Forward
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "accepted"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Check className="mr-2 h-4 w-4" />
+                                          Accept
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "rejected"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <X className="mr-2 h-4 w-4" />
+                                          Reject
+                                        </>
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
+
+                                {applicant.status === "moving-forward" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "accepted"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Check className="mr-2 h-4 w-4" />
+                                          Accept
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          applicant.applicationId,
+                                          "rejected"
+                                        )
+                                      }
+                                      disabled={
+                                        updatingStatus ===
+                                        applicant.applicationId
+                                      }
+                                    >
+                                      {updatingStatus ===
+                                      applicant.applicationId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <X className="mr-2 h-4 w-4" />
+                                          Reject
+                                        </>
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
+
+                                {/* Feedback Button - Always show on desktop */}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    setFeedbackDialog({
+                                      open: true,
+                                      applicationId: applicant.applicationId,
+                                    })
+                                  }
+                                >
+                                  <MessageSquare className="mr-2 h-4 w-4" />
+                                  Add Feedback
                                 </Button>
-                              )}
+
+                                {/* LinkedIn Button on desktop */}
+                                {applicant.user.linkedinUrl && (
+                                  <Button size="sm" variant="outline" asChild>
+                                    <a
+                                      href={applicant.user.linkedinUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <ExternalLink className="mr-2 h-4 w-4" />
+                                      LinkedIn
+                                    </a>
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
-
                     {/* Pagination */}
                     {applicantsPagination.pages > 1 && (
                       <div className="flex justify-center space-x-2 mt-6">
