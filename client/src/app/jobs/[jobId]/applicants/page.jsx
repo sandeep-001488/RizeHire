@@ -51,7 +51,6 @@ export default function JobApplicantsPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = params.jobId;
-  console.log(params);
 
   // Local state management
   const [jobApplicants, setJobApplicants] = useState([]);
@@ -106,7 +105,6 @@ export default function JobApplicantsPage() {
   };
 
   const fetchApplicants = async (status = "all") => {
-    console.log("🔍 Starting fetchApplicants with:", { jobId, status });
     setIsLoadingApplicants(true);
     try {
       const params = {
@@ -118,7 +116,6 @@ export default function JobApplicantsPage() {
       }
 
       const response = await applicationsAPI.getJobApplicants(jobId, params);
-      console.log("Fetched applicants:", response.data.data);
 
       const { applicants, pagination, stats } = response.data.data;
       setJobApplicants(applicants);

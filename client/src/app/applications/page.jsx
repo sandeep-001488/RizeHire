@@ -8,7 +8,15 @@ import { Button } from "@/components/ui/button";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import { applicationsAPI } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { FileText, Clock, MapPin, Eye, MessageSquare } from "lucide-react";
+import {
+  FileText,
+  Clock,
+  MapPin,
+  Eye,
+  MessageSquare,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +30,7 @@ export default function ApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [expandedFeedback, setExpandedFeedback] = useState({});
 
   useEffect(() => {
     fetchApplications();
@@ -29,15 +38,20 @@ export default function ApplicationsPage() {
 
   const fetchApplications = async () => {
     try {
-      console.log("Fetching applications...");
       const response = await applicationsAPI.getMyApplications();
-      console.log("Applications response:", response.data);
       setApplications(response.data.data.applications);
     } catch (error) {
       console.error("Error fetching applications:", error.response?.data);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleFeedback = (applicationId) => {
+    setExpandedFeedback((prev) => ({
+      ...prev,
+      [applicationId]: !prev[applicationId],
+    }));
   };
 
   const getStatusColor = (status) => {
@@ -103,7 +117,6 @@ export default function ApplicationsPage() {
     ];
     const progressIndex = Math.min(feedbackIndex, statusProgression.length - 1);
     const status = statusProgression[progressIndex];
-
     switch (status) {
       case "pending":
         return "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400";
@@ -234,25 +247,61 @@ export default function ApplicationsPage() {
                       {application.feedback &&
                         application.feedback.length > 0 && (
                           <div className="mt-4 space-y-2">
-                            <h4 className="font-medium text-sm flex items-center">
-                              <MessageSquare className="h-4 w-4 mr-1" />
-                              Recruiter Feedback:
-                            </h4>
-
-                            {application.feedback.map((feedback, index) => (
-                              <div
-                                key={index}
-                                className={`relative p-3 rounded-lg border-l-4 ${getFeedbackStatusColor(
-                                  index,
-                                  application.feedback?.length
-                                )}`}
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-medium text-sm flex items-center">
+                                <MessageSquare
+                                  className="h-4 w-4 mr-1 text-pink-700"
+                                  strokeWidth={3}
+                                />
+                                Recruiter Feedback (
+                                {application.feedback.length}):
+                              </h4>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleFeedback(application._id)}
+                                className="text-xs p-1 h-auto bg-gray-600"
                               >
-                                <p className="text-sm">{feedback.message}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {formatDate(feedback.createdAt)}
-                                </p>
+                                {expandedFeedback[application._id] ? (
+                                  <>
+                                    <ChevronUp
+                                      className="h-4 w-5 mr-1 text-white"
+                                      strokeWidth={5}
+                                    />
+                                    Hide
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown
+                                      className="h-4 w-5 mr-1 text-white"
+                                      strokeWidth={5}
+                                    />
+                                    Show
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+
+                            {expandedFeedback[application._id] && (
+                              <div className="space-y-2">
+                                {application.feedback.map((feedback, index) => (
+                                  <div
+                                    key={index}
+                                    className={`relative p-3 rounded-lg border-l-4 ${getFeedbackStatusColor(
+                                      index,
+                                      application.feedback?.length
+                                    )}`}
+                                  >
+                                    <p className="text-sm">
+                                      {feedback.message}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {formatDate(feedback.createdAt)}
+                                    </p>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
                     </div>
