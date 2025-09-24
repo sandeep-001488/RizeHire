@@ -1,4 +1,5 @@
 import { generateContent } from "../config/gemini.js";
+import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
 
 const fallbackSkillsExtraction = (text) => {
@@ -194,17 +195,19 @@ EXPECTED OUTPUT FORMAT (example):
 
 YOUR RESPONSE:`;
 
-      
+      console.log("📤 Sending to Gemini AI...");
+      console.log("📤 Prompt preview:", prompt.substring(0, 300) + "...");
 
       aiResponse = await generateContent(prompt);
+      console.log("📥 Raw AI Response:", aiResponse);
 
       let jsonMatch = null;
 
       const patterns = [
-        /\[[\s\S]*?\]/, 
-        /\[[\s\S]*?\]/g, 
-        /```json\s*(\[[\s\S]*?\])\s*```/, 
-        /```\s*(\[[\s\S]*?\])\s*```/, 
+        /\[[\s\S]*?\]/,
+        /\[[\s\S]*?\]/g,
+        /```json\s*(\[[\s\S]*?\])\s*```/,
+        /```\s*(\[[\s\S]*?\])\s*```/,
       ];
 
       for (const pattern of patterns) {
@@ -237,7 +240,6 @@ YOUR RESPONSE:`;
             })
             .map((skill) => skill.trim())
             .slice(0, 15);
-
         } else {
           throw new Error("Parsed result is not an array");
         }
@@ -246,13 +248,14 @@ YOUR RESPONSE:`;
           throw new Error("AI returned empty skills array");
         }
       } else {
+        console.log("❌ No JSON array found in response");
         throw new Error("No valid JSON array found in AI response");
       }
     } catch (aiError) {
-
       skills = fallbackSkillsExtraction(text);
       usingFallback = true;
 
+      console.log("🔄 Fallback extracted:", skills);
     }
 
     const result = {
@@ -323,6 +326,7 @@ INSTRUCTIONS:
 RESPONSE:`;
 
       const response = await generateContent(prompt);
+      console.log("Job match AI response:", response);
 
       const scoreMatch = response.match(/\d+/);
       const score = scoreMatch ? parseInt(scoreMatch[0]) : 0;
@@ -336,6 +340,8 @@ RESPONSE:`;
       const jobSkills = job.skills || [];
       const userSkillsLower = userSkills.map((s) => s.toLowerCase());
       const jobSkillsLower = jobSkills.map((s) => s.toLowerCase());
+      console.log("job sskiils ", jobSkillsLower);
+      console.log("user sskiils ", userSkillsLower);
 
       let matchingSkills = 0;
       jobSkillsLower.forEach((jobSkill) => {
@@ -406,6 +412,7 @@ const getJobRecommendations = async (req, res) => {
   try {
     const user = req.user;
     const userSkills = user.skills || [];
+    const userBio = user.bio || "";
 
     if (userSkills.length === 0) {
       return res.json({
@@ -491,7 +498,6 @@ const getJobRecommendations = async (req, res) => {
     });
   }
 };
-
 const getCareerSuggestions = async (req, res) => {
   try {
     const user = req.user;
@@ -654,5 +660,5 @@ export {
   getCareerSuggestions,
   optimizeJobDescription,
   generateInterviewQuestions,
-  testAI, 
+  testAI,
 };
