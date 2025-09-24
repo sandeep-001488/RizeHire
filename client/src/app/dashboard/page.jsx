@@ -38,7 +38,7 @@ export default function DashboardPage() {
       const [myJobsRes, applicationsRes, recommendationsRes] =
         await Promise.allSettled([
           jobsAPI.getMyJobs({ limit: 5 }),
-          applicationsAPI.getMyApplications({ limit: 5 }), // Changed from jobsAPI
+          applicationsAPI.getMyApplications({ limit: 5 }), 
           aiAPI.getRecommendations(),
         ]);
 
