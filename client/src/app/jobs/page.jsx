@@ -76,7 +76,7 @@ export default function JobsPage() {
   };
 
   const isJobOwner = (job) => {
-    return isAuthenticated && user && job.postedBy._id === user._id;
+    return isAuthenticated && user && job?.postedBy?._id === user?._id;
   };
 
   const jobTypes = [
@@ -247,7 +247,7 @@ export default function JobsPage() {
                         </h3>
                       </Link>
                       <p className="text-muted-foreground mt-1">
-                        {job.postedBy.name}
+                        {job.postedBy?.name || "Sandeep"}
                       </p>
 
                       <p className="mt-3 text-sm text-muted-foreground line-clamp-2">
