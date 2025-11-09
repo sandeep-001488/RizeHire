@@ -1,14 +1,24 @@
 import User from "../models/user.model.js";
 import { generateTokenPair, verifyRefreshToken } from "../utils/jwt.utils.js";
+import extractTextFromResume from "../utils/resumeParser.js";
+import { parseResumeWithAI } from "../utils/aiScreening.js";
+import { sendEmail } from "../utils/email.js";
 import Joi from "joi";
+import crypto from "crypto";
 
 const registerSchema = Joi.object({
   name: Joi.string().min(2).max(100).required(),
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
-  bio: Joi.string().max(500).optional(),
-  linkedinUrl: Joi.string().uri().optional(),
-  walletAddress: Joi.string().optional(),
+  role: Joi.string().valid("seeker", "poster").required(),
+  gender: Joi.string().valid("male", "female", "other").when("role", {
+    is: "seeker",
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  bio: Joi.string().max(10000).optional().allow(""),
+  linkedinUrl: Joi.string().uri().optional().allow(""),
+  walletAddress: Joi.string().optional().allow(""),
 });
 
 const loginSchema = Joi.object({
@@ -26,7 +36,16 @@ const register = async (req, res) => {
       });
     }
 
-    const { name, email, password, bio, linkedinUrl, walletAddress } = value;
+    const {
+      name,
+      email,
+      password,
+      role,
+      gender,
+      bio,
+      linkedinUrl,
+      walletAddress,
+    } = value;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -40,13 +59,14 @@ const register = async (req, res) => {
       name,
       email,
       password,
+      role,
+      gender: gender || undefined, 
       bio: bio || "",
       linkedinUrl,
       walletAddress,
     });
 
     const tokens = generateTokenPair({ userId: user._id, email: user.email });
-
     await user.addRefreshToken(tokens.refreshToken);
 
     res.status(201).json({
@@ -94,7 +114,6 @@ const login = async (req, res) => {
     }
 
     const tokens = generateTokenPair({ userId: user._id, email: user.email });
-
     await user.addRefreshToken(tokens.refreshToken);
 
     user.password = undefined;
@@ -147,8 +166,6 @@ const refreshToken = async (req, res) => {
     }
 
     const tokens = generateTokenPair({ userId: user._id, email: user.email });
-
-    
 
     res.json({
       success: true,
@@ -205,11 +222,13 @@ const updateProfile = async (req, res) => {
   try {
     const updateSchema = Joi.object({
       name: Joi.string().min(2).max(100).optional(),
-      bio: Joi.string().max(500).optional(),
-      linkedinUrl: Joi.string().uri().optional(),
-      walletAddress: Joi.string().optional(),
+      gender: Joi.string().valid("male", "female", "other").optional(),
+      bio: Joi.string().max(10000).optional().allow(""),
+      linkedinUrl: Joi.string().uri().optional().allow(""),
+      walletAddress: Joi.string().optional().allow(""),
       skills: Joi.array().items(Joi.string().max(50)).max(20).optional(),
     });
+
     const { error, value } = updateSchema.validate(req.body);
     if (error) {
       return res.status(400).json({
@@ -238,4 +257,203 @@ const updateProfile = async (req, res) => {
   }
 };
 
-export { register, login, refreshToken, logout, getProfile, updateProfile };
+// UPDATED: Parse and Save Resume with Gender Priority Logic ---
+const parseAndSaveResume = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Resume file (PDF/DOCX) is required",
+      });
+    }
+
+    const resumeText = await extractTextFromResume(req.file.path);
+    if (!resumeText || resumeText.trim().length < 50) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Could not extract meaningful text from resume. Please ensure the file is readable.",
+      });
+    }
+
+    const parsedData = await parseResumeWithAI(resumeText);
+
+    const user = req.user;
+
+   
+    if (user.gender && (user.gender === "male" || user.gender === "female")) {
+      // User has explicitly specified male/female during registration
+      parsedData.gender = user.gender;
+    } else if (parsedData.gender && user.gender === "other") {
+      // User selected "other" but resume has specific gender, use resume gender
+      user.gender = parsedData.gender;
+    }
+    // If both are null/other, leave as is
+
+    user.parsedResume = parsedData;
+
+    if (parsedData.skills && parsedData.skills.length > 0) {
+      const existingSkills = user.skills || [];
+      const allSkills = [...existingSkills, ...parsedData.skills];
+
+      const uniqueSkills = [
+        ...new Set(allSkills.map((skill) => skill.toLowerCase())),
+      ].map((lowerSkill) => {
+        // Find original case version
+        return allSkills.find((s) => s.toLowerCase() === lowerSkill);
+      });
+
+      user.skills = uniqueSkills.slice(0, 20); // Limit to 20 skills
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Resume parsed and profile updated successfully",
+      data: {
+        user,
+        parsedDetails: {
+          name: parsedData.name,
+          email: parsedData.email,
+          phone: parsedData.phone,
+          skills: parsedData.skills,
+          yearsOfExperience: parsedData.yearsOfExperience,
+          gender: parsedData.gender,
+          location: parsedData.location,
+          education: parsedData.education,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Resume parsing error:", error);
+    res.status(500).json({
+      success: false,
+      message: `Failed to parse resume: ${error.message}`,
+    });
+  }
+};
+
+// --- Forgot Password ---
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.json({
+        success: true,
+        message:
+          "If an account exists, a reset link has been sent to your email.",
+      });
+    }
+
+    const rawToken = user.createPasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password/${rawToken}`;
+    const html = `
+      <h1>Password Reset Request</h1>
+      <p>You requested to reset your password. Click the link below to proceed:</p>
+      <a href="${resetUrl}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Reset Your Password</a>
+      <p>This link expires in 15 minutes.</p>
+      <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset Request - RizeHire",
+      html,
+    });
+
+    res.json({
+      success: true,
+      message:
+        "If an account exists, a reset link has been sent to your email.",
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    // Clear tokens on error
+    if (req.user) {
+      req.user.resetPasswordToken = undefined;
+      req.user.resetPasswordExpires = undefined;
+      await req.user.save({ validateBeforeSave: false });
+    }
+    res.status(500).json({
+      success: false,
+      message: "Failed to process password reset request",
+    });
+  }
+};
+
+// --- Reset Password ---
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    // Hash the token from the URL
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Password reset token is invalid or has expired",
+      });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    const tokens = generateTokenPair({ userId: user._id, email: user.email });
+    await user.addRefreshToken(tokens.refreshToken);
+    user.password = undefined;
+
+    res.json({
+      success: true,
+      message: "Password reset successful. You are now logged in.",
+      data: {
+        user,
+        tokens,
+      },
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to reset password",
+    });
+  }
+};
+
+export {
+  register,
+  login,
+  refreshToken,
+  logout,
+  getProfile,
+  updateProfile,
+  parseAndSaveResume,
+  forgotPassword,
+  resetPassword,
+};

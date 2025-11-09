@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import api from "@/lib/api";
+import { applicationsAPI } from "@/lib/api";
 
 const useApplicationStore = create((set, get) => ({
   myApplications: [],
@@ -26,7 +26,9 @@ const useApplicationStore = create((set, get) => ({
     limit: 10,
   },
   applicantsFilters: {
-    status: "all", 
+    status: "all",
+    sortBy: "matchScore", // New default sort
+    sortOrder: "desc",
   },
   myApplicationsFilters: {
     status: "all",
@@ -68,7 +70,7 @@ const useApplicationStore = create((set, get) => ({
         applicant.applicationId === applicationId
           ? {
               ...applicant,
-              status: newStatus,
+              status: newStatus || applicant.status, // Allow null to only update feedback
               ...(feedback && { feedback: [...applicant.feedback, feedback] }),
             }
           : applicant
@@ -77,7 +79,7 @@ const useApplicationStore = create((set, get) => ({
         app._id === applicationId
           ? {
               ...app,
-              status: newStatus,
+              status: newStatus || app.status,
               ...(feedback && { feedback: [...app.feedback, feedback] }),
             }
           : app
@@ -86,7 +88,7 @@ const useApplicationStore = create((set, get) => ({
         state.currentApplication?._id === applicationId
           ? {
               ...state.currentApplication,
-              status: newStatus,
+              status: newStatus || state.currentApplication.status,
               ...(feedback && {
                 feedback: [...state.currentApplication.feedback, feedback],
               }),
@@ -112,16 +114,16 @@ const useApplicationStore = create((set, get) => ({
     set({
       applicantsFilters: {
         status: "all",
+        sortBy: "matchScore",
+        sortOrder: "desc",
       },
     }),
-
   clearMyApplicationsFilters: () =>
     set({
       myApplicationsFilters: {
         status: "all",
       },
     }),
-
   clearJobApplicants: () =>
     set({
       jobApplicants: [],
@@ -145,18 +147,14 @@ const useApplicationStore = create((set, get) => ({
   applyToJob: async (jobId, coverLetter) => {
     try {
       set({ isLoading: true });
-      const response = await api.post(`/applications/jobs/${jobId}/apply`, {
-        coverLetter,
-      });
-
+      const response = await applicationsAPI.applyToJob(jobId, { coverLetter });
       if (response.data.success) {
-        // Optionally refetch my applications to get the updated list
         await get().fetchMyApplications();
         return response.data.data;
       }
     } catch (error) {
       console.error("Error applying to job:", error);
-      throw error;
+      throw error.response?.data || error;
     } finally {
       set({ isLoading: false });
     }
@@ -166,25 +164,18 @@ const useApplicationStore = create((set, get) => ({
     try {
       set({ isLoadingMyApplications: true });
       const state = get();
-
       const queryParams = {
         page: state.myApplicationsPagination.current,
         limit: state.myApplicationsPagination.limit,
         ...state.myApplicationsFilters,
         ...params,
       };
-
-      // Remove empty filters
       Object.keys(queryParams).forEach((key) => {
         if (queryParams[key] === "") {
           delete queryParams[key];
         }
       });
-
-      const response = await api.get("/applications/my-applications", {
-        params: queryParams,
-      });
-
+      const response = await applicationsAPI.getMyApplications(queryParams);
       if (response.data.success) {
         set({
           myApplications: response.data.data.applications,
@@ -193,7 +184,7 @@ const useApplicationStore = create((set, get) => ({
       }
     } catch (error) {
       console.error("Error fetching my applications:", error);
-      throw error;
+      throw error.response?.data || error;
     } finally {
       set({ isLoadingMyApplications: false });
     }
@@ -203,25 +194,21 @@ const useApplicationStore = create((set, get) => ({
     try {
       set({ isLoadingApplicants: true });
       const state = get();
-
       const queryParams = {
         page: state.applicantsPagination.current,
         limit: state.applicantsPagination.limit,
         ...state.applicantsFilters,
         ...params,
       };
-
-      // Remove empty filters
       Object.keys(queryParams).forEach((key) => {
         if (queryParams[key] === "" || queryParams[key] === "all") {
           delete queryParams[key];
         }
       });
-
-      const response = await api.get(`/applications/jobs/${jobId}/applicants`, {
-        params: queryParams,
-      });
-
+      const response = await applicationsAPI.getJobApplicants(
+        jobId,
+        queryParams
+      );
       if (response.data.success) {
         set({
           jobApplicants: response.data.data.applicants,
@@ -231,7 +218,7 @@ const useApplicationStore = create((set, get) => ({
       }
     } catch (error) {
       console.error("Error fetching job applicants:", error);
-      throw error;
+      throw error.response?.data || error;
     } finally {
       set({ isLoadingApplicants: false });
     }
@@ -240,15 +227,14 @@ const useApplicationStore = create((set, get) => ({
   fetchApplication: async (applicationId) => {
     try {
       set({ isLoading: true });
-      const response = await api.get(`/applications/${applicationId}`);
-
+      const response = await applicationsAPI.getApplication(applicationId);
       if (response.data.success) {
         set({ currentApplication: response.data.data.application });
         return response.data.data.application;
       }
     } catch (error) {
       console.error("Error fetching application:", error);
-      throw error;
+      throw error.response?.data || error;
     } finally {
       set({ isLoading: false });
     }
@@ -264,36 +250,35 @@ const useApplicationStore = create((set, get) => ({
       if (feedback) {
         payload.feedback = feedback;
       }
-
-      const response = await api.put(
-        `/applications/${applicationId}/status`,
+      const response = await applicationsAPI.updateApplicationStatus(
+        applicationId,
         payload
       );
-
       if (response.data.success) {
         get().updateApplicationStatus(
           applicationId,
           status,
           feedback ? { message: feedback, createdAt: new Date() } : null
         );
+        // Refetch stats
+        await get().fetchJobApplicants(
+          response.data.data.application.jobId,
+          {}
+        );
         return response.data.data;
       }
     } catch (error) {
       console.error("Error updating application status:", error);
-      throw error;
+      throw error.response?.data || error;
     }
   },
 
   addFeedback: async (applicationId, message, visibleToApplicant = true) => {
     try {
-      const response = await api.post(
-        `/applications/${applicationId}/feedback`,
-        {
-          message,
-          visibleToApplicant,
-        }
-      );
-
+      const response = await applicationsAPI.addFeedback(applicationId, {
+        message,
+        visibleToApplicant,
+      });
       if (response.data.success) {
         const feedback = response.data.data.feedback;
         get().updateApplicationStatus(applicationId, null, feedback);
@@ -301,7 +286,7 @@ const useApplicationStore = create((set, get) => ({
       }
     } catch (error) {
       console.error("Error adding feedback:", error);
-      throw error;
+      throw error.response?.data || error;
     }
   },
 

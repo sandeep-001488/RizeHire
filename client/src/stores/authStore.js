@@ -1,10 +1,8 @@
 "use client";
-import axios from "axios";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { authAPI } from "@/lib/api"; 
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL;
 
 export const useAuthStore = create(
   persist(
@@ -23,16 +21,9 @@ export const useAuthStore = create(
 
       login: async (credentials) => {
         set({ isLoading: true, error: null });
-
         try {
-          const response = await axios.post(
-            `${API_BASE_URL}/auth/login`,
-            credentials,
-            { headers: { "Content-Type": "application/json" } }
-          );
-
+          const response = await authAPI.login(credentials); 
           const { user, tokens } = response.data.data;
-
           set({
             user,
             tokens,
@@ -41,34 +32,24 @@ export const useAuthStore = create(
             error: null,
             isInitialized: true,
           });
-
           return { success: true, user, tokens };
         } catch (error) {
           const errorMessage = error.response?.data?.message || "Login failed";
-
           set({
             error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
             isInitialized: true,
           });
-
           return { success: false, error: errorMessage };
         }
       },
 
       register: async (userData) => {
         set({ isLoading: true, error: null });
-
         try {
-          const response = await axios.post(
-            `${API_BASE_URL}/auth/register`,
-            userData,
-            { headers: { "Content-Type": "application/json" } }
-          );
-
+          const response = await authAPI.register(userData); 
           const { user, tokens } = response.data.data;
-
           set({
             user,
             tokens,
@@ -77,43 +58,29 @@ export const useAuthStore = create(
             error: null,
             isInitialized: true,
           });
-
           return { success: true, user, tokens };
         } catch (error) {
           const errorMessage =
             error.response?.data?.message || "Registration failed";
-
           set({
             error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
             isInitialized: true,
           });
-
           return { success: false, error: errorMessage };
         }
       },
 
       logout: async () => {
         const { tokens } = get();
-
         try {
           if (tokens?.refreshToken) {
-            await axios.post(
-              `${API_BASE_URL}/auth/logout`,
-              { refreshToken: tokens.refreshToken },
-              {
-                headers: {
-                  Authorization: `Bearer ${tokens.accessToken}`,
-                  "Content-Type": "application/json",
-                },
-              }
-            );
+            await authAPI.logout(tokens.refreshToken); 
           }
         } catch (error) {
           console.error("Logout API error:", error);
         }
-
         set({
           user: null,
           tokens: null,
@@ -128,9 +95,7 @@ export const useAuthStore = create(
           set({ isInitialized: true, isAuthenticated: false });
           return;
         }
-
         const { tokens } = get();
-
         if (!tokens?.accessToken) {
           set({
             isInitialized: true,
@@ -140,16 +105,9 @@ export const useAuthStore = create(
           });
           return;
         }
-
         set({ isLoading: true });
-
         try {
-          const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
-            headers: {
-              Authorization: `Bearer ${tokens.accessToken}`,
-            },
-          });
-
+          const response = await authAPI.getProfile();
           set({
             user: response.data.data.user,
             isAuthenticated: true,
@@ -166,6 +124,74 @@ export const useAuthStore = create(
           });
         }
       },
+
+      // --- NEW ACTIONS ---
+
+      forgotPassword: async (email) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authAPI.forgotPassword({ email });
+          set({ isLoading: false });
+          return { success: true, message: response.data.message };
+        } catch (error) {
+          const errorMessage =
+            error.response?.data?.message || "Failed to send reset email";
+          set({ isLoading: false, error: errorMessage });
+          return { success: false, error: errorMessage };
+        }
+      },
+
+      resetPassword: async (token, password) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authAPI.resetPassword(token, { password });
+          const { user, tokens } = response.data.data;
+          // Log the user in
+          set({
+            user,
+            tokens,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+            isInitialized: true,
+          });
+          return { success: true, user };
+        } catch (error) {
+          const errorMessage =
+            error.response?.data?.message || "Failed to reset password";
+          set({
+            isLoading: false,
+            error: errorMessage,
+            isAuthenticated: false,
+            isInitialized: true,
+          });
+          return { success: false, error: errorMessage };
+        }
+      },
+
+      parseResume: async (file) => {
+        set({ isLoading: true, error: null });
+        const formData = new FormData();
+        formData.append("resume", file);
+        try {
+          const response = await authAPI.parseResume(formData);
+          const { user } = response.data.data;
+          set((state) => ({
+            ...state,
+            user,
+            isLoading: false,
+            error: null,
+          }));
+          return { success: true, user };
+        } catch (error) {
+          const errorMessage =
+            error.response?.data?.message || "Failed to parse resume";
+          set({ isLoading: false, error: errorMessage });
+          return { success: false, error: errorMessage };
+        }
+      },
+
+      // --- END NEW ACTIONS ---
 
       setUser: (user) => {
         set({ user, isAuthenticated: !!user });

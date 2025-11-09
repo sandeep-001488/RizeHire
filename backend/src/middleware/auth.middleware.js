@@ -47,6 +47,7 @@ const optionalAuth = async (req, res, next) => {
     }
     next();
   } catch (error) {
+    // If token is invalid/expired, just continue without auth
     next();
   }
 };

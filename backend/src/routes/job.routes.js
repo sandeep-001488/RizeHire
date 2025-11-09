@@ -8,8 +8,7 @@ import {
   getMyJobs,
 } from "../controllers/job.controllers.js";
 import { protect, optionalAuth } from "../middleware/auth.middleware.js";
-import { requirePayment } from "../middleware/payment.middleware.js";
-
+import { isPoster, hasWallet } from "../middleware/role.middleware.js";
 
 const router = express.Router();
 
@@ -17,11 +16,14 @@ router.get("/", optionalAuth, getJobs);
 
 router.use(protect);
 
-router.post("/", requirePayment, createJob);
-router.get("/my-posted-jobs", getMyJobs);
+router.post("/", isPoster, hasWallet, createJob);
+
+router.get("/my-posted-jobs", isPoster, getMyJobs);
 
 router.get("/:id", getJob);
-router.put("/:id", updateJob);
-router.delete("/:id", deleteJob);
+
+router.put("/:id", isPoster, updateJob);
+
+router.delete("/:id", isPoster, deleteJob);
 
 export default router;

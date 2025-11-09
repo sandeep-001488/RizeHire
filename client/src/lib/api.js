@@ -15,8 +15,6 @@ api.interceptors.request.use(
     const authHeader = useAuthStore.getState().getAuthHeader();
     if (authHeader) {
       config.headers.Authorization = authHeader;
-    } else {
-      console.log("⚠️ API Request without auth header:", config.url);
     }
     return config;
   },
@@ -30,7 +28,6 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
       const { tokens, logout, setTokens } = useAuthStore.getState();
 
       if (tokens?.refreshToken) {
@@ -41,10 +38,8 @@ api.interceptors.response.use(
               refreshToken: tokens.refreshToken,
             }
           );
-
           const newTokens = response.data.data.tokens;
           setTokens(newTokens);
-
           originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
@@ -61,7 +56,6 @@ api.interceptors.response.use(
         }
       }
     }
-
     return Promise.reject(error);
   }
 );
@@ -71,9 +65,17 @@ export const authAPI = {
   login: (data) => api.post("/auth/login", data),
   logout: (refreshToken) => api.post("/auth/logout", { refreshToken }),
   getProfile: () => api.get("/auth/profile"),
-  updateProfile: (data) => {
-    return api.put("/auth/profile", data);
-  },
+  updateProfile: (data) => api.put("/auth/profile", data),
+  // --- NEW ---
+  forgotPassword: (data) => api.post("/auth/forgot-password", data),
+  resetPassword: (token, data) =>
+    api.patch(`/auth/reset-password/${token}`, data),
+  parseResume: (formData) =>
+    api.post("/auth/profile/parse-resume", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }),
 };
 
 export const jobsAPI = {
@@ -116,14 +118,6 @@ export const aiAPI = {
   getInterviewQuestions: (jobId) => api.get(`/ai/interview-questions/${jobId}`),
 };
 
-export const paymentsAPI = {
-  verifyPayment: (data) => api.post("/payments/verify", data),
-  getPaymentStatus: (jobId) => api.get(`/payments/status/${jobId}`),
-  updateWalletAddress: (data) => api.put("/payments/wallet", data),
-  updatePaymentVerification: (jobId, data) =>
-    api.put(`/payments/verify/${jobId}`, data),
-  getPaymentHistory: () => api.get("/payments/history"),
-  getFeeInfo: () => api.get("/payments/fee-info"),
-};
+
 
 export default api;

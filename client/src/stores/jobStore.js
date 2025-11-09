@@ -1,8 +1,7 @@
 import { create } from "zustand";
-import api from "@/lib/api";
+import { jobsAPI } from "@/lib/api"; 
 
 const useJobStore = create((set, get) => ({
-  // State
   jobs: [],
   currentJob: null,
   myJobs: [],
@@ -87,15 +86,12 @@ const useJobStore = create((set, get) => ({
     try {
       set({ isLoading: true });
       const state = get();
-
       const queryParams = {
         page: state.pagination.current,
         limit: state.pagination.limit,
         ...state.filters,
         ...params,
       };
-
-      // Remove empty filters
       Object.keys(queryParams).forEach((key) => {
         if (
           queryParams[key] === "" ||
@@ -104,9 +100,7 @@ const useJobStore = create((set, get) => ({
           delete queryParams[key];
         }
       });
-
-      const response = await api.get("/jobs", { params: queryParams });
-
+      const response = await jobsAPI.getJobs(queryParams);
       if (response.data.success) {
         set({
           jobs: response.data.data.jobs,
@@ -115,7 +109,7 @@ const useJobStore = create((set, get) => ({
       }
     } catch (error) {
       console.error("Error fetching jobs:", error);
-      throw error;
+      throw error.response?.data || error;
     } finally {
       set({ isLoading: false });
     }
@@ -124,15 +118,14 @@ const useJobStore = create((set, get) => ({
   fetchJob: async (jobId) => {
     try {
       set({ isLoading: true });
-      const response = await api.get(`/jobs/${jobId}`);
-
+      const response = await jobsAPI.getJob(jobId);
       if (response.data.success) {
         set({ currentJob: response.data.data.job });
         return response.data.data.job;
       }
     } catch (error) {
       console.error("Error fetching job:", error);
-      throw error;
+      throw error.response?.data || error;
     } finally {
       set({ isLoading: false });
     }
@@ -142,17 +135,12 @@ const useJobStore = create((set, get) => ({
     try {
       set({ isLoadingMyJobs: true });
       const state = get();
-
       const queryParams = {
         page: state.myJobsPagination.current,
         limit: state.myJobsPagination.limit,
         ...params,
       };
-
-      const response = await api.get("/jobs/my-posted-jobs", {
-        params: queryParams,
-      });
-
+      const response = await jobsAPI.getMyJobs(queryParams);
       if (response.data.success) {
         set({
           myJobs: response.data.data.jobs,
@@ -161,7 +149,7 @@ const useJobStore = create((set, get) => ({
       }
     } catch (error) {
       console.error("Error fetching my jobs:", error);
-      throw error;
+      throw error.response?.data || error;
     } finally {
       set({ isLoadingMyJobs: false });
     }
@@ -169,8 +157,7 @@ const useJobStore = create((set, get) => ({
 
   createJob: async (jobData) => {
     try {
-      const response = await api.post("/jobs", jobData);
-
+      const response = await jobsAPI.createJob(jobData);
       if (response.data.success) {
         const newJob = response.data.data.job;
         get().addJob(newJob);
@@ -178,14 +165,13 @@ const useJobStore = create((set, get) => ({
       }
     } catch (error) {
       console.error("Error creating job:", error);
-      throw error;
+      throw error.response?.data || error;
     }
   },
 
   updateJobById: async (jobId, updates) => {
     try {
-      const response = await api.put(`/jobs/${jobId}`, updates);
-
+      const response = await jobsAPI.updateJob(jobId, updates);
       if (response.data.success) {
         const updatedJob = response.data.data.job;
         get().updateJob(jobId, updatedJob);
@@ -193,21 +179,20 @@ const useJobStore = create((set, get) => ({
       }
     } catch (error) {
       console.error("Error updating job:", error);
-      throw error;
+      throw error.response?.data || error;
     }
   },
 
   deleteJob: async (jobId) => {
     try {
-      const response = await api.delete(`/jobs/${jobId}`);
-
+      const response = await jobsAPI.deleteJob(jobId);
       if (response.data.success) {
         get().removeJob(jobId);
         return true;
       }
     } catch (error) {
       console.error("Error deleting job:", error);
-      throw error;
+      throw error.response?.data || error;
     }
   },
 }));

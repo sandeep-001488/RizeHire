@@ -43,6 +43,9 @@ pids
 *.seed
 *.pid.lock
 
+#restrict resume upload
+uploads/resumes/
+
 # Optional: If using Next.js in same repo
 .next/
 out/

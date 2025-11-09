@@ -1,27 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import { jobsAPI, aiAPI } from "@/lib/api";
 import { ArrowLeft, Loader2, Brain, Save } from "lucide-react";
+import RoleGuard from "@/components/auth-guard/RoleGuard";
 
 export default function EditJobPage({ params }) {
-  const { jobId } = params;
+  const { jobId } = use(params);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -45,6 +42,11 @@ export default function EditJobPage({ params }) {
     applicationDeadline: "",
     tags: [],
     isActive: true,
+    hardConstraints: {
+      gender: null,
+      minYears: null,
+      maxYears: null,
+    },
   });
   const [skillInput, setSkillInput] = useState("");
   const [tagInput, setTagInput] = useState("");
@@ -83,6 +85,11 @@ export default function EditJobPage({ params }) {
           ? job.tags.filter((tag) => typeof tag === "string")
           : [],
         isActive: job.isActive !== undefined ? job.isActive : true,
+        hardConstraints: job.hardConstraints || {
+          gender: null,
+          minYears: null,
+          maxYears: null,
+        },
       });
     } catch (error) {
       console.error("Error fetching job:", error);
@@ -121,6 +128,15 @@ export default function EditJobPage({ params }) {
             }
           : undefined,
         location: formData.location.city ? formData.location : undefined,
+        hardConstraints: {
+          gender: formData.hardConstraints?.gender || null,
+          minYears: formData.hardConstraints?.minYears
+            ? Number(formData.hardConstraints.minYears)
+            : null,
+          maxYears: formData.hardConstraints?.maxYears
+            ? Number(formData.hardConstraints.maxYears)
+            : null,
+        },
       };
 
       await jobsAPI.updateJob(jobId, jobData);
@@ -225,7 +241,7 @@ export default function EditJobPage({ params }) {
   }
 
   return (
-    <AuthGuard>
+    <RoleGuard allowedRoles={["poster"]}>
       <div className="max-w-4xl mx-auto space-y-6">
         <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -395,6 +411,67 @@ export default function EditJobPage({ params }) {
                     ))}
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Hard Constraints (Optional)</CardTitle>
+              <CardDescription>
+                Set strict requirements that candidates must meet. Leave blank
+                for no restrictions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="hardConstraints.gender">Required Gender</Label>
+                <select
+                  id="hardConstraints.gender"
+                  name="hardConstraints.gender"
+                  value={formData.hardConstraints?.gender || ""}
+                  onChange={handleChange}
+                  className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                >
+                  <option value="">No Restriction</option>
+                  <option value="male">Male Only</option>
+                  <option value="female">Female Only</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ⚠️ Gender-based restrictions may be illegal in many
+                  jurisdictions
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="hardConstraints.minYears">
+                    Min Years Experience
+                  </Label>
+                  <Input
+                    id="hardConstraints.minYears"
+                    name="hardConstraints.minYears"
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 2"
+                    value={formData.hardConstraints?.minYears || ""}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="hardConstraints.maxYears">
+                    Max Years Experience
+                  </Label>
+                  <Input
+                    id="hardConstraints.maxYears"
+                    name="hardConstraints.maxYears"
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 10"
+                    value={formData.hardConstraints?.maxYears || ""}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -604,6 +681,6 @@ export default function EditJobPage({ params }) {
           </div>
         </form>
       </div>
-    </AuthGuard>
+    </RoleGuard>
   );
 }

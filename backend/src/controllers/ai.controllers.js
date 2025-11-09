@@ -1,6 +1,7 @@
 import { generateContent } from "../config/gemini.js";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
+import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
 
 const fallbackSkillsExtraction = (text) => {
   const skillCategories = {
@@ -141,30 +142,19 @@ const fallbackSkillsExtraction = (text) => {
 
   const extractedSkills = new Set();
   const textLower = text.toLowerCase();
-
   const allSkills = Object.values(skillCategories).flat();
-
   allSkills.forEach((skill) => {
     const skillLower = skill.toLowerCase();
-    const skillVariations = [
-      skillLower,
-      skillLower.replace(".js", ""),
-      skillLower.replace("js", ""),
-      skillLower.replace(/[\s\-\.]/g, ""),
-    ];
-
-    if (skillVariations.some((variation) => textLower.includes(variation))) {
+    if (textLower.includes(skillLower)) {
       extractedSkills.add(skill);
     }
   });
-
   return Array.from(extractedSkills).slice(0, 15);
 };
 
 const extractSkills = async (req, res) => {
   try {
     const { text } = req.body;
-
     if (!text) {
       return res.status(400).json({
         success: false,
@@ -195,86 +185,48 @@ EXPECTED OUTPUT FORMAT (example):
 
 YOUR RESPONSE:`;
 
-      console.log("📤 Sending to Gemini AI...");
-      console.log("📤 Prompt preview:", prompt.substring(0, 300) + "...");
-
       aiResponse = await generateContent(prompt);
       console.log("📥 Raw AI Response:", aiResponse);
 
-      let jsonMatch = null;
-
-      const patterns = [
-        /\[[\s\S]*?\]/,
-        /\[[\s\S]*?\]/g,
-        /```json\s*(\[[\s\S]*?\])\s*```/,
-        /```\s*(\[[\s\S]*?\])\s*```/,
-      ];
-
-      for (const pattern of patterns) {
-        jsonMatch = aiResponse.match(pattern);
-        if (jsonMatch) {
-          console.log("✅ Found JSON with pattern:", pattern);
-          console.log("✅ Matched content:", jsonMatch[0]);
-          break;
-        }
-      }
+      let jsonMatch = aiResponse.match(/\[[\s\S]*?\]/);
 
       if (jsonMatch) {
-        const jsonString = Array.isArray(jsonMatch) ? jsonMatch[0] : jsonMatch;
-
-        skills = JSON.parse(jsonString);
-
+        skills = JSON.parse(jsonMatch[0]);
         if (Array.isArray(skills)) {
           skills = skills
-            .filter((skill) => {
-              const isValid =
+            .filter(
+              (skill) =>
                 typeof skill === "string" &&
                 skill.length > 0 &&
-                skill.length < 50 &&
-                !skill.includes("\n") &&
-                skill.trim() !== "";
-              if (!isValid) {
-                console.log("❌ Filtered out invalid skill:", skill);
-              }
-              return isValid;
-            })
+                skill.length < 50
+            )
             .map((skill) => skill.trim())
             .slice(0, 15);
         } else {
           throw new Error("Parsed result is not an array");
         }
-
         if (skills.length === 0) {
           throw new Error("AI returned empty skills array");
         }
       } else {
-        console.log("❌ No JSON array found in response");
         throw new Error("No valid JSON array found in AI response");
       }
     } catch (aiError) {
       skills = fallbackSkillsExtraction(text);
       usingFallback = true;
-
-      console.log("🔄 Fallback extracted:", skills);
     }
 
-    const result = {
+    res.json({
       success: true,
       data: {
         skills,
         usingFallback,
-        totalFound: skills.length,
-        aiResponse: aiResponse ? aiResponse.substring(0, 200) + "..." : null,
-        textLength: text.length,
       },
-    };
-
-    res.json(result);
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: `Failed to extract skills: ${error.message}`,
-      error: error.stack,
     });
   }
 };
@@ -282,6 +234,7 @@ YOUR RESPONSE:`;
 const calculateJobMatch = async (req, res) => {
   try {
     const { jobId } = req.params;
+    const user = req.user;
 
     const job = await Job.findById(jobId);
     if (!job) {
@@ -291,89 +244,40 @@ const calculateJobMatch = async (req, res) => {
       });
     }
 
-    const user = req.user;
-    const userSkills = user.skills || [];
-    const userBio = user.bio || "";
-
-    let matchScore = 0;
-
-    try {
-      const prompt = `You are an expert HR analyst. Calculate a precise job match score (0-100) between a candidate and job.
-
-JOB DETAILS:
-- Title: ${job.title}
-- Description: ${job.description}
-- Required Skills: ${JSON.stringify(job.skills)}
-- Job Type: ${job.jobType}
-- Experience Level: ${job.experienceLevel}
-
-CANDIDATE PROFILE:
-- Skills: ${JSON.stringify(userSkills)}
-- Bio: ${userBio}
-
-SCORING CRITERIA:
-- Skills Match (40%): Count exact/similar skill matches
-- Experience Level (30%): Junior/Mid/Senior alignment  
-- Job Type Fit (20%): Full-time/Part-time/Contract preference
-- Overall Relevance (10%): Bio alignment with job description
-
-INSTRUCTIONS:
-1. Calculate percentage for each criteria
-2. Apply weights and sum to get final score
-3. Return ONLY a number between 0-100
-4. No explanation, just the number
-
-RESPONSE:`;
-
-      const response = await generateContent(prompt);
-      console.log("Job match AI response:", response);
-
-      const scoreMatch = response.match(/\d+/);
-      const score = scoreMatch ? parseInt(scoreMatch[0]) : 0;
-      matchScore = Math.min(Math.max(score, 0), 100);
-    } catch (aiError) {
-      console.warn(
-        "AI match calculation failed, using fallback:",
-        aiError.message
-      );
-
-      const jobSkills = job.skills || [];
-      const userSkillsLower = userSkills.map((s) => s.toLowerCase());
-      const jobSkillsLower = jobSkills.map((s) => s.toLowerCase());
-      console.log("job sskiils ", jobSkillsLower);
-      console.log("user sskiils ", userSkillsLower);
-
-      let matchingSkills = 0;
-      jobSkillsLower.forEach((jobSkill) => {
-        const hasMatch = userSkillsLower.some(
-          (userSkill) =>
-            userSkill.includes(jobSkill) ||
-            jobSkill.includes(userSkill) ||
-            userSkill === jobSkill
-        );
-        if (hasMatch) matchingSkills++;
+    // --- NEW: Check for parsed resume ---
+    if (!user.parsedResume) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please upload and parse your resume at '/api/auth/profile/parse-resume' to calculate job match.",
       });
-
-      const skillScore =
-        jobSkills.length > 0 ? (matchingSkills / jobSkills.length) * 80 : 40;
-
-      const bioBonus = userBio.toLowerCase().includes(job.title.toLowerCase())
-        ? 20
-        : 10;
-
-      matchScore = Math.min(Math.round(skillScore + bioBonus), 100);
     }
+
+    // 1. Check hard rules
+    const hard = applyHardRules(job.hardConstraints, user.parsedResume);
+    if (hard.hardFail) {
+      return res.json({
+        success: true,
+        data: {
+          matchScore: 0,
+          decision: "rejected",
+          reasons: hard.reasons,
+          job: { id: job._id, title: job.title },
+        },
+      });
+    }
+
+    // 2. Get flexible AI score
+    const ai = await scoreWithAI({ job, parsedResume: user.parsedResume });
+    const decision = ai.score >= 60 ? "good-match" : "poor-match";
 
     res.json({
       success: true,
       data: {
-        matchScore,
-        job: {
-          id: job._id,
-          title: job.title,
-          jobType: job.jobType,
-          experienceLevel: job.experienceLevel,
-        },
+        matchScore: ai.score,
+        decision,
+        reasons: ai.reasons,
+        job: { id: job._id, title: job.title },
       },
     });
   } catch (error) {
@@ -396,14 +300,12 @@ const testAI = async (req, res) => {
       data: {
         prompt: testPrompt,
         response: response,
-        timestamp: new Date().toISOString(),
       },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: error.message,
-      error: error.stack,
     });
   }
 };
@@ -411,8 +313,7 @@ const testAI = async (req, res) => {
 const getJobRecommendations = async (req, res) => {
   try {
     const user = req.user;
-    const userSkills = user.skills || [];
-    const userBio = user.bio || "";
+    const userSkills = user.skills || user.parsedResume?.skills || [];
 
     if (userSkills.length === 0) {
       return res.json({
@@ -420,12 +321,11 @@ const getJobRecommendations = async (req, res) => {
         data: {
           recommendations: [],
           message:
-            "Add skills to your profile to get personalized recommendations",
+            "Add skills or upload a resume to get personalized recommendations",
         },
       });
     }
 
-    // Get jobs user has already applied to
     const appliedJobIds = await Application.find({
       applicantId: user._id,
     })
@@ -438,11 +338,16 @@ const getJobRecommendations = async (req, res) => {
       isActive: true,
       skills: { $in: userSkills },
       postedBy: { $ne: user._id },
-      _id: { $nin: appliedJobIdsArray }, // Exclude jobs user has already applied to
+      _id: { $nin: appliedJobIdsArray },
     })
       .populate("postedBy", "name email profileImage")
       .limit(10)
       .sort({ createdAt: -1 });
+
+    // Use the parsedResume if available for better recommendations
+    const profileText = user.parsedResume
+      ? JSON.stringify(user.parsedResume)
+      : `Skills: ${JSON.stringify(userSkills)}, Bio: ${user.bio}`;
 
     const recommendations = await Promise.all(
       jobs.map(async (job) => {
@@ -451,9 +356,7 @@ const getJobRecommendations = async (req, res) => {
             job.title
           }" with skills ${JSON.stringify(
             job.skills
-          )} for candidate with skills ${JSON.stringify(
-            userSkills
-          )}. Return only number.`;
+          )} for candidate profile: ${profileText}. Return only number.`;
           const response = await generateContent(prompt);
           const matchScore = parseInt(response.match(/\d+/)?.[0] || "50");
 
@@ -462,18 +365,17 @@ const getJobRecommendations = async (req, res) => {
             matchScore: Math.min(Math.max(matchScore, 0), 100),
           };
         } catch (error) {
+          // Fallback logic
           const jobSkills = job.skills || [];
           const matchingSkills = userSkills.filter((skill) =>
             jobSkills.some((jobSkill) =>
               jobSkill.toLowerCase().includes(skill.toLowerCase())
             )
           );
-
           const fallbackScore =
             jobSkills.length > 0
               ? Math.round((matchingSkills.length / jobSkills.length) * 80) + 20
               : 50;
-
           return {
             job,
             matchScore: Math.min(fallbackScore, 100),
@@ -498,11 +400,19 @@ const getJobRecommendations = async (req, res) => {
     });
   }
 };
+
 const getCareerSuggestions = async (req, res) => {
   try {
     const user = req.user;
-    const userSkills = user.skills || [];
+    const userSkills = user.skills || user.parsedResume?.skills || [];
     const userBio = user.bio || "";
+
+    if (userSkills.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Add skills or upload a resume to get career suggestions.",
+      });
+    }
 
     let suggestions = {
       jobTitles: [],
@@ -530,20 +440,18 @@ const getCareerSuggestions = async (req, res) => {
       }
     } catch (aiError) {
       console.warn("AI career suggestions failed:", aiError.message);
-
-      if (userSkills.length > 0) {
-        suggestions = {
-          jobTitles: [
-            "Software Developer",
-            "Full Stack Developer",
-            "Technical Lead",
-          ],
-          skillsToLearn: ["Cloud Computing", "DevOps", "System Design"],
-          careerPath: `Based on your skills in ${userSkills
-            .slice(0, 3)
-            .join(", ")}, focus on cloud technologies and system architecture.`,
-        };
-      }
+      // Fallback
+      suggestions = {
+        jobTitles: [
+          "Software Developer",
+          "Full Stack Developer",
+          "Technical Lead",
+        ],
+        skillsToLearn: ["Cloud Computing", "DevOps", "System Design"],
+        careerPath: `Based on your skills in ${userSkills
+          .slice(0, 3)
+          .join(", ")}, focus on cloud technologies and system architecture.`,
+      };
     }
 
     res.json({
@@ -637,7 +545,6 @@ const generateInterviewQuestions = async (req, res) => {
         "Describe a challenging project you've worked on recently.",
         "How do you approach debugging complex issues?",
         "What interests you about this role?",
-        "How do you stay updated with new technologies?",
       ];
     }
 

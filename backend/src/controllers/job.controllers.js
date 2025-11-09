@@ -2,6 +2,12 @@ import Job from "../models/job.model.js";
 import Application from "../models/application.model.js";
 import Joi from "joi";
 
+const hardConstraintsSchema = Joi.object({
+  gender: Joi.string().valid("male", "female", null).optional(),
+  minYears: Joi.number().min(0).optional(),
+  maxYears: Joi.number().min(0).optional(),
+});
+
 const createJobSchema = Joi.object({
   title: Joi.string().min(5).max(200).required(),
   company: Joi.object({
@@ -31,10 +37,10 @@ const createJobSchema = Joi.object({
   experienceLevel: Joi.string()
     .valid("entry", "junior", "mid", "senior", "expert")
     .optional(),
+  hardConstraints: hardConstraintsSchema.optional(),
   applicationUrl: Joi.string().uri().optional(),
   applicationEmail: Joi.string().email().optional(),
   applicationDeadline: Joi.date().greater("now").optional(),
-  paymentTxHash: Joi.string().required(),
   tags: Joi.array().items(Joi.string().max(30)).max(10).optional(),
 });
 
@@ -85,8 +91,6 @@ const getJobs = async (req, res) => {
 
     const filter = { isActive: true };
 
-    // Exclude jobs user has already applied to (only if authenticated)
-   
     if (req.user) {
       const appliedJobIds = await Application.find({
         applicantId: req.user._id,
@@ -104,7 +108,7 @@ const getJobs = async (req, res) => {
     }
 
     if (skills) {
-      const skillsArray = skills.split(",");
+      const skillsArray = skills.split(",").map((s) => new RegExp(s, "i"));
       filter.skills = { $in: skillsArray };
     }
 
@@ -191,12 +195,10 @@ const getJob = async (req, res) => {
       });
     }
 
-    // Get application count
     const applicationCount = await Application.countDocuments({
       jobId: job._id,
     });
 
-    // Check if current user has applied (if authenticated)
     let hasApplied = false;
     if (req.user) {
       const userApplication = await Application.findOne({
@@ -205,7 +207,6 @@ const getJob = async (req, res) => {
       });
       hasApplied = !!userApplication;
 
-      // Increment views only if user is not the job poster
       if (req.user._id.toString() !== job.postedBy._id.toString()) {
         await job.incrementViews();
       }
@@ -269,16 +270,17 @@ const updateJob = async (req, res) => {
         country: Joi.string().max(100).allow(""),
       }).optional(),
       budget: Joi.object({
-        min: Joi.number().min(0).allow(""),
-        max: Joi.number().min(0).allow(""),
+        min: Joi.number().min(0).allow(null, ""),
+        max: Joi.number().min(0).allow(null, ""),
         currency: Joi.string().optional(),
         period: Joi.string()
           .valid("hourly", "daily", "monthly", "yearly", "project")
           .optional(),
       }).optional(),
+      hardConstraints: hardConstraintsSchema.optional(), // Allow editing hard constraints
       applicationUrl: Joi.string().uri().allow("").optional(),
       applicationEmail: Joi.string().email().allow("").optional(),
-      applicationDeadline: Joi.date().greater("now").allow("").optional(),
+      applicationDeadline: Joi.date().greater("now").allow(null, "").optional(),
       isActive: Joi.boolean().optional(),
       tags: Joi.array().items(Joi.string().max(30)).max(10).optional(),
     });
@@ -291,49 +293,28 @@ const updateJob = async (req, res) => {
       });
     }
 
-    const cleanedValue = {};
+    // Clean up empty/null values
     Object.keys(value).forEach((key) => {
-      if (value[key] !== undefined && value[key] !== "") {
-        if (key === "skills" || key === "tags") {
-          if (Array.isArray(value[key])) {
-            const cleanedArray = value[key].filter(
-              (item) => typeof item === "string" && item.trim() !== ""
-            );
-            if (cleanedArray.length > 0) {
-              cleanedValue[key] = cleanedArray;
-            }
+      if (value[key] === undefined || value[key] === null) {
+        delete value[key];
+      }
+      if (typeof value[key] === "object" && !Array.isArray(value[key])) {
+        Object.keys(value[key]).forEach((nestedKey) => {
+          if (
+            value[key][nestedKey] === undefined ||
+            value[key][nestedKey] === null ||
+            value[key][nestedKey] === ""
+          ) {
+            delete value[key][nestedKey];
           }
-        } else if (
-          typeof value[key] === "object" &&
-          value[key] !== null &&
-          !Array.isArray(value[key])
-        ) {
-          const cleanedNested = {};
-          Object.keys(value[key]).forEach((nestedKey) => {
-            if (
-              value[key][nestedKey] !== undefined &&
-              value[key][nestedKey] !== ""
-            ) {
-              cleanedNested[nestedKey] = value[key][nestedKey];
-            }
-          });
-          if (Object.keys(cleanedNested).length > 0) {
-            cleanedValue[key] = cleanedNested;
-          }
-        } else {
-          cleanedValue[key] = value[key];
-        }
+        });
       }
     });
 
-    const updatedJob = await Job.findByIdAndUpdate(
-      req.params.id,
-      cleanedValue,
-      {
-        new: true,
-        runValidators: true,
-      }
-    ).populate("postedBy", "name email profileImage");
+    const updatedJob = await Job.findByIdAndUpdate(req.params.id, value, {
+      new: true,
+      runValidators: true,
+    }).populate("postedBy", "name email profileImage");
 
     res.json({
       success: true,
@@ -366,10 +347,7 @@ const deleteJob = async (req, res) => {
       });
     }
 
-    // Delete all applications for this job
     await Application.deleteMany({ jobId: req.params.id });
-
-    // Delete the job
     await Job.findByIdAndDelete(req.params.id);
 
     res.json({
@@ -394,7 +372,6 @@ const getMyJobs = async (req, res) => {
       .skip((page - 1) * limit)
       .lean();
 
-    // Add application count for each job
     const jobsWithApplicationCount = await Promise.all(
       jobs.map(async (job) => {
         const applicationCount = await Application.countDocuments({

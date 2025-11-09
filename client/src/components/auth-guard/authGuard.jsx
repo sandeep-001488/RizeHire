@@ -43,7 +43,6 @@ export default function AuthGuard({ children }) {
 
   useEffect(() => {
     let timeoutId;
-
     if (!isHydrated) {
       timeoutId = setTimeout(() => {
         useAuthStore.setState({
@@ -53,7 +52,6 @@ export default function AuthGuard({ children }) {
         });
       }, 2000);
     }
-
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -63,7 +61,6 @@ export default function AuthGuard({ children }) {
 
   useEffect(() => {
     let timeoutId;
-
     if ((!isHydrated || !isInitialized) && !isLoading) {
       timeoutId = setTimeout(() => {
         useAuthStore.setState({
@@ -73,7 +70,6 @@ export default function AuthGuard({ children }) {
         });
       }, 10000);
     }
-
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -106,7 +102,6 @@ function LoadingScreen({ user, message }) {
             </div>
           </div>
         </div>
-
         <div className="space-y-4">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
             RizeHire
@@ -115,7 +110,6 @@ function LoadingScreen({ user, message }) {
             Your AI-Powered Career Platform
           </p>
         </div>
-
         <div className="space-y-6">
           <div className="relative mx-auto w-16 h-16">
             <div className="absolute inset-0 border-4 border-blue-200 dark:border-gray-700 rounded-full"></div>
@@ -124,7 +118,6 @@ function LoadingScreen({ user, message }) {
               <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
             </div>
           </div>
-
           <div className="space-y-2">
             <p className="text-gray-600 dark:text-gray-400 text-sm">
               {message ||
@@ -132,7 +125,6 @@ function LoadingScreen({ user, message }) {
                   ? `Welcome back, ${user.name || "User"}!`
                   : "Loading your experience...")}
             </p>
-
             <div className="flex justify-center space-x-1">
               {[0, 1, 2].map((i) => (
                 <div
@@ -147,7 +139,6 @@ function LoadingScreen({ user, message }) {
             </div>
           </div>
         </div>
-
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-400/10 rounded-full blur-3xl"></div>

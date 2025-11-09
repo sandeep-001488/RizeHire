@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,9 +14,9 @@ import {
   PlusCircle,
   FileText,
   Brain,
-  CreditCard,
   Menu,
   X,
+  LayoutDashboard,
 } from "lucide-react";
 
 export default function Header() {
@@ -32,19 +31,25 @@ export default function Header() {
     router.push("/auth/login");
   };
 
- const navigation = [
-   { name: "Dashboard", href: "/dashboard", icon: User },
-   { name: "Jobs", href: "/jobs", icon: Briefcase },
-   { name: "Post Job", href: "/post-job", icon: PlusCircle },
-   { name: "Applications", href: "/applications", icon: FileText },
-   { name: "AI Tools", href: "/ai/recommendations", icon: Brain },
-   { name: "Payments", href: "/payment/history", icon: CreditCard },
-   { name: "My Jobs", href: "/jobs/my-posted-jobs", icon: Briefcase },
- ];
+  // --- UPDATED: Role-based navigation ---
+  const seekerNavigation = [
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Jobs", href: "/jobs", icon: Briefcase },
+    { name: "Applications", href: "/applications", icon: FileText },
+    { name: "AI Tools", href: "/ai/recommendations", icon: Brain },
+  ];
 
+  const posterNavigation = [
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Post Job", href: "/post-job", icon: PlusCircle },
+    { name: "My Jobs", href: "/jobs/my-posted-jobs", icon: Briefcase },
+  ];
+
+  const navigation =
+    user?.role === "poster" ? posterNavigation : seekerNavigation;
 
   if (!isHydrated || !isInitialized) {
-    return null;
+    return null; // Don't render header until auth state is known
   }
 
   return (

@@ -9,18 +9,16 @@ import { errorHandler, notFound } from "./src/middleware/error.middleware.js";
 
 import authRoutes from "./src/routes/auth.routes.js";
 import jobRoutes from "./src/routes/job.routes.js";
-import applicationRoutes from "./src/routes/application.routes.js"; 
+import applicationRoutes from "./src/routes/application.routes.js";
 import aiRoutes from "./src/routes/ai.routes.js";
-import paymentRoutes from "./src/routes/payment.route.js";
 
 dotenv.config();
 
 const app = express();
-const allowedOrigin = process.env.FRONTEND_URL 
+const allowedOrigin = process.env.FRONTEND_URL;
 connectDB();
 
 app.use(helmet());
-
 app.use(
   cors({
     origin: allowedOrigin,
@@ -28,15 +26,13 @@ app.use(
   })
 );
 app.options(allowedOrigin, cors());
-
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 200, // Increased limit
     message: { error: "Too many requests, try again later." },
   })
 );
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -44,6 +40,7 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
+// --- Health Check Route ---
 app.get("/health", (_, res) => {
   res.json({
     success: true,
@@ -52,12 +49,14 @@ app.get("/health", (_, res) => {
   });
 });
 
+// --- API Routes ---
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
-app.use("/api/applications", applicationRoutes); 
+app.use("/api/applications", applicationRoutes);
 app.use("/api/ai", aiRoutes);
-app.use("/api/payments", paymentRoutes);
 
+
+// --- Error Handling ---
 app.use(notFound);
 app.use(errorHandler);
 

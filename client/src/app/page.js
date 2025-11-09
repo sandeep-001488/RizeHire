@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -16,10 +15,8 @@ import {
   Briefcase,
   Users,
   Brain,
-  Shield,
   ArrowRight,
-  Star,
-  CheckCircle,
+  Wallet,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -46,10 +43,10 @@ export default function HomePage() {
         "Get personalized job recommendations based on your skills and experience",
     },
     {
-      icon: Shield,
-      title: "Blockchain Secured",
+      icon: Wallet, 
+      title: "Verified Job Posters",
       description:
-        "All transactions and payments secured by Ethereum blockchain",
+        "Job posters are verified via their wallet address, reducing spam.", 
     },
     {
       icon: Users,
@@ -66,7 +63,7 @@ export default function HomePage() {
   ];
 
   if (isAuthenticated) {
-    return null; // Will redirect to dashboard
+    return null;
   }
 
   return (
@@ -76,11 +73,11 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-              The Future of Work is Decentralized
+              The Future of Work is Here
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Connect with opportunities, showcase your skills, and get paid
-              securely through blockchain technology.
+              Connect with opportunities, showcase your skills, and get hired
+              faster with our AI-powered platform.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/auth/register">
@@ -169,8 +166,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Create Profile</h3>
               <p className="text-muted-foreground">
-                Sign up and build your professional profile with skills and
-                experience
+                Sign up as a Seeker or Poster and parse your resume with AI.
               </p>
             </div>
             <div className="text-center">
@@ -180,7 +176,7 @@ export default function HomePage() {
               <h3 className="text-xl font-semibold mb-2">Find Opportunities</h3>
               <p className="text-muted-foreground">
                 Browse jobs or get AI-powered recommendations tailored to your
-                profile
+                profile.
               </p>
             </div>
             <div className="text-center">
@@ -189,8 +185,8 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Get Hired</h3>
               <p className="text-muted-foreground">
-                Apply to jobs and get hired with secure blockchain-powered
-                payments
+                Apply with your AI-parsed profile and connect with verified
+                employers.
               </p>
             </div>
           </div>

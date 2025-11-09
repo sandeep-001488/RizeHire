@@ -1,11 +1,13 @@
 import mongoose from "mongoose";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
+import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
 
 const applyToJob = async (req, res) => {
   try {
     const jobId = req.params.jobId;
     const { coverLetter } = req.body;
+    const applicant = req.user;
 
     if (!jobId) {
       return res.status(400).json({
@@ -14,14 +16,12 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    if (
-      !coverLetter ||
-      typeof coverLetter !== "string" ||
-      coverLetter.trim().length < 10
-    ) {
+    // Check if user has parsed their resume
+    if (!applicant.parsedResume) {
       return res.status(400).json({
         success: false,
-        message: "Cover letter must be at least 10 characters long",
+        message:
+          "Please upload and parse your resume at '/api/auth/profile/parse-resume' before applying.",
       });
     }
 
@@ -34,17 +34,16 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    if (job.postedBy.toString() === req.user._id.toString()) {
+    if (job.postedBy.toString() === applicant._id.toString()) {
       return res.status(400).json({
         success: false,
         message: "You cannot apply to your own job",
       });
     }
 
-    // Check if user has already applied
     const existingApplication = await Application.findOne({
       jobId: jobId,
-      applicantId: req.user._id,
+      applicantId: applicant._id,
     });
 
     if (existingApplication) {
@@ -54,21 +53,72 @@ const applyToJob = async (req, res) => {
       });
     }
 
+    // --- FIXED: Create screening profile with gender priority ---
+    const screeningProfile = {
+      ...applicant.parsedResume,
+      // Priority: Use user.gender if it's "male" or "female", otherwise use parsedResume.gender
+      gender:
+        applicant.gender === "male" || applicant.gender === "female"
+          ? applicant.gender
+          : applicant.parsedResume?.gender || null,
+    };
+
+    // --- NEW SCREENING LOGIC ---
+    let applicationStatus = "pending";
+    let screeningResult = {};
+    let matchScore = 0;
+
+    // 1. Apply Hard Rules with corrected profile
+    const hard = applyHardRules(job.hardConstraints, screeningProfile);
+    screeningResult = {
+      hardFail: hard.hardFail,
+      reasons: hard.reasons,
+    };
+
+    if (hard.hardFail) {
+      // INSTANT REJECTION
+      applicationStatus = "rejected";
+      matchScore = 0;
+      console.log(
+        `Hard rejection for ${applicant.email} on job ${
+          job.title
+        }: ${hard.reasons.join(", ")}`
+      );
+    } else {
+      // 2. Apply Flexible AI Scoring with corrected profile
+      const ai = await scoreWithAI({
+        job,
+        parsedResume: screeningProfile,
+      });
+      matchScore = ai.score;
+      screeningResult.reasons = ai.reasons;
+
+      // Optional: auto-reject if score is too low
+      if (matchScore < 20) {
+        applicationStatus = "rejected";
+      }
+    }
+
     // Create new application
     const application = await Application.create({
       jobId: jobId,
-      applicantId: req.user._id,
+      applicantId: applicant._id,
       recruiterId: job.postedBy,
-      coverLetter: coverLetter.trim(),
+      coverLetter: coverLetter ? coverLetter.trim() : "",
+      status: applicationStatus,
+      matchScore: matchScore,
+      screeningResult: screeningResult,
     });
 
     const applicationCount = await Application.countDocuments({ jobId: jobId });
 
     res.json({
       success: true,
-      message: "Application submitted successfully",
+      message: `Application submitted successfully. Status: ${applicationStatus}`,
       data: {
-        application: application._id,
+        applicationId: application._id,
+        applicationStatus,
+        matchScore,
         applicationCount,
       },
     });
@@ -112,6 +162,7 @@ const getMyApplications = async (req, res) => {
       appliedAt: app.appliedAt,
       feedback: app.feedback.filter((f) => f.visibleToApplicant),
       viewedByRecruiter: app.viewedByRecruiter,
+      matchScore: app.matchScore,
     }));
 
     res.json({
@@ -138,9 +189,13 @@ const getMyApplications = async (req, res) => {
 const getJobApplicants = async (req, res) => {
   try {
     const jobId = req.params.jobId;
-    const { page = 1, limit = 10, status = "all" } = req.query;
-
- 
+    const {
+      page = 1,
+      limit = 10,
+      status = "all",
+      sortBy = "matchScore",
+      sortOrder = "desc",
+    } = req.query;
 
     const job = await Job.findById(jobId);
 
@@ -163,26 +218,32 @@ const getJobApplicants = async (req, res) => {
       filter.status = status;
     }
 
+    // Sort by matchScore or appliedAt
+    const sortOptions = {};
+    if (sortBy === "matchScore") {
+      sortOptions.matchScore = sortOrder === "desc" ? -1 : 1;
+    } else {
+      sortOptions.appliedAt = sortOrder === "desc" ? -1 : 1;
+    }
 
+    // --- FIXED: Added 'gender' to populate fields ---
     const applications = await Application.find(filter)
       .populate(
         "applicantId",
-        "name email profileImage skills bio linkedinUrl location createdAt"
+        "name email profileImage skills bio linkedinUrl location gender createdAt parsedResume"
       )
-      .sort({ appliedAt: -1 })
+      .sort(sortOptions)
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
     const total = await Application.countDocuments(filter);
 
-
-    // Mark applications as viewed by recruiter
     await Application.updateMany(
       { jobId: jobId, viewedByRecruiter: false },
-      { viewedByRecruiter: true }
+      { $set: { viewedByRecruiter: true, status: "viewed" } },
+      { new: true }
     );
 
-    // Get application stats
     const stats = await Application.aggregate([
       { $match: { jobId: new mongoose.Types.ObjectId(jobId) } },
       {
@@ -192,7 +253,6 @@ const getJobApplicants = async (req, res) => {
         },
       },
     ]);
-
 
     const applicationStats = {
       totalApplications: 0,
@@ -230,12 +290,11 @@ const getJobApplicants = async (req, res) => {
       coverLetter: app.coverLetter,
       appliedAt: app.appliedAt,
       status: app.status,
-      linkedinUrl: app.linkedinUrl,
       feedback: app.feedback,
       viewedByRecruiter: app.viewedByRecruiter,
+      matchScore: app.matchScore,
+      screeningResult: app.screeningResult,
     }));
-
- 
 
     res.json({
       success: true,
@@ -243,7 +302,6 @@ const getJobApplicants = async (req, res) => {
         job: {
           _id: job._id,
           title: job.title,
-          description: job.description,
           company: job.company,
           jobType: job.jobType,
           workMode: job.workMode,
@@ -274,7 +332,6 @@ const updateApplicationStatus = async (req, res) => {
     const { applicationId } = req.params;
     const { status, feedback } = req.body;
 
-   
     if (
       !["pending", "viewed", "moving-forward", "accepted", "rejected"].includes(
         status
@@ -305,12 +362,10 @@ const updateApplicationStatus = async (req, res) => {
       });
     }
 
-    // Update application status
     application.status = status;
     application.viewedByRecruiter = true;
     application.lastUpdated = new Date();
 
-    // Add feedback if provided
     if (feedback && feedback.trim()) {
       application.feedback.push({
         message: feedback.trim(),
@@ -321,7 +376,6 @@ const updateApplicationStatus = async (req, res) => {
     }
 
     await application.save();
-
 
     res.json({
       success: true,
@@ -350,8 +404,6 @@ const addFeedback = async (req, res) => {
     const { applicationId } = req.params;
     const { message, visibleToApplicant = true } = req.body;
 
- 
-
     if (!message || message.trim().length < 1) {
       return res.status(400).json({
         success: false,
@@ -370,7 +422,6 @@ const addFeedback = async (req, res) => {
       });
     }
 
-    // Check if user is the job poster
     if (application.jobId.postedBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -387,7 +438,6 @@ const addFeedback = async (req, res) => {
 
     application.feedback.push(feedbackObj);
     await application.save();
-
 
     res.json({
       success: true,
@@ -409,11 +459,12 @@ const getApplication = async (req, res) => {
   try {
     const { applicationId } = req.params;
 
+    // --- FIXED: Added 'gender' to populate fields ---
     const application = await Application.findById(applicationId)
       .populate("jobId")
       .populate(
         "applicantId",
-        "name email profileImage skills bio linkedinUrl"
+        "name email profileImage skills bio linkedinUrl gender parsedResume"
       );
 
     if (!application) {
@@ -423,7 +474,6 @@ const getApplication = async (req, res) => {
       });
     }
 
-    // Check if user is either the applicant or job poster
     const isApplicant =
       application.applicantId._id.toString() === req.user._id.toString();
     const isJobPoster =
@@ -436,7 +486,6 @@ const getApplication = async (req, res) => {
       });
     }
 
-    // Filter feedback based on visibility
     let visibleFeedback = application.feedback;
     if (isApplicant) {
       visibleFeedback = application.feedback.filter(
@@ -456,6 +505,8 @@ const getApplication = async (req, res) => {
           appliedAt: application.appliedAt,
           viewedByRecruiter: application.viewedByRecruiter,
           feedback: visibleFeedback,
+          matchScore: application.matchScore,
+          screeningResult: application.screeningResult,
         },
       },
     });

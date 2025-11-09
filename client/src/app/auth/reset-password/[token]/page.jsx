@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,77 +16,60 @@ import useAuthStore from "@/stores/authStore";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function LoginPage() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+export default function ResetPasswordPage() {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const params = useParams();
+  const { token } = params;
+  const { resetPassword, isLoading, error, clearError } = useAuthStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
-    const result = await login(formData);
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+
+    const result = await resetPassword(token, password);
+
     if (result.success) {
-      toast.success("Login successful! Redirecting...");
+      toast.success("Password reset successful! Redirecting...");
       router.push("/dashboard");
     } else {
       toast.error(result.error);
     }
   };
 
-  const handleChange = (e) => {
-    if (error) clearError();
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center gradient-bg">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-          <CardDescription>Sign in to your RizeHire account</CardDescription>
+          <CardTitle className="text-2xl font-bold">
+            Reset Your Password
+          </CardTitle>
+          <CardDescription>
+            Enter a new password for your account.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="your@email.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                {/* --- NEW LINK --- */}
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
+              <Label htmlFor="password">New Password</Label>
               <div className="relative">
                 <Input
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
                 />
@@ -107,27 +90,38 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  Resetting...
                 </>
               ) : (
-                "Sign In"
+                "Reset Password"
               )}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">
-              Don&apos;t have an account?
-            </span>
             <Link
-              href="/auth/register"
+              href="/auth/login"
               className="text-primary hover:underline font-medium"
             >
-              Sign up
+              Back to Login
             </Link>
           </div>
         </CardContent>

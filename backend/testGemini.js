@@ -1,32 +1,17 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
-
 dotenv.config();
-const genAI = process.env.GEMINI_API_KEY
-  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-  : null;
 
-const model = genAI
-  ? genAI.getGenerativeModel({ model: "gemini-2.5-pro" })
-  : null;
 
-const generateContent = async (prompt) => {
-  if (!genAI) {
-    throw new Error(
-      "Gemini API key not configured. Please set GEMINI_API_KEY in environment variables."
-    );
-  }
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-  if (!model) {
-    throw new Error("Failed to initialize Gemini model");
-  }
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
 
+async function generateContent(prompt) {
   try {
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
-
-    return text;
+    return response.text();
   } catch (error) {
     console.error("❌ Gemini API Error:", error);
 
@@ -40,6 +25,19 @@ const generateContent = async (prompt) => {
       throw new Error(`Gemini API error: ${error.message}`);
     }
   }
-};
+}
 
-export { generateContent };
+async function testGemini() {
+  try {
+    const prompt =
+      "Write a short paragraph about the benefits of AI in education.";
+    const response = await generateContent(prompt);
+
+    console.log("\n✅ Gemini API responded successfully:\n");
+    console.log(response);
+  } catch (error) {
+    console.error("\n❌ Error testing Gemini API:\n", error.message);
+  }
+}
+
+testGemini();

@@ -1,12 +1,10 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -14,20 +12,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"; 
 import useAuthStore from "@/stores/authStore";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    bio: "",
-    linkedinUrl: "",
+    role: "", 
+    gender: "",
     walletAddress: "",
   });
   const [showPassword, setShowPassword] = useState(false);
-
   const router = useRouter();
   const { register, isLoading, error, clearError } = useAuthStore();
 
@@ -35,25 +40,40 @@ export default function RegisterPage() {
     e.preventDefault();
     clearError();
 
-    const cleanedData = Object.fromEntries(
-      Object.entries(formData).filter(
-        ([_, value]) => value !== "" 
-      )
-    );
+    if (!formData.role) {
+      toast.error("Please select a role.");
+      return;
+    }
+
+    // Clean data: remove optional fields if they are empty
+    const cleanedData = { ...formData };
+    if (!cleanedData.walletAddress) {
+      delete cleanedData.walletAddress;
+    }
 
     const result = await register(cleanedData);
 
     if (result.success) {
+      toast.success("Account created! Redirecting...");
       router.push("/dashboard");
+    } else {
+      toast.error(result.error);
     }
   };
 
   const handleChange = (e) => {
     if (error) clearError();
-
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleRoleChange = (value) => {
+    if (error) clearError();
+    setFormData((prev) => ({
+      ...prev,
+      role: value,
     }));
   };
 
@@ -102,7 +122,7 @@ export default function RegisterPage() {
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder="•••••••• (min. 6 characters)"
                   value={formData.password}
                   onChange={handleChange}
                   required
@@ -126,48 +146,62 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio (Optional)</Label>
-              <Textarea
-                id="bio"
-                name="bio"
-                placeholder="Tell us about yourself..."
-                value={formData.bio}
-                onChange={handleChange}
-                rows={3}
+              <Label htmlFor="role">I am a...</Label>
+              <Select
+                value={formData.role}
+                onValueChange={handleRoleChange}
                 disabled={isLoading}
-              />
+                required
+              >
+                <SelectTrigger id="role">
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="seeker">
+                    Job Seeker (I want to find a job)
+                  </SelectItem>
+                  <SelectItem value="poster">
+                    Job Poster (I want to hire)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="linkedinUrl">LinkedIn URL (Optional)</Label>
-              <Input
-                id="linkedinUrl"
-                name="linkedinUrl"
-                type="url"
-                placeholder="https://linkedin.com/in/yourprofile"
-                value={formData.linkedinUrl}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
+            {/* Gender field - Only for seekers */}
+            {formData.role === "seeker" && (
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender *</Label>
+                <Select
+                  value={formData.gender}
+                  onValueChange={(value) => {
+                    if (error) clearError();
+                    setFormData((prev) => ({ ...prev, gender: value }));
+                  }}
+                  disabled={isLoading}
+                  required
+                >
+                  <SelectTrigger id="gender">
+                    <SelectValue placeholder="Select your gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="walletAddress">Wallet Address (Optional)</Label>
               <Input
                 id="walletAddress"
                 name="walletAddress"
-                placeholder="0x..."
+                placeholder="0x... (Required for posters to post jobs)"
                 value={formData.walletAddress}
                 onChange={handleChange}
                 disabled={isLoading}
               />
             </div>
-
-            {error && (
-              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-                {error}
-              </div>
-            )}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (

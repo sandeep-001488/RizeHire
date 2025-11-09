@@ -1,5 +1,24 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+
+// --- PARSED RESUME SCHEMA ---
+const parsedResumeSchema = new mongoose.Schema(
+  {
+    name: String,
+    email: String,
+    phone: String,
+    skills: [String],
+    yearsOfExperience: Number,
+    gender: String, 
+    location: {
+      city: String,
+      country: String,
+    },
+    education: [String],
+  },
+  { _id: false }
+);
 
 const userSchema = new mongoose.Schema(
   {
@@ -23,9 +42,22 @@ const userSchema = new mongoose.Schema(
       minlength: [6, "Password must be at least 6 characters"],
       select: false,
     },
+    role: {
+      type: String,
+      enum: ["seeker", "poster"],
+      required: [true, "User role is required ('seeker' or 'poster')"],
+    },
+    // --- MANDATORY GENDER FIELD ---
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
+      required: function () {
+        return this.role === "seeker"; 
+      },
+    },
     bio: {
       type: String,
-      maxlength: [1000, "Bio too long"],
+      maxlength: [10000, "Bio cannot exceed 10000 characters"],
       default: "",
     },
     linkedinUrl: {
@@ -59,19 +91,10 @@ const userSchema = new mongoose.Schema(
         message: "Invalid Ethereum wallet address",
       },
     },
-    isPaidUser: {
-      type: Boolean,
-      default: false,
+    parsedResume: {
+      type: parsedResumeSchema,
+      default: null,
     },
-    paymentTransactions: [
-      {
-        txHash: String,
-        amount: String,
-        currency: String,
-        verified: { type: Boolean, default: false },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
     profileImage: String,
     refreshTokens: [
       {
@@ -82,6 +105,8 @@ const userSchema = new mongoose.Schema(
         },
       },
     ],
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
   },
   {
     timestamps: true,
@@ -90,6 +115,8 @@ const userSchema = new mongoose.Schema(
         delete ret.password;
         delete ret.refreshTokens;
         delete ret.__v;
+        delete ret.resetPasswordToken;
+        delete ret.resetPasswordExpires;
         return ret;
       },
     },
@@ -100,6 +127,11 @@ userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
   this.password = await bcrypt.hash(this.password, 12);
+
+  if (!this.isNew) {
+    this.resetPasswordToken = undefined;
+    this.resetPasswordExpires = undefined;
+  }
   next();
 });
 
@@ -118,6 +150,19 @@ userSchema.methods.addRefreshToken = function (token) {
 userSchema.methods.removeRefreshToken = function (token) {
   this.refreshTokens = this.refreshTokens.filter((rt) => rt.token !== token);
   return this.save();
+};
+
+userSchema.methods.createPasswordResetToken = function () {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
+
+  this.resetPasswordExpires = Date.now() + 15 * 60 * 1000; 
+
+  return rawToken;
 };
 
 userSchema.statics.findByEmailWithPassword = function (email) {

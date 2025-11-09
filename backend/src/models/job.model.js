@@ -1,5 +1,27 @@
 import mongoose from "mongoose";
 
+// --- HARD CONSTRAINTS SCHEMA (Gender & Experience Only) ---
+const hardConstraintsSchema = new mongoose.Schema(
+  {
+    gender: {
+      type: String,
+      enum: ["male", "female", null],
+      default: null,
+    },
+    minYears: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    maxYears: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
 const jobSchema = new mongoose.Schema(
   {
     title: {
@@ -68,20 +90,17 @@ const jobSchema = new mongoose.Schema(
       enum: ["entry", "junior", "mid", "senior", "expert"],
       default: "mid",
     },
+    // --- HARD CONSTRAINTS (Gender & Experience Only) ---
+    hardConstraints: {
+      type: hardConstraintsSchema,
+      default: () => ({}),
+    },
     applicationUrl: String,
     applicationEmail: String,
     applicationDeadline: Date,
     isActive: {
       type: Boolean,
       default: true,
-    },
-    paymentTxHash: {
-      type: String,
-      required: true,
-    },
-    paymentVerified: {
-      type: Boolean,
-      default: false,
     },
     views: {
       type: Number,

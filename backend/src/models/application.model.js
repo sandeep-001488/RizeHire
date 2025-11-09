@@ -1,5 +1,20 @@
 import mongoose from "mongoose";
 
+// --- NEW SCHEMA FOR SCREENING RESULTS ---
+const screeningResultSchema = new mongoose.Schema(
+  {
+    hardFail: {
+      type: Boolean,
+      default: false,
+    },
+    reasons: {
+      type: [String],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
 const applicationSchema = new mongoose.Schema(
   {
     jobId: {
@@ -25,6 +40,17 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "viewed", "moving-forward", "accepted", "rejected"],
       default: "pending",
+    },
+    // --- NEW FIELDS FOR AI SCREENING ---
+    matchScore: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    screeningResult: {
+      type: screeningResultSchema,
+      default: () => ({}),
     },
     feedback: [
       {
