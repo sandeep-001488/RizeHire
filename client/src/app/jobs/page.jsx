@@ -41,6 +41,7 @@ export default function JobsPage() {
 
   useEffect(() => {
     fetchJobs();
+    console.log(user);
   }, [filters, pagination.current]);
 
   const fetchJobs = async () => {
@@ -98,7 +99,7 @@ export default function JobsPage() {
             Discover {pagination.total} jobs from top companies
           </p>
         </div>
-        {isAuthenticated && (
+        {isAuthenticated && user?.role === "poster" && (
           <Link href="/post-job">
             <Button className="mt-4 md:mt-0">
               <PlusCircle className="mr-2 h-4 w-4" />
