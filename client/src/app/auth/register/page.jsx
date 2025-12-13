@@ -36,30 +36,36 @@ export default function RegisterPage() {
   const router = useRouter();
   const { register, isLoading, error, clearError } = useAuthStore();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    clearError();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  clearError();
 
-    if (!formData.role) {
-      toast.error("Please select a role.");
-      return;
-    }
+  if (!formData.role) {
+    toast.error("Please select a role.");
+    return;
+  }
 
-    // Clean data: remove optional fields if they are empty
-    const cleanedData = { ...formData };
-    if (!cleanedData.walletAddress) {
-      delete cleanedData.walletAddress;
-    }
+  // Clean data: remove optional fields if they are empty
+  const cleanedData = { ...formData };
+  
+  // Remove gender field entirely if user is a poster
+  if (formData.role === "poster") {
+    delete cleanedData.gender;
+  }
+  
+  if (!cleanedData.walletAddress) {
+    delete cleanedData.walletAddress;
+  }
 
-    const result = await register(cleanedData);
+  const result = await register(cleanedData);
 
-    if (result.success) {
-      toast.success("Account created! Redirecting...");
-      router.push("/dashboard");
-    } else {
-      toast.error(result.error);
-    }
-  };
+  if (result.success) {
+    toast.success("Account created! Redirecting...");
+    router.push("/dashboard");
+  } else {
+    toast.error(result.error);
+  }
+};
 
   const handleChange = (e) => {
     if (error) clearError();
