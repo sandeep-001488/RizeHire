@@ -13,11 +13,6 @@ const hardConstraintsSchema = new mongoose.Schema(
       min: 0,
       default: null,
     },
-    maxYears: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
   },
   { _id: false }
 );
@@ -107,6 +102,19 @@ const jobSchema = new mongoose.Schema(
       default: 0,
     },
     tags: [String],
+    ideal_experience: {
+      type: Number,
+      default: 5,
+    },
+    preferred_education: {
+      type: String,
+      enum: ["High School", "Bachelor's", "Master's", "PhD"],
+      default: "Bachelor's",
+    },
+    required_skills: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,

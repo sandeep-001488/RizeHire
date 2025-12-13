@@ -1,7 +1,6 @@
 import { generateContent } from "../config/gemini.js";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
-import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
 
 const fallbackSkillsExtraction = (text) => {
   const skillCategories = {
@@ -162,67 +161,94 @@ const extractSkills = async (req, res) => {
       });
     }
 
-    let skills = [];
-    let usingFallback = false;
+    let extractedData = {};
     let aiResponse = null;
 
     try {
-      const prompt = `You are a technical recruiter expert. Extract ONLY the technical skills, technologies, programming languages, frameworks, tools, and platforms mentioned in the following text.
+      const prompt = `You are an expert resume parser. Extract the following information from the text. If a field cannot be extracted, return null for that field.
+
+Return the results as a JSON object with the following keys:
+
+- name: Candidate's full name (string)
+- email: Candidate's email address (string)
+- phone: Candidate's phone number (string)
+- total_experience_years: Total years of work experience (number)
+- skills: List of skills (array of strings, max 15)
+- education: List of educational qualifications (array of strings)
+- gender: Gender of the candidate (string, or null if not inferable)
+- resume_confidence: A score (number, 0-1) representing the resume quality
+- parsed_summary: A short summary of the candidate's experience (string)
 
 IMPORTANT RULES:
-1. Extract ONLY skills that are explicitly mentioned in the text
-2. Use exact names as they appear (e.g., "Next.js" not "NextJS")
-3. Include programming languages, frameworks, databases, cloud services, tools
-4. Do NOT invent or infer skills not mentioned
-5. Return ONLY a valid JSON array of strings
-6. Maximum 15 skills
+1.  Skills should be returned as an array of strings.
+2.  Return ONLY a valid JSON object.
 
 TEXT TO ANALYZE:
 "${text}"
 
 EXPECTED OUTPUT FORMAT (example):
-["JavaScript", "React", "Node.js", "MongoDB", "Docker"]
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "123-456-7890",
+  "total_experience_years": 5,
+  "skills": ["JavaScript", "React", "Node.js"],
+  "education": ["Bachelor's in Computer Science"],
+  "gender": "male",
+  "resume_confidence": 0.8,
+  "parsed_summary": "Experienced software engineer..."
+}
 
 YOUR RESPONSE:`;
 
       aiResponse = await generateContent(prompt);
       console.log("📥 Raw AI Response:", aiResponse);
 
-      let jsonMatch = aiResponse.match(/\[[\s\S]*?\]/);
-
-      if (jsonMatch) {
-        skills = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(skills)) {
-          skills = skills
-            .filter(
-              (skill) =>
-                typeof skill === "string" &&
-                skill.length > 0 &&
-                skill.length < 50
-            )
-            .map((skill) => skill.trim())
-            .slice(0, 15);
+      let parsedData;
+      try {
+        const jsonMatch = aiResponse.match(/\{[\s\S]*?\}/);
+        if (jsonMatch) {
+          parsedData = JSON.parse(jsonMatch[0]);
         } else {
-          throw new Error("Parsed result is not an array");
+          throw new Error("No valid JSON object found in AI response");
         }
-        if (skills.length === 0) {
-          throw new Error("AI returned empty skills array");
-        }
-      } else {
-        throw new Error("No valid JSON array found in AI response");
+      } catch (parseError) {
+        console.error("JSON parsing error:", parseError);
+        throw new Error(`Failed to parse JSON response: ${parseError.message}`);
       }
-    } catch (aiError) {
-      skills = fallbackSkillsExtraction(text);
-      usingFallback = true;
-    }
 
-    res.json({
-      success: true,
-      data: {
-        skills,
-        usingFallback,
-      },
-    });
+      // Validate parsedData
+      if (typeof parsedData !== 'object' || parsedData === null) {
+        throw new Error("Parsed result is not a JSON object");
+      }
+
+      // Extract individual fields
+      const { name, email, phone, total_experience_years, skills, education, gender, resume_confidence, parsed_summary } = parsedData;
+
+      // Assign extracted values
+      extractedData = {
+        name: name || null,
+        email: email || null,
+        phone: phone || null,
+        total_experience_years: total_experience_years || null,
+        skills: Array.isArray(skills) ? skills.slice(0, 15) : [],
+        education: Array.isArray(education) ? education : [],
+        gender: gender || null,
+        resume_confidence: resume_confidence !== undefined ? resume_confidence : null,
+        parsed_summary: parsed_summary || null,
+      };
+
+      res.json({
+        success: true,
+        data: extractedData,
+      });
+    } catch (aiError) {
+      console.error("AI extraction failed:", aiError);
+      res.status(500).json({
+        success: false,
+        message: `Failed to extract resume features: ${aiError.message}`,
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -244,7 +270,6 @@ const calculateJobMatch = async (req, res) => {
       });
     }
 
-    // --- NEW: Check for parsed resume ---
     if (!user.parsedResume) {
       return res.status(400).json({
         success: false,
@@ -253,32 +278,11 @@ const calculateJobMatch = async (req, res) => {
       });
     }
 
-    // 1. Check hard rules
-    const hard = applyHardRules(job.hardConstraints, user.parsedResume);
-    if (hard.hardFail) {
-      return res.json({
-        success: true,
-        data: {
-          matchScore: 0,
-          decision: "rejected",
-          reasons: hard.reasons,
-          job: { id: job._id, title: job.title },
-        },
-      });
-    }
-
-    // 2. Get flexible AI score
-    const ai = await scoreWithAI({ job, parsedResume: user.parsedResume });
-    const decision = ai.score >= 60 ? "good-match" : "poor-match";
+    const evaluation = evaluateCandidate(job, user.parsedResume);
 
     res.json({
       success: true,
-      data: {
-        matchScore: ai.score,
-        decision,
-        reasons: ai.reasons,
-        job: { id: job._id, title: job.title },
-      },
+      data: evaluation,
     });
   } catch (error) {
     console.error("Calculate job match error:", error);
@@ -287,6 +291,108 @@ const calculateJobMatch = async (req, res) => {
       message: error.message,
     });
   }
+};
+
+const evaluateCandidate = (job, parsedResume) => {
+  // 1. Hard Filters
+  let hardFail = false;
+  const hardFilterReasons = [];
+
+  if (job.hardConstraints?.minYears && parsedResume.total_experience_years < job.hardConstraints.minYears) {
+    hardFail = true;
+    hardFilterReasons.push(`Minimum experience required: ${job.hardConstraints.minYears} years`);
+  }
+
+  // Optional gender constraint (admin-enabled)
+  if (job.hardConstraints?.gender && parsedResume.gender !== job.hardConstraints.gender) {
+    hardFail = true;
+    hardFilterReasons.push(`Gender preference: ${job.hardConstraints.gender}`);
+  }
+
+  if (hardFail) {
+    return {
+      decision: { status: "reject", reason: hardFilterReasons.join(", "), final_score: 0 },
+      parsed_features: parsedResume,
+      contributions: {},
+      percent_contribution: {},
+      notes: "Candidate rejected due to hard filter constraints.",
+    };
+  }
+
+  // 2. Soft Scoring Features
+  const requiredSkills = job.skills || [];
+  const matchingSkills = parsedResume.skills.filter((skill) =>
+    requiredSkills.some((jobSkill) =>
+      jobSkill.toLowerCase().includes(skill.toLowerCase())
+    )
+  );
+  const skill_match = requiredSkills.length > 0 ? matchingSkills.length / requiredSkills.length : 1;
+
+  const ideal_experience = job.ideal_experience || 5; // Default ideal experience
+  const experience_std_dev = 2; // Standard deviation for experience
+  const exp_score = Math.exp(-Math.pow(parsedResume.total_experience_years - ideal_experience, 2) / (2 * Math.pow(experience_std_dev, 2)));
+
+  const preferred_education = job.preferred_education || "Bachelor's";
+  let education_match = 0.5;
+  if (parsedResume.education.includes(preferred_education)) {
+    education_match = 1;
+  } else if (parsedResume.education.length > 0) {
+    education_match = 0.8; // Higher education
+  }
+
+  const resume_confidence = parsedResume.resume_confidence || 0.7; // Default resume confidence
+
+  // 3. Weighted Scoring Formula
+  const final_score = 0.45 * skill_match + 0.25 * exp_score + 0.15 * education_match + 0.15 * resume_confidence;
+
+  // 4. SHAP-like Explanation
+  const skill_match_contribution = 0.45 * skill_match;
+  const exp_score_contribution = 0.25 * exp_score;
+  const education_match_contribution = 0.15 * education_match;
+  const resume_confidence_contribution = 0.15 * resume_confidence;
+
+  const total_contribution = Math.abs(skill_match_contribution) + Math.abs(exp_score_contribution) + Math.abs(education_match_contribution) + Math.abs(resume_confidence_contribution);
+
+  const skill_match_percent = Math.abs(skill_match_contribution) / total_contribution * 100;
+  const exp_score_percent = Math.abs(exp_score_contribution) / total_contribution * 100;
+  const education_match_percent = Math.abs(education_match_contribution) / total_contribution * 100;
+  const resume_confidence_percent = Math.abs(resume_confidence_contribution) / total_contribution * 100;
+
+  // 5. Final Decision
+  let decisionStatus = "reject";
+  let decisionReason = "Candidate does not meet the required qualifications.";
+  if (final_score >= 0.75) {
+    decisionStatus = "shortlist";
+    decisionReason = "Candidate is a strong match for the job.";
+  } else if (final_score >= 0.5) {
+    decisionStatus = "manual_review";
+    decisionReason = "Candidate requires manual review.";
+  }
+
+  // 6. JSON Structure
+  const result = {
+    decision: {
+      status: decisionStatus,
+      reason: decisionReason,
+      final_score: final_score,
+    },
+    parsed_features: parsedResume,
+    contributions: {
+      skill_match: skill_match_contribution,
+      exp_score: exp_score_contribution,
+      education_match: education_match_contribution,
+      resume_confidence: resume_confidence_contribution,
+    },
+    percent_contribution: {
+      skill_match: skill_match_percent,
+      exp_score: exp_score_percent,
+      education_match: education_match_percent,
+      resume_confidence: resume_confidence_percent,
+    },
+    notes: `Skill Match: ${skill_match_percent.toFixed(1)}%, Experience: ${exp_score_percent.toFixed(1)}%, Education: ${education_match_percent.toFixed(1)}%, Resume Confidence: ${resume_confidence_percent.toFixed(1)}%`,
+  };
+
+  return result;
 };
 
 const testAI = async (req, res) => {

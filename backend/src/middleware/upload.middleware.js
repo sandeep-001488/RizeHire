@@ -1,21 +1,25 @@
 import multer from "multer";
-import fs from "fs";
-import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
-const dir = path.join(process.cwd(), "uploads", "resumes");
-fs.mkdirSync(dir, { recursive: true });
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-const storage = multer.diskStorage({
-  destination: (_, __, cb) => cb(null, dir),
-  filename: (req, file, cb) => {
-    // Safe filename
-    const safe = file.originalname.replace(/[^a-zA-Z0-9.]/g, "_");
-    cb(null, `${req.user._id}-${Date.now()}-${safe}`);
+// Multer storage engine setup
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "resumes",
+    allowed_formats: ["pdf", "docx", "doc"],
+    public_id: (req, file) => `${req.user._id}-${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.]/g, "_")}`,
   },
 });
 
-const fileFilter = (_, file, cb) => {
-  // Allow PDF, DOC, and DOCX
+const fileFilter = (req, file, cb) => {
   const ok = /pdf|doc|docx$/i.test(file.originalname);
   if (!ok) {
     return cb(new Error("Only PDF, DOC, or DOCX files are allowed"));
@@ -24,7 +28,7 @@ const fileFilter = (_, file, cb) => {
 };
 
 export const uploadResume = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
 });

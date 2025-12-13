@@ -16,6 +16,8 @@ const parsedResumeSchema = new mongoose.Schema(
       country: String,
     },
     education: [String],
+    resume_confidence: Number,
+    parsed_summary: String,
   },
   { _id: false }
 );

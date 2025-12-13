@@ -36,6 +36,10 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       maxlength: 5000,
     },
+    resume: { // Store the resume file path
+      type: String,
+      required: false, // Resume is optional
+    },
     status: {
       type: String,
       enum: ["pending", "viewed", "moving-forward", "accepted", "rejected"],

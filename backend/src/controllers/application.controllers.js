@@ -99,12 +99,16 @@ const applyToJob = async (req, res) => {
       }
     }
 
+    const resume = req.file ? req.file.path : null;
+    const resumeUrl = req.file ? req.file.filename : null;
+
     // Create new application
     const application = await Application.create({
       jobId: jobId,
       applicantId: applicant._id,
       recruiterId: job.postedBy,
       coverLetter: coverLetter ? coverLetter.trim() : "",
+      resume: resumeUrl,
       status: applicationStatus,
       matchScore: matchScore,
       screeningResult: screeningResult,
@@ -196,7 +200,6 @@ const getJobApplicants = async (req, res) => {
       sortBy = "matchScore",
       sortOrder = "desc",
     } = req.query;
-
     const job = await Job.findById(jobId);
 
     if (!job) {
@@ -226,12 +229,11 @@ const getJobApplicants = async (req, res) => {
       sortOptions.appliedAt = sortOrder === "desc" ? -1 : 1;
     }
 
-    // --- FIXED: Added 'gender' to populate fields ---
     const applications = await Application.find(filter)
-      .populate(
-        "applicantId",
-        "name email profileImage skills bio linkedinUrl location gender createdAt parsedResume"
-      )
+      .populate({
+        path: "applicantId",
+        select: "name email profileImage skills bio linkedinUrl location gender createdAt parsedResume",
+      })
       .sort(sortOptions)
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -284,17 +286,21 @@ const getJobApplicants = async (req, res) => {
       }
     });
 
-    const applicants = applications.map((app) => ({
-      applicationId: app._id,
-      user: app.applicantId,
-      coverLetter: app.coverLetter,
-      appliedAt: app.appliedAt,
-      status: app.status,
-      feedback: app.feedback,
-      viewedByRecruiter: app.viewedByRecruiter,
-      matchScore: app.matchScore,
-      screeningResult: app.screeningResult,
-    }));
+    // Filter out applications where applicant was deleted
+    const applicants = applications
+      .filter(app => app.applicantId !== null) // Filter out null applicants
+      .map((app) => ({
+        applicationId: app._id,
+        user: app.applicantId,
+        coverLetter: app.coverLetter,
+        appliedAt: app.appliedAt,
+        status: app.status,
+        feedback: app.feedback,
+        viewedByRecruiter: app.viewedByRecruiter,
+        matchScore: app.matchScore,
+        screeningResult: app.screeningResult,
+        resume: app.resume,
+      }));
 
     res.json({
       success: true,
@@ -519,6 +525,37 @@ const getApplication = async (req, res) => {
   }
 };
 
+const getApplicationResume = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+
+    const application = await Application.findById(applicationId);
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+    }
+
+    if (!application.resume) {
+      return res.status(404).json({
+        success: false,
+        message: "Resume not found for this application",
+      });
+    }
+
+    // Redirect to the Cloudinary URL
+    res.redirect(application.resume);
+  } catch (error) {
+    console.error("Error in getApplicationResume:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error: " + error.message,
+    });
+  }
+};
+
 export {
   applyToJob,
   getMyApplications,
@@ -526,4 +563,5 @@ export {
   updateApplicationStatus,
   addFeedback,
   getApplication,
+  getApplicationResume,
 };
