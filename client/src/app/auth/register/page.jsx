@@ -174,7 +174,7 @@ export default function RegisterPage() {
                   value={formData.gender}
                   onValueChange={(value) => {
                     if (error) clearError();
-                    setFormData((prev) => ({ ...prev, gender: value }));
+                    setFormData((prev) => ({ ...prev, gender: value || "" }));
                   }}
                   disabled={isLoading}
                   required
