@@ -81,7 +81,18 @@ export const authAPI = {
 export const jobsAPI = {
   getJobs: (params) => api.get("/jobs", { params }),
   getJob: (id) => api.get(`/jobs/${id}`),
-  createJob: (data) => api.post("/jobs", data),
+  createJob: (data) => {
+    const { hardConstraints, ...jobData } = data;
+    const hardConstraintsData = {
+      gender: hardConstraints?.gender || null,
+      minYears: hardConstraints?.minYears || null,
+    };
+    const requestData = {
+      ...jobData,
+      hardConstraints: hardConstraintsData,
+    };
+    return api.post("/jobs", requestData);
+  },
   updateJob: (id, data) => api.put(`/jobs/${id}`, data),
   deleteJob: (id) => api.delete(`/jobs/${id}`),
   getMyJobs: (params) => api.get("/jobs/my-posted-jobs", { params }),
@@ -89,7 +100,11 @@ export const jobsAPI = {
 
 export const applicationsAPI = {
   applyToJob: (jobId, data) => {
-    return api.post(`/applications/jobs/${jobId}/apply`, data);
+    return api.post(`/applications/jobs/${jobId}/apply`, data, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
   },
   getMyApplications: (params) => {
     return api.get("/applications/my-applications", { params });

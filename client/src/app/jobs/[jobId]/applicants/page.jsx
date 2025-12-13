@@ -118,22 +118,14 @@ export default function JobApplicantsPage() {
       const response = await applicationsAPI.getJobApplicants(jobId, params);
 
       const { applicants, pagination, stats } = response.data.data;
+      console.log("Fetched applicants:", applicants);
       setJobApplicants(applicants);
       setApplicantsPagination(pagination);
       setApplicantsStats(stats);
     } catch (error) {
-      console.error("Error response:", error.response?.data);
-      console.error("Error status:", error.response?.status);
-
-      if (error.response?.status === 403) {
-        toast.error("You are not authorized to view these applicants");
-        router.push("/jobs");
-      } else if (error.response?.status === 404) {
-        toast.error("Job not found");
-        router.push("/jobs");
-      } else {
-        toast.error("Failed to load applicants");
-      }
+      console.error("Error fetching applicants:", error);
+      toast.error("Failed to load applicants");
+      router.push("/jobs");
     } finally {
       setIsLoadingApplicants(false);
     }
@@ -245,23 +237,22 @@ export default function JobApplicantsPage() {
       params.status = activeTab;
     }
 
-    fetchApplicantsWithParams(params);
-  };
-
-  const fetchApplicantsWithParams = async (params) => {
-    setIsLoadingApplicants(true);
-    try {
-      const response = await applicationsAPI.getJobApplicants(jobId, params);
-      const { applicants, pagination, stats } = response.data.data;
-      setJobApplicants(applicants);
-      setApplicantsPagination(pagination);
-      setApplicantsStats(stats);
-    } catch (error) {
-      console.error("Error fetching applicants:", error);
-      toast.error("Failed to load applicants");
-    } finally {
-      setIsLoadingApplicants(false);
-    }
+    fetchApplicantsWithParams = async (params) => {
+      setIsLoadingApplicants(true);
+      try {
+        const response = await applicationsAPI.getJobApplicants(jobId, params);
+        const { applicants, pagination, stats } = response.data.data;
+        setJobApplicants(applicants);
+        setApplicantsPagination(pagination);
+        setApplicantsStats(stats);
+      } catch (error) {
+        console.error("Error fetching applicants:", error);
+        toast.error("Failed to load applicants");
+        router.push("/jobs");
+      } finally {
+        setIsLoadingApplicants(false);
+      }
+    };
   };
 
   return (
@@ -277,6 +268,7 @@ export default function JobApplicantsPage() {
                 className="p-1"
               >
                 <ArrowLeft className="h-4 w-4" />
+                Back
               </Button>
               <h1 className="text-3xl font-bold">Job Applicants</h1>
             </div>
@@ -730,7 +722,7 @@ export default function JobApplicantsPage() {
                                     <MessageSquare className="mr-1 h-3 w-3" />
                                     Add Feedback
                                   </Button>
-                                  {applicant.user.linkedinUrl && (
+                                  {applicant.user && applicant.user.linkedinUrl && (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -751,16 +743,15 @@ export default function JobApplicantsPage() {
                               </div>
                             </div>
 
-                            {/* Main Content */}
-                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                               <div className="flex-1 min-w-0">
                                 {" "}
                                 {/* min-w-0 allows flex child to shrink */}
                                 <div className="flex items-start space-x-3 md:space-x-4">
                                   <Avatar className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0">
                                     <AvatarImage
-                                      src={applicant.user.profileImage}
-                                      alt={applicant.user.name}
+                                      src={applicant?.user?.profileImage}
+                                      alt={applicant?.user?.name}
                                     />
                                     <AvatarFallback>
                                       {getInitials(applicant.user.name)}

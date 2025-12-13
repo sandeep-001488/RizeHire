@@ -140,12 +140,15 @@ export default function JobDetailPage({ params }) {
         return;
       }
 
-      const response = await applicationsAPI.applyToJob(jobId, {
-        coverLetter: coverLetter.trim(),
-      });
+      const formData = new FormData();
+      formData.append("coverLetter", coverLetter.trim());
+      formData.append("resume", selectedResume); // Append the resume file
+
+      const response = await applicationsAPI.applyToJob(jobId, formData);
 
       await fetchJobDetails();
       setCoverLetter("");
+      setSelectedResume(null);
 
       alert("Application submitted successfully!");
     } catch (error) {
@@ -182,6 +185,7 @@ export default function JobDetailPage({ params }) {
   const isJobPoster = user && job && job.postedBy._id === user._id;
 
   const hasApplied = job?.hasApplied || false;
+  const [selectedResume, setSelectedResume] = useState(null);
 
   if (isLoading) {
     return (
@@ -398,6 +402,21 @@ export default function JobDetailPage({ params }) {
                       required
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="resume">Upload Resume</Label>
+                    <input
+                      type="file"
+                      id="resume"
+                      accept=".pdf,.docx"
+                      onChange={(e) => setSelectedResume(e.target.files[0])}
+                      required
+                    />
+                    {selectedResume && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Selected: {selectedResume.name}
+                      </p>
+                    )}
+                  </div>
                   <Button
                     type="submit"
                     disabled={isApplying}
@@ -416,6 +435,45 @@ export default function JobDetailPage({ params }) {
                     )}
                   </Button>
                 </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {matchScore && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Application Analysis</CardTitle>
+                <CardDescription>
+                  Here's why you {matchScore.decision.status === "shortlist" ? "were shortlisted" : matchScore.decision.status === "manual_review" ? "require manual review" : "were not selected"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p>
+                  <strong>Final Score:</strong> {matchScore.decision.final_score.toFixed(2)}
+                </p>
+                <p>
+                  <strong>Reason:</strong> {matchScore.decision.reason}
+                </p>
+                <p>
+                  <strong>Key Contributions:</strong>
+                </p>
+                <ul className="list-disc pl-5">
+                  <li>
+                    Skill Match: {matchScore.percent_contribution.skill_match.toFixed(1)}%
+                  </li>
+                  <li>
+                    Experience: {matchScore.percent_contribution.exp_score.toFixed(1)}%
+                  </li>
+                  <li>
+                    Education: {matchScore.percent_contribution.education_match.toFixed(1)}%
+                  </li>
+                  <li>
+                    Resume Confidence: {matchScore.percent_contribution.resume_confidence.toFixed(1)}%
+                  </li>
+                </ul>
+                <p className="text-sm text-muted-foreground">
+                  <strong>Notes:</strong> {matchScore.notes}
+                </p>
               </CardContent>
             </Card>
           )}

@@ -401,49 +401,8 @@ export default function PostJobPage() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="hardConstraints.maxYears">
-                    Max Experience (Years)
-                  </Label>
-                  <Input
-                    id="hardConstraints.maxYears"
-                    name="hardConstraints.maxYears"
-                    type="number"
-                    min="0"
-                    placeholder="No limit"
-                    value={formData.hardConstraints.maxYears}
-                    onChange={handleChange}
-                  />
-                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="hardConstraints.location.city">
-                    Required City
-                  </Label>
-                  <Input
-                    id="hardConstraints.location.city"
-                    name="hardConstraints.location.city"
-                    placeholder="e.g. San Francisco"
-                    value={formData.hardConstraints.location.city}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="hardConstraints.location.country">
-                    Required Country
-                  </Label>
-                  <Input
-                    id="hardConstraints.location.country"
-                    name="hardConstraints.location.country"
-                    placeholder="e.g. United States"
-                    value={formData.hardConstraints.location.country}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
             </CardContent>
           </Card>
 
