@@ -167,14 +167,14 @@ export default function RegisterPage() {
               </Select>
             </div>
             {/* Gender field - Only for seekers */}
-            {formData.role === "seeker" && (
+            {formData.role === "seeker" ? (
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender *</Label>
                 <Select
                   value={formData.gender}
                   onValueChange={(value) => {
                     if (error) clearError();
-                    setFormData((prev) => ({ ...prev, gender: value || "" }));
+                    setFormData((prev) => ({ ...prev, gender: value }));
                   }}
                   disabled={isLoading}
                   required
@@ -189,7 +189,7 @@ export default function RegisterPage() {
                   </SelectContent>
                 </Select>
               </div>
-            )}
+            ) : null}
 
             <div className="space-y-2">
               <Label htmlFor="walletAddress">Wallet Address (Optional)</Label>
