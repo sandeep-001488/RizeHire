@@ -288,10 +288,20 @@ const getJobApplicants = async (req, res) => {
 
     // Filter out applications where applicant was deleted
     const applicants = applications
-      .filter(app => app.applicantId !== null) // Filter out null applicants
       .map((app) => ({
         applicationId: app._id,
-        user: app.applicantId,
+        user: app.applicantId ? {
+          name: app.applicantId.name,
+          email: app.applicantId.email,
+          profileImage: app.applicantId.profileImage,
+          skills: app.applicantId.skills,
+          bio: app.applicantId.bio,
+          linkedinUrl: app.applicantId.linkedinUrl,
+          location: app.applicantId.location,
+          gender: app.applicantId.gender,
+          createdAt: app.applicantId.createdAt,
+          parsedResume: app.applicantId.parsedResume,
+        } : null,
         coverLetter: app.coverLetter,
         appliedAt: app.appliedAt,
         status: app.status,
