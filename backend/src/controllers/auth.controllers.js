@@ -11,10 +11,10 @@ const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
   role: Joi.string().valid("seeker", "poster").required(),
-  gender: Joi.string().valid("male", "female", "other").when("role", {
+  gender: Joi.when("role", {
     is: "seeker",
-    then: Joi.required(),
-    otherwise: Joi.optional(),
+    then: Joi.string().valid("male", "female", "other").required(),
+    otherwise: Joi.forbidden(), // Change this line - don't accept gender for posters
   }),
   bio: Joi.string().max(10000).optional().allow(""),
   linkedinUrl: Joi.string().uri().optional().allow(""),
@@ -55,16 +55,23 @@ const register = async (req, res) => {
       });
     }
 
-    const user = await User.create({
+    // Create user object conditionally
+    const userData = {
       name,
       email,
       password,
       role,
-      gender: gender || undefined, 
       bio: bio || "",
       linkedinUrl,
       walletAddress,
-    });
+    };
+
+    // Only add gender if user is a seeker
+    if (role === "seeker" && gender) {
+      userData.gender = gender;
+    }
+
+    const user = await User.create(userData);
 
     const tokens = generateTokenPair({ userId: user._id, email: user.email });
     await user.addRefreshToken(tokens.refreshToken);
