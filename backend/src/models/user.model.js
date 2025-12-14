@@ -9,8 +9,9 @@ const parsedResumeSchema = new mongoose.Schema(
     email: String,
     phone: String,
     skills: [String],
+    technicalSkills: [String],
     yearsOfExperience: Number,
-    gender: String, 
+    gender: String,
     location: {
       city: String,
       country: String,

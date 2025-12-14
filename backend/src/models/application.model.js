@@ -89,6 +89,10 @@ const applicationSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+   rejectionReason: {
+      type: String,
+      maxlength: 2000,
+    },
   },
   {
     timestamps: true,

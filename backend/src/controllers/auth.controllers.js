@@ -265,6 +265,43 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const updateSkills = async (req, res) => {
+ try {
+   const { skills } = req.body;
+   if (!Array.isArray(skills)) {
+     return res.status(400).json({
+       success: false,
+       message: "Skills must be an array of strings",
+     });
+   }
+   if (skills.length > 20) {
+     return res.status(400).json({
+       success: false,
+       message: "You can only have a maximum of 20 skills",
+     });
+   }
+   const updatedUser = await User.findByIdAndUpdate(
+     req.user._id,
+     { skills },
+     {
+       new: true,
+       runValidators: true,
+     }
+   );
+   res.json({
+     success: true,
+     message: "Skills updated successfully",
+     data: {
+       user: updatedUser,
+     },
+   });
+ } catch (error) {
+   res.status(500).json({
+     success: false,
+     message: error.message,
+   });
+ }
+};
 // UPDATED: Parse and Save Resume with Gender Priority Logic ---
 const parseAndSaveResume = async (req, res) => {
   try {

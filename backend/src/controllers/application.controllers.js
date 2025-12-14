@@ -16,16 +16,16 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    // Check if user has parsed their resume
-    if (!applicant.parsedResume) {
-      return res.status(400).json({
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({
         success: false,
-        message:
-          "Please upload and parse your resume at '/api/auth/profile/parse-resume' before applying.",
+        message: "Job not found",
       });
     }
 
-    const job = await Job.findById(jobId);
+    
 
     if (!job) {
       return res.status(404).json({
@@ -74,15 +74,15 @@ const applyToJob = async (req, res) => {
       hardFail: hard.hardFail,
       reasons: hard.reasons,
     };
-
     if (hard.hardFail) {
       // INSTANT REJECTION
       applicationStatus = "rejected";
       matchScore = 0;
+      const rejectionReason = hard.reasons.join(", ");
       console.log(
         `Hard rejection for ${applicant.email} on job ${
           job.title
-        }: ${hard.reasons.join(", ")}`
+        }: ${rejectionReason}`
       );
     } else {
       // 2. Apply Flexible AI Scoring with corrected profile
@@ -310,7 +310,11 @@ const getJobApplicants = async (req, res) => {
         matchScore: app.matchScore,
         screeningResult: app.screeningResult,
         resume: app.resume,
-      }));
+      }))
+      .map(app => ({
+       ...app,
+       resumeUrl: app.resume ? `/api/applications/${app.applicationId}/resume` : null,
+     }));
 
     res.json({
       success: true,
@@ -523,6 +527,7 @@ const getApplication = async (req, res) => {
           feedback: visibleFeedback,
           matchScore: application.matchScore,
           screeningResult: application.screeningResult,
+          rejectionReason: application.rejectionReason,
         },
       },
     });
