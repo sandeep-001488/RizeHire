@@ -11,6 +11,7 @@ import authRoutes from "./src/routes/auth.routes.js";
 import jobRoutes from "./src/routes/job.routes.js";
 import applicationRoutes from "./src/routes/application.routes.js";
 import aiRoutes from "./src/routes/ai.routes.js";
+import jobSeedRoutes from "./src/seeds/job.seeds.js";
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ app.get("/health", (_, res) => {
 // --- API Routes ---
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
+app.use("/api", jobSeedRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/ai", aiRoutes);
 

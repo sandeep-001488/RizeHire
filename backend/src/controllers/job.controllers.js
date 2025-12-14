@@ -207,7 +207,7 @@ const getJob = async (req, res) => {
       });
       hasApplied = !!userApplication;
 
-      if (req.user._id.toString() !== job.postedBy._id.toString()) {
+      if (job.postedBy && req.user._id.toString() !== job.postedBy._id.toString()) {
         await job.incrementViews();
       }
     }

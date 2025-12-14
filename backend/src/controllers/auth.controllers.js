@@ -5,6 +5,7 @@ import { parseResumeWithAI } from "../utils/aiScreening.js";
 import { sendEmail } from "../utils/email.js";
 import Joi from "joi";
 import crypto from "crypto";
+import { uploadToCloudinary } from "../middleware/upload.middleware.js";
 
 const registerSchema = Joi.object({
   name: Joi.string().min(2).max(100).required(),
@@ -274,16 +275,21 @@ const parseAndSaveResume = async (req, res) => {
       });
     }
 
+    // Parse from local file
     const resumeText = await extractTextFromResume(req.file.path);
+    
     if (!resumeText || resumeText.trim().length < 50) {
+      // Clean up local file
+      fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
-        message:
-          "Could not extract meaningful text from resume. Please ensure the file is readable.",
+        message: "Could not extract meaningful text from resume.",
       });
     }
 
     const parsedData = await parseResumeWithAI(resumeText);
+
+     await uploadToCloudinary(req.file.path);
 
     const user = req.user;
 

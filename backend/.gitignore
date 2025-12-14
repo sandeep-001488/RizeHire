@@ -14,6 +14,13 @@ yarn-error.log*
 node_modules/
 jspm_packages/
 
+# Do not commit job seeder
+src/seeds/job.seeds.js
+
+# Do not commit Gemini test file
+testGemini.js
+
+
 # Build outputs
 dist/
 build/

@@ -1,6 +1,7 @@
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
+import path from "path";
+import fs from "fs";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -9,13 +10,18 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer storage engine setup
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: "resumes",
-    allowed_formats: ["pdf", "docx", "doc"],
-    public_id: (req, file) => `${req.user._id}-${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+// Local storage first
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(process.cwd(), 'uploads', 'resumes');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${req.user._id}-${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
   },
 });
 
@@ -32,3 +38,21 @@ export const uploadResume = multer({
   fileFilter: fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
+
+// Then upload to Cloudinary after parsing
+export const uploadToCloudinary = async (localPath) => {
+  try {
+    const result = await cloudinary.uploader.upload(localPath, {
+      folder: "resumes",
+      resource_type: "raw",
+    });
+    
+    // Delete local file after upload
+    fs.unlinkSync(localPath);
+    
+    return result.secure_url;
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    throw error;
+  }
+};
