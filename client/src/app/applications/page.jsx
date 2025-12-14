@@ -175,7 +175,7 @@ export default function ApplicationsPage() {
                         </h3>
                       </Link>
                       <p className="text-muted-foreground mt-1">
-                        {application.job.postedBy.name}
+                        {application?.job?.postedBy?.name}
                       </p>
 
                       <div className="flex flex-wrap gap-3 mt-3 text-sm text-muted-foreground">

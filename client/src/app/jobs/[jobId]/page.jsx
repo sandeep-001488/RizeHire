@@ -52,6 +52,7 @@ export default function JobDetailPage({ params }) {
 
   useEffect(() => {
     if (job && isAuthenticated) {
+      console.log(" job:", job);
       fetchMatchScore();
     }
   }, [job, isAuthenticated]);
@@ -84,6 +85,7 @@ export default function JobDetailPage({ params }) {
       setShowQuestions(true);
     } catch (error) {
       console.error("Error fetching interview questions:", error);
+      alert("Failed to fetch interview questions. Please try again later.");
     }
   };
 
@@ -182,10 +184,10 @@ export default function JobDetailPage({ params }) {
     }
   };
 
-  const isJobPoster = user && job && job.postedBy._id === user._id;
 
   const hasApplied = job?.hasApplied || false;
   const [selectedResume, setSelectedResume] = useState(null);
+  const isJobPoster = user && job && job.postedBy && job.postedBy._id === user._id ? true : false;
 
   if (isLoading) {
     return (
@@ -221,7 +223,7 @@ export default function JobDetailPage({ params }) {
                 {job.title}
               </CardTitle>
               <CardDescription className="text-lg mt-2">
-                {job.postedBy.name}
+                {job.postedBy?.name}
               </CardDescription>
 
               <div className="flex flex-wrap gap-3 mt-4">
@@ -516,8 +518,8 @@ export default function JobDetailPage({ params }) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-medium">{job.postedBy.name}</h4>
-                {job.postedBy.bio && (
+                <h4 className="font-medium">{job?.postedBy?.name}</h4>
+                {job?.postedBy?.bio && (
                   <p className="text-sm text-muted-foreground mt-2">
                     {job.postedBy.bio}
                   </p>
@@ -525,7 +527,7 @@ export default function JobDetailPage({ params }) {
               </div>
 
               <div className="flex gap-2">
-                {job.postedBy.linkedinUrl && (
+                {job?.postedBy?.linkedinUrl && (
                   <a
                     href={job.postedBy.linkedinUrl}
                     target="_blank"
@@ -537,7 +539,7 @@ export default function JobDetailPage({ params }) {
                     </Button>
                   </a>
                 )}
-                {job.postedBy.email && (
+                {job?.postedBy?.email && (
                   <a href={`mailto:${job.postedBy.email}`}>
                     <Button variant="outline" size="sm">
                       <Mail className="mr-2 h-4 w-4" />
@@ -549,7 +551,7 @@ export default function JobDetailPage({ params }) {
             </CardContent>
           </Card>
 
-          {(job.applicationUrl || job.applicationEmail) && (
+          {(job?.applicationUrl || job?.applicationEmail) && (
             <Card>
               <CardHeader>
                 <CardTitle>How to Apply</CardTitle>

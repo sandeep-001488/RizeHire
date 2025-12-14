@@ -27,7 +27,6 @@ import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +37,15 @@ export default function DashboardPage() {
   const [seekerStats, setSeekerStats] = useState({ applications: 0 });
   const [recentApplications, setRecentApplications] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+
+   const { isAuthenticated, isHydrated, user } = useAuthStore();
+
+  useEffect(() => {
+    if (isHydrated && !isAuthenticated) {
+      router.push("/auth/login");
+    }
+  }, [isAuthenticated, isHydrated, router]);
+
 
   useEffect(() => {
     if (user) {
@@ -153,14 +161,11 @@ export default function DashboardPage() {
 
   const quickActions = user?.role === "poster" ? posterActions : seekerActions;
 
-  // Loading Skeleton
-  if (isLoading || !user) {
+   if (!isHydrated || !isAuthenticated) {
     return (
-      <AuthGuard>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </AuthGuard>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
     );
   }
 

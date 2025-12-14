@@ -20,6 +20,10 @@
 # production
 /build
 
+# Ignore admin panel folder
+app/admin/
+
+
 # misc
 .DS_Store
 *.pem

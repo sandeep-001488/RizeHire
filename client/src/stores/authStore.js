@@ -1,8 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { authAPI } from "@/lib/api"; 
-
+import { authAPI } from "@/lib/api";
 
 export const useAuthStore = create(
   persist(
@@ -22,8 +21,10 @@ export const useAuthStore = create(
       login: async (credentials) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await authAPI.login(credentials); 
+          const response = await authAPI.login(credentials);
           const { user, tokens } = response.data.data;
+          
+          // Set all state synchronously
           set({
             user,
             tokens,
@@ -32,6 +33,10 @@ export const useAuthStore = create(
             error: null,
             isInitialized: true,
           });
+          
+          // Force a storage sync
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
           return { success: true, user, tokens };
         } catch (error) {
           const errorMessage = error.response?.data?.message || "Login failed";
@@ -48,8 +53,9 @@ export const useAuthStore = create(
       register: async (userData) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await authAPI.register(userData); 
+          const response = await authAPI.register(userData);
           const { user, tokens } = response.data.data;
+          
           set({
             user,
             tokens,
@@ -58,6 +64,10 @@ export const useAuthStore = create(
             error: null,
             isInitialized: true,
           });
+          
+          // Force a storage sync
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
           return { success: true, user, tokens };
         } catch (error) {
           const errorMessage =
@@ -76,7 +86,7 @@ export const useAuthStore = create(
         const { tokens } = get();
         try {
           if (tokens?.refreshToken) {
-            await authAPI.logout(tokens.refreshToken); 
+            await authAPI.logout(tokens.refreshToken);
           }
         } catch (error) {
           console.error("Logout API error:", error);
@@ -125,8 +135,6 @@ export const useAuthStore = create(
         }
       },
 
-      // --- NEW ACTIONS ---
-
       forgotPassword: async (email) => {
         set({ isLoading: true, error: null });
         try {
@@ -146,7 +154,7 @@ export const useAuthStore = create(
         try {
           const response = await authAPI.resetPassword(token, { password });
           const { user, tokens } = response.data.data;
-          // Log the user in
+          
           set({
             user,
             tokens,
@@ -155,6 +163,7 @@ export const useAuthStore = create(
             error: null,
             isInitialized: true,
           });
+          
           return { success: true, user };
         } catch (error) {
           const errorMessage =
@@ -190,8 +199,6 @@ export const useAuthStore = create(
           return { success: false, error: errorMessage };
         }
       },
-
-      // --- END NEW ACTIONS ---
 
       setUser: (user) => {
         set({ user, isAuthenticated: !!user });

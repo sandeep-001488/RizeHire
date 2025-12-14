@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,15 +23,26 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, isLoading, error, clearError, isAuthenticated, isHydrated } = useAuthStore();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, isHydrated, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
+    
     const result = await login(formData);
+    
     if (result.success) {
       toast.success("Login successful! Redirecting...");
-      router.push("/dashboard");
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 100);
     } else {
       toast.error(result.error);
     }
@@ -44,6 +55,18 @@ export default function LoginPage() {
       [e.target.name]: e.target.value,
     }));
   };
+
+  // Don't render the form if already authenticated
+  if (isHydrated && isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center gradient-bg">
@@ -71,7 +94,6 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                {/* --- NEW LINK --- */}
                 <Link
                   href="/auth/forgot-password"
                   className="text-sm font-medium text-primary hover:underline"
@@ -121,7 +143,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm">
             <span className="text-muted-foreground">
-              Don&apos;t have an account?
+              Don&apos;t have an account?{" "}
             </span>
             <Link
               href="/auth/register"
