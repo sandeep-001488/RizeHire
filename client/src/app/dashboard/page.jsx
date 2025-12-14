@@ -125,6 +125,14 @@ export default function DashboardPage() {
       icon: Users,
       color: "bg-green-500",
     },
+   {
+      title: "Saved Jobs",
+      description: "View jobs you saved",
+      href: "/jobs/saved",
+      icon: Eye,
+      color: "bg-indigo-500",
+    },
+
   ];
 
   const posterActions = [
@@ -149,6 +157,14 @@ export default function DashboardPage() {
       icon: Users,
       color: "bg-green-500",
     },
+    {
+      title: "Applicants",
+      description: "View all applicants",
+      href: "/applications/received",
+      icon: Users,
+      color: "bg-orange-500",
+   },
+
   ];
 
   const quickActions = user?.role === "poster" ? posterActions : seekerActions;
