@@ -878,9 +878,25 @@ export default function JobApplicantsPage() {
                                             className="text-xs md:text-sm"
                                           >
                                             <User className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+-------
                                             View Full Details
                                           </Button>
                                         </DialogTrigger>
+                                         {applicant.resumeUrl && (
+                                           <Button
+                                             size="sm"
+                                             variant="outline"
+                                             asChild
+                                           >
+                                             <a
+                                               href={applicant.resumeUrl}
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                             >
+                                               View Resume
+                                             </a>
+                                           </Button>
+                                         )}
                                         <DialogContent className="max-w-2xl w-[95vw] max-h-[80vh] overflow-y-auto">
                                           <DialogHeader>
                                             <DialogTitle>

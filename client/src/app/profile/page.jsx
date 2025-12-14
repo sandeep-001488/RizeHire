@@ -41,6 +41,7 @@ export default function ProfilePage() {
     linkedinUrl: "",
     walletAddress: "",
     skills: [],
+    technicalSkills: [],
     gender: "",
   });
   const [skillInput, setSkillInput] = useState("");
@@ -263,7 +264,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Skills Section - More prominent for seekers */}
+          {/* Skills Section */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -335,7 +336,6 @@ export default function ProfilePage() {
           </Card>
 
           {/* Parsed Resume Info - Only for Seekers */}
-          {/* Parsed Resume Details - Only for Seekers */}
           {user?.role === "seeker" && user?.parsedResume && (
             <Card className="bg-green-50 dark:bg-green-950 border-green-300 dark:border-green-800">
               <CardHeader>
@@ -491,6 +491,7 @@ export default function ProfilePage() {
                     linkedinUrl: user?.linkedinUrl || "",
                     walletAddress: user?.walletAddress || "",
                     skills: user?.skills || [],
+                    gender: user?.gender || "",
                   });
                 }}
               >

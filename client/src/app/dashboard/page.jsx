@@ -53,6 +53,8 @@ export default function DashboardPage() {
         fetchPosterDashboard();
       } else if (user.role === "seeker") {
         fetchSeekerDashboard();
+        console.log("recent applications",recentApplications);
+        
       } else {
         setIsLoading(false);
       }
@@ -337,11 +339,8 @@ export default function DashboardPage() {
                   Complete Your Profile
                 </CardTitle>
                 <CardDescription className="text-yellow-700 dark:text-yellow-300">
-                  You must parse your resume to apply for jobs.
-                </CardDescription>
-                <Button asChild className="mt-4 w-fit">
-                  <Link href="/profile">Go to Profile</Link>
-                </Button>
+                  You must parse your resume to apply for jobs.</CardDescription>
+                <Button asChild className="mt-4 w-fit"></Button>
               </CardHeader>
             </Card>
           )}
@@ -359,8 +358,7 @@ export default function DashboardPage() {
                         <action.icon className="h-5 w-5 text-white" />
                       </div>
                       <CardTitle className="text-base">
-                        {action.title}
-                      </CardTitle>
+                        </CardTitle>
                     </CardHeader>
                   </Card>
                 </Link>
@@ -382,68 +380,31 @@ export default function DashboardPage() {
                 {recentApplications.length > 0 ? (
                   <div className="space-y-4">
                     {recentApplications.map((app) => (
-                      <Link key={app._id} href={`/jobs/${app.job._id}`}>
-                        <div className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-medium">{app.job.title}</h4>
-                            <Badge
-                              variant={
-                                app.status === "rejected"
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                            >
-                              {app.status}
-                            </Badge>
+                      app.job ? (
+                        <Link key={app._id} href={`/jobs/${app.job._id}`}>
+                          <div className="p-3 border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-medium">{app.job.title}</h4>
+                              <Badge>{app.status}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Applied {formatDate(app.appliedAt)}
+                            </p>
                           </div>
+                        </Link>
+                      ) : (
+                        <div key={app._id} className="p-3 border rounded-lg">
                           <p className="text-sm text-muted-foreground">
-                            Applied {formatDate(app.appliedAt)}
+                            Application details not available.
                           </p>
                         </div>
-                      </Link>
+                      )
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No applications sent yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Recommended for You</CardTitle>
-                <Link href="/ai/recommendations">
-                  <Button variant="ghost" size="sm">
-                    View All
-                  </Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                {recommendations.length > 0 ? (
-                  <div className="space-y-4">
-                    {recommendations.map((rec) => (
-                      <Link key={rec.job._id} href={`/jobs/${rec.job._id}`}>
-                        <div className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">{rec.job.title}</h4>
-                            <Badge variant="secondary">
-                              {rec.matchScore}% match
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {rec.job.postedBy.name} • {rec.job.jobType}
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No recommendations yet. Update your profile!</p>
                   </div>
                 )}
               </CardContent>

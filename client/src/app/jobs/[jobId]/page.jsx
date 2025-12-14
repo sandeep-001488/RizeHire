@@ -392,51 +392,124 @@ export default function JobDetailPage({ params }) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleApply} className="space-y-4">
-                  <div>
-                    <Label htmlFor="coverLetter">Cover Letter</Label>
-                    <Textarea
-                      id="coverLetter"
-                      placeholder="Write a compelling cover letter..."
-                      value={coverLetter}
-                      onChange={(e) => setCoverLetter(e.target.value)}
-                      rows={6}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="resume">Upload Resume</Label>
-                    <input
-                      type="file"
-                      id="resume"
-                      accept=".pdf,.docx"
-                      onChange={(e) => setSelectedResume(e.target.files[0])}
-                      required
-                    />
-                    {selectedResume && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Selected: {selectedResume.name}
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={isApplying}
-                    className="w-full"
-                  >
-                    {isApplying ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="mr-2 h-4 w-4" />
-                        Submit Application
-                      </>
-                    )}
-                  </Button>
-                </form>
+             <form onSubmit={handleApply} className="space-y-4">
+  <div>
+    <Label htmlFor="coverLetter">Cover Letter</Label>
+    <Textarea
+      id="coverLetter"
+      placeholder="Write a compelling cover letter..."
+      value={coverLetter}
+      onChange={(e) => setCoverLetter(e.target.value)}
+      rows={6}
+      required
+    />
+  </div>
+  
+  <div className="space-y-2">
+    <Label htmlFor="resume">Upload Resume</Label>
+    <div className="flex items-center gap-2">
+      <label
+        htmlFor="resume"
+        className="flex-1 flex items-center justify-center px-4 py-2 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary/50 hover:bg-accent/50 transition-colors cursor-pointer"
+      >
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" x2="12" y1="3" y2="15" />
+            </svg>
+            <span className="font-medium">
+              {selectedResume ? "Change file" : "Choose file"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            PDF or DOCX (Max 10MB)
+          </p>
+        </div>
+      </label>
+      <input
+        type="file"
+        id="resume"
+        accept=".pdf,.docx"
+        onChange={(e) => setSelectedResume(e.target.files[0])}
+        className="hidden"
+      />
+    </div>
+    
+    {selectedResume && (
+      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-green-600"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <p className="text-sm font-medium flex-1">
+          {selectedResume.name}
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setSelectedResume(null)}
+          className="h-auto p-1"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="18" x2="6" y1="6" y2="18" />
+            <line x1="6" x2="18" y1="6" y2="18" />
+          </svg>
+        </Button>
+      </div>
+    )}
+  </div>
+  
+  <Button
+    type="submit"
+    disabled={isApplying}
+    className="w-full"
+  >
+    {isApplying ? (
+      <>
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Submitting...
+      </>
+    ) : (
+      <>
+        <Send className="mr-2 h-4 w-4" />
+        Submit Application
+      </>
+    )}
+  </Button>
+</form>
               </CardContent>
             </Card>
           )}

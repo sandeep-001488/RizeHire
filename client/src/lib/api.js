@@ -66,6 +66,7 @@ export const authAPI = {
   logout: (refreshToken) => api.post("/auth/logout", { refreshToken }),
   getProfile: () => api.get("/auth/profile"),
   updateProfile: (data) => api.put("/auth/profile", data),
+   updateSkills: (data) => api.put("/auth/profile/skills", data),
   // --- NEW ---
   forgotPassword: (data) => api.post("/auth/forgot-password", data),
   resetPassword: (token, data) =>

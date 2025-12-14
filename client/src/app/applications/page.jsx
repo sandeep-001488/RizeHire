@@ -47,6 +47,11 @@ export default function ApplicationsPage() {
     }
   };
 
+  useEffect(()=>{
+    console.log("applications",applications);
+    
+  },[])
+
   const toggleFeedback = (applicationId) => {
     setExpandedFeedback((prev) => ({
       ...prev,
@@ -322,8 +327,14 @@ export default function ApplicationsPage() {
                           {application.status || "pending"}
                         </Badge>
                         <p className="text-xs text-muted-foreground">
+-------
                           {getStatusInfo(application.status).description}
                         </p>
+                        {application.rejectionReason && (
+                         <p className="text-xs text-red-500 mt-1">
+                           Reason: {application.rejectionReason}
+                         </p>
+                       )}
                       </div>
                     </div>
                   </div>
