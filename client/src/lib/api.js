@@ -12,49 +12,40 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const authHeader = useAuthStore.getState().getAuthHeader();
-    if (authHeader) {
-      config.headers.Authorization = authHeader;
+    const { tokens } = useAuthStore.getState();
+    if (tokens?.accessToken) {
+      config.headers.Authorization = `Bearer ${tokens.accessToken}`;
+      if (tokens?.refreshToken) {
+        config.headers["X-Refresh-Token"] = tokens.refreshToken;
+      }
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
+// Response interceptor
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Check for new tokens in response headers
+    const newAccessToken = response.headers["x-new-access-token"];
+    const newRefreshToken = response.headers["x-new-refresh-token"];
+    
+    if (newAccessToken && newRefreshToken) {
+      const { setTokens } = useAuthStore.getState();
+      setTokens({
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      });
+    }
+    
+    return response;
+  },
   async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      const { tokens, logout, setTokens } = useAuthStore.getState();
-
-      if (tokens?.refreshToken) {
-        try {
-          const response = await axios.post(
-            `${API_BASE_URL}/auth/refresh-token`,
-            {
-              refreshToken: tokens.refreshToken,
-            }
-          );
-          const newTokens = response.data.data.tokens;
-          setTokens(newTokens);
-          originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          console.error("Token refresh failed:", refreshError);
-          logout();
-          if (typeof window !== "undefined") {
-            window.location.href = "/auth/login";
-          }
-        }
-      } else {
-        logout();
-        if (typeof window !== "undefined") {
-          window.location.href = "/auth/login";
-        }
-      }
+    if (error.response?.status === 401 && error.response?.data?.requiresAuth) {
+      const { logout } = useAuthStore.getState();
+      logout();
+      window.location.href = "/auth/login";
     }
     return Promise.reject(error);
   }

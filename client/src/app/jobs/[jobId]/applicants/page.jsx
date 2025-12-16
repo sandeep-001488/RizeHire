@@ -379,7 +379,7 @@ export default function JobApplicantsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Mobile Tabs  */}
+            {/* Mobile Tabs */}
             <div className="md:hidden mb-6">
               <select
                 value={activeTab}
@@ -740,12 +740,56 @@ export default function JobApplicantsPage() {
                                     </Button>
                                   )}
                                 </div>
+                                {/* Resume Buttons */}
+                                {applicant.resumeUrl && (
+                                  <div className="flex gap-2 mb-3">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      asChild
+                                    >
+                                      <a
+                                        href={applicant.resumeUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                        View Resume
+                                      </a>
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      asChild
+                                    >
+                                      <a
+                                        href={applicant.resumeUrl}
+                                        download={`${applicant.user?.name || 'resume'}_resume.pdf`}
+                                      >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Download
+                                      </a>
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {/* Show Rejection Reason for Recruiters */}
+                                {applicant.status === "rejected" && applicant.rejectionReason && (
+                                  <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                    <h4 className="font-medium text-xs md:text-sm text-red-800 dark:text-red-300 mb-1 flex items-center">
+                                      <X className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                      Rejection Reason:
+                                    </h4>
+                                    <p className="text-xs md:text-sm text-red-700 dark:text-red-400">
+                                      {applicant.rejectionReason}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                               <div className="flex-1 min-w-0">
-                                {" "}
                                 {/* min-w-0 allows flex child to shrink */}
                                 <div className="flex items-start space-x-3 md:space-x-4">
                                   <Avatar className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0">
@@ -759,16 +803,13 @@ export default function JobApplicantsPage() {
                                   </Avatar>
 
                                   <div className="flex-1 min-w-0">
-                                    {" "}
                                     {/* min-w-0 allows flex child to shrink */}
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                                       <h3 className="text-base md:text-lg font-semibold break-words">
                                         {applicant.user.name}
                                       </h3>
                                       <Badge
-                                        className={`${getStatusColor(
-                                          applicant.status
-                                        )} w-fit text-xs`}
+                                        className={`${getStatusColor(applicant.status)} w-fit text-xs`}
                                       >
                                         {applicant.status}
                                       </Badge>
@@ -868,6 +909,50 @@ export default function JobApplicantsPage() {
                                         )}
                                       </div>
                                     )}
+                                    {/* Resume Buttons */}
+                                    {applicant.resumeUrl && (
+                                      <div className="flex gap-2 mb-3">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          asChild
+                                        >
+                                          <a
+                                            href={applicant.resumeUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                          >
+                                            <ExternalLink className="mr-2 h-4 w-4" />
+                                            View Resume
+                                          </a>
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          asChild
+                                        >
+                                          <a
+                                            href={applicant.resumeUrl}
+                                            download={`${applicant.user?.name || 'resume'}_resume.pdf`}
+                                          >
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            Download
+                                          </a>
+                                        </Button>
+                                      </div>
+                                    )}
+                                    {/* Show Rejection Reason for Recruiters */}
+                                    {applicant.status === "rejected" && applicant.rejectionReason && (
+                                      <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                        <h4 className="font-medium text-xs md:text-sm text-red-800 dark:text-red-300 mb-1 flex items-center">
+                                          <X className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                          Rejection Reason:
+                                        </h4>
+                                        <p className="text-xs md:text-sm text-red-700 dark:text-red-400">
+                                          {applicant.rejectionReason}
+                                        </p>
+                                      </div>
+                                    )}
                                     {/* View Full Details Button */}
                                     <div className="mb-3">
                                       <Dialog>
@@ -878,25 +963,10 @@ export default function JobApplicantsPage() {
                                             className="text-xs md:text-sm"
                                           >
                                             <User className="mr-2 h-3 w-3 md:h-4 md:w-4" />
--------
                                             View Full Details
                                           </Button>
+                                          
                                         </DialogTrigger>
-                                         {applicant.resumeUrl && (
-                                           <Button
-                                             size="sm"
-                                             variant="outline"
-                                             asChild
-                                           >
-                                             <a
-                                               href={applicant.resumeUrl}
-                                               target="_blank"
-                                               rel="noopener noreferrer"
-                                             >
-                                               View Resume
-                                             </a>
-                                           </Button>
-                                         )}
                                         <DialogContent className="max-w-2xl w-[95vw] max-h-[80vh] overflow-y-auto">
                                           <DialogHeader>
                                             <DialogTitle>
