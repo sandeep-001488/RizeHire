@@ -7,7 +7,7 @@ const genAI = process.env.GEMINI_API_KEY
   : null;
 
 const model = genAI
-  ? genAI.getGenerativeModel({ model: "gemini-2.5-pro" })
+  ? genAI.getGenerativeModel({ model: "gemini-pro-vision" })
   : null;
 
 const generateContent = async (prompt) => {

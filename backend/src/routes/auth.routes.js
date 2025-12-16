@@ -8,7 +8,8 @@ import {
   updateProfile,
   parseAndSaveResume,
   forgotPassword, 
-  resetPassword, 
+  resetPassword,
+  updateSkills, 
 } from "../controllers/auth.controllers.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { uploadResume } from "../middleware/upload.middleware.js"; 
@@ -28,11 +29,12 @@ router.use(protect);
 router.post("/logout", logout);
 router.get("/profile", getProfile);
 router.put("/profile", updateProfile);
+router.put("/profile/skills", updateSkills); 
 
 //uploading and parsing resume
 router.post(
   "/profile/parse-resume",
-  uploadResume.single("resume"), // "resume" is the field name
+  uploadResume.single("resume"), 
   parseAndSaveResume
 );
 

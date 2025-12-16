@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
 import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
+import { uploadToCloudinary } from "../middleware/upload.middleware.js";
 
 const applyToJob = async (req, res) => {
   try {
@@ -17,15 +18,6 @@ const applyToJob = async (req, res) => {
     }
 
     const job = await Job.findById(jobId);
-
-    if (!job) {
-      return res.status(404).json({
-        success: false,
-        message: "Job not found",
-      });
-    }
-
-    
 
     if (!job) {
       return res.status(404).json({
@@ -53,56 +45,94 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    // --- FIXED: Create screening profile with gender priority ---
+    // Handle resume upload
+    let resumeUrl = null;
+    if (req.file) {
+      try {
+        resumeUrl = await uploadToCloudinary(req.file.path);
+      } catch (uploadError) {
+        console.error("Resume upload error:", uploadError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload resume",
+        });
+      }
+    }
+
+    // Create screening profile with gender priority
     const screeningProfile = {
       ...applicant.parsedResume,
-      // Priority: Use user.gender if it's "male" or "female", otherwise use parsedResume.gender
+      skills: applicant.skills || applicant.parsedResume?.skills || [],
+      total_experience_years: applicant.parsedResume?.yearsOfExperience || 0,
       gender:
         applicant.gender === "male" || applicant.gender === "female"
           ? applicant.gender
           : applicant.parsedResume?.gender || null,
     };
 
-    // --- NEW SCREENING LOGIC ---
+    // Initialize screening variables
     let applicationStatus = "pending";
     let screeningResult = {};
     let matchScore = 0;
+    let rejectionReason = null;
 
-    // 1. Apply Hard Rules with corrected profile
+    // 1. Apply Hard Rules
     const hard = applyHardRules(job.hardConstraints, screeningProfile);
     screeningResult = {
       hardFail: hard.hardFail,
       reasons: hard.reasons,
     };
+
     if (hard.hardFail) {
       // INSTANT REJECTION
       applicationStatus = "rejected";
       matchScore = 0;
-      const rejectionReason = hard.reasons.join(", ");
-      console.log(
-        `Hard rejection for ${applicant.email} on job ${
-          job.title
-        }: ${rejectionReason}`
-      );
-    } else {
-      // 2. Apply Flexible AI Scoring with corrected profile
-      const ai = await scoreWithAI({
-        job,
-        parsedResume: screeningProfile,
-      });
-      matchScore = ai.score;
-      screeningResult.reasons = ai.reasons;
+      rejectionReason = `Your application did not meet the required criteria: ${hard.reasons.join(", ")}`;
 
-      // Optional: auto-reject if score is too low
-      if (matchScore < 20) {
-        applicationStatus = "rejected";
-      }
+      const application = await Application.create({
+        jobId: jobId,
+        applicantId: applicant._id,
+        recruiterId: job.postedBy,
+        coverLetter: coverLetter ? coverLetter.trim() : "",
+        resume: resumeUrl,
+        status: applicationStatus,
+        matchScore: matchScore,
+        screeningResult: screeningResult,
+        rejectionReason: rejectionReason,
+      });
+
+      const applicationCount = await Application.countDocuments({ jobId: jobId });
+
+      return res.json({
+        success: true,
+        message: `Application submitted but rejected due to: ${hard.reasons.join(", ")}`,
+        data: {
+          applicationId: application._id,
+          applicationStatus,
+          matchScore,
+          rejectionReason,
+          applicationCount,
+        },
+      });
     }
 
-    const resume = req.file ? req.file.path : null;
-    const resumeUrl = req.file ? req.file.filename : null;
+    // 2. Soft Scoring (if passed hard rules)
+    try {
+      const requiredSkills = job.skills || [];
+      const matchingSkills = (screeningProfile.skills || []).filter((skill) =>
+        requiredSkills.some((jobSkill) =>
+          jobSkill.toLowerCase().includes(skill.toLowerCase())
+        )
+      );
+      matchScore = requiredSkills.length > 0
+        ? Math.round((matchingSkills.length / requiredSkills.length) * 100)
+        : 50;
+    } catch (error) {
+      console.warn("Scoring failed:", error);
+      matchScore = 50;
+    }
 
-    // Create new application
+    // 3. Create Application
     const application = await Application.create({
       jobId: jobId,
       applicantId: applicant._id,
@@ -118,7 +148,7 @@ const applyToJob = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Application submitted successfully. Status: ${applicationStatus}`,
+      message: "Application submitted successfully",
       data: {
         applicationId: application._id,
         applicationStatus,
@@ -134,7 +164,6 @@ const applyToJob = async (req, res) => {
     });
   }
 };
-
 const getMyApplications = async (req, res) => {
   try {
     const { page = 1, limit = 10, status = "all" } = req.query;
@@ -158,16 +187,17 @@ const getMyApplications = async (req, res) => {
 
     const total = await Application.countDocuments(filter);
 
-    const formattedApplications = applications.map((app) => ({
-      _id: app._id,
-      job: app.jobId,
-      coverLetter: app.coverLetter,
-      status: app.status,
-      appliedAt: app.appliedAt,
-      feedback: app.feedback.filter((f) => f.visibleToApplicant),
-      viewedByRecruiter: app.viewedByRecruiter,
-      matchScore: app.matchScore,
-    }));
+ const formattedApplications = applications.map((app) => ({
+  _id: app._id,
+  job: app.jobId,
+  coverLetter: app.coverLetter,
+  status: app.status,
+  appliedAt: app.appliedAt,
+  feedback: app.feedback.filter((f) => f.visibleToApplicant),
+  viewedByRecruiter: app.viewedByRecruiter,
+  matchScore: app.matchScore,
+  rejectionReason: app.rejectionReason, 
+}));
 
     res.json({
       success: true,
@@ -286,35 +316,33 @@ const getJobApplicants = async (req, res) => {
       }
     });
 
-    // Filter out applications where applicant was deleted
-    const applicants = applications
-      .map((app) => ({
-        applicationId: app._id,
-        user: app.applicantId ? {
-          name: app.applicantId.name,
-          email: app.applicantId.email,
-          profileImage: app.applicantId.profileImage,
-          skills: app.applicantId.skills,
-          bio: app.applicantId.bio,
-          linkedinUrl: app.applicantId.linkedinUrl,
-          location: app.applicantId.location,
-          gender: app.applicantId.gender,
-          createdAt: app.applicantId.createdAt,
-          parsedResume: app.applicantId.parsedResume,
-        } : null,
-        coverLetter: app.coverLetter,
-        appliedAt: app.appliedAt,
-        status: app.status,
-        feedback: app.feedback,
-        viewedByRecruiter: app.viewedByRecruiter,
-        matchScore: app.matchScore,
-        screeningResult: app.screeningResult,
-        resume: app.resume,
-      }))
-      .map(app => ({
-       ...app,
-       resumeUrl: app.resume ? `/api/applications/${app.applicationId}/resume` : null,
-     }));
+    
+  // In getJobApplicants, update the mapping to include proper resume URL
+const applicants = applications.map((app) => ({
+  applicationId: app._id,
+  user: app.applicantId ? {
+    name: app.applicantId.name,
+    email: app.applicantId.email,
+    profileImage: app.applicantId.profileImage,
+    skills: app.applicantId.skills,
+    bio: app.applicantId.bio,
+    linkedinUrl: app.applicantId.linkedinUrl,
+    location: app.applicantId.location,
+    gender: app.applicantId.gender,
+    createdAt: app.applicantId.createdAt,
+    parsedResume: app.applicantId.parsedResume,
+  } : null,
+  coverLetter: app.coverLetter,
+  appliedAt: app.appliedAt,
+  status: app.status,
+  feedback: app.feedback,
+  viewedByRecruiter: app.viewedByRecruiter,
+  matchScore: app.matchScore,
+  screeningResult: app.screeningResult,
+  resume: app.resume, // Cloudinary URL
+  resumeUrl: app.resume, // Direct Cloudinary URL
+  rejectionReason: app.rejectionReason, // ADD THIS
+}));
 
     res.json({
       success: true,
@@ -544,12 +572,25 @@ const getApplicationResume = async (req, res) => {
   try {
     const { applicationId } = req.params;
 
-    const application = await Application.findById(applicationId);
+    const application = await Application.findById(applicationId)
+      .populate("jobId")
+      .populate("applicantId");
 
     if (!application) {
       return res.status(404).json({
         success: false,
         message: "Application not found",
+      });
+    }
+
+    // Check authorization
+    const isRecruiter = application.jobId.postedBy.toString() === req.user._id.toString();
+    const isApplicant = application.applicantId._id.toString() === req.user._id.toString();
+
+    if (!isRecruiter && !isApplicant) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to view this resume",
       });
     }
 
@@ -560,8 +601,14 @@ const getApplicationResume = async (req, res) => {
       });
     }
 
-    // Redirect to the Cloudinary URL
-    res.redirect(application.resume);
+    // Return the Cloudinary URL directly as JSON (don't redirect)
+    res.json({
+      success: true,
+      data: {
+        resumeUrl: application.resume,
+        applicantName: application.applicantId.name,
+      },
+    });
   } catch (error) {
     console.error("Error in getApplicationResume:", error);
     res.status(500).json({

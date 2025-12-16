@@ -234,7 +234,7 @@ const updateProfile = async (req, res) => {
       bio: Joi.string().max(10000).optional().allow(""),
       linkedinUrl: Joi.string().uri().optional().allow(""),
       walletAddress: Joi.string().optional().allow(""),
-      skills: Joi.array().items(Joi.string().max(50)).max(20).optional(),
+      skills: Joi.array().items(Joi.string().max(50)).optional(), 
     });
 
     const { error, value } = updateSchema.validate(req.body);
@@ -266,42 +266,39 @@ const updateProfile = async (req, res) => {
 };
 
 const updateSkills = async (req, res) => {
- try {
-   const { skills } = req.body;
-   if (!Array.isArray(skills)) {
-     return res.status(400).json({
-       success: false,
-       message: "Skills must be an array of strings",
-     });
-   }
-   if (skills.length > 20) {
-     return res.status(400).json({
-       success: false,
-       message: "You can only have a maximum of 20 skills",
-     });
-   }
-   const updatedUser = await User.findByIdAndUpdate(
-     req.user._id,
-     { skills },
-     {
-       new: true,
-       runValidators: true,
-     }
-   );
-   res.json({
-     success: true,
-     message: "Skills updated successfully",
-     data: {
-       user: updatedUser,
-     },
-   });
- } catch (error) {
-   res.status(500).json({
-     success: false,
-     message: error.message,
-   });
- }
+  try {
+    const { skills } = req.body;
+    if (!Array.isArray(skills)) {
+      return res.status(400).json({
+        success: false,
+        message: "Skills must be an array of strings",
+      });
+    }
+    // REMOVED: 20 skill limit check
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { skills },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+    res.json({
+      success: true,
+      message: "Skills updated successfully",
+      data: {
+        user: updatedUser,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
+
 // UPDATED: Parse and Save Resume with Gender Priority Logic ---
 const parseAndSaveResume = async (req, res) => {
   try {
@@ -312,11 +309,9 @@ const parseAndSaveResume = async (req, res) => {
       });
     }
 
-    // Parse from local file
     const resumeText = await extractTextFromResume(req.file.path);
     
     if (!resumeText || resumeText.trim().length < 50) {
-      // Clean up local file
       fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
@@ -325,35 +320,32 @@ const parseAndSaveResume = async (req, res) => {
     }
 
     const parsedData = await parseResumeWithAI(resumeText);
-
-     await uploadToCloudinary(req.file.path);
+    await uploadToCloudinary(req.file.path);
 
     const user = req.user;
 
-   
+    // Gender priority logic
     if (user.gender && (user.gender === "male" || user.gender === "female")) {
-      // User has explicitly specified male/female during registration
       parsedData.gender = user.gender;
     } else if (parsedData.gender && user.gender === "other") {
-      // User selected "other" but resume has specific gender, use resume gender
       user.gender = parsedData.gender;
     }
-    // If both are null/other, leave as is
 
     user.parsedResume = parsedData;
 
+    // FIXED: Properly merge and update skills
     if (parsedData.skills && parsedData.skills.length > 0) {
       const existingSkills = user.skills || [];
       const allSkills = [...existingSkills, ...parsedData.skills];
-
-      const uniqueSkills = [
-        ...new Set(allSkills.map((skill) => skill.toLowerCase())),
-      ].map((lowerSkill) => {
-        // Find original case version
-        return allSkills.find((s) => s.toLowerCase() === lowerSkill);
+      
+      // Remove duplicates (case-insensitive)
+      const uniqueSkills = [...new Set(
+        allSkills.map(skill => skill.trim().toLowerCase())
+      )].map(lowerSkill => {
+        return allSkills.find(s => s.toLowerCase() === lowerSkill);
       });
 
-      user.skills = uniqueSkills.slice(0, 20); // Limit to 20 skills
+      user.skills = uniqueSkills; 
     }
 
     await user.save();
@@ -506,4 +498,5 @@ export {
   parseAndSaveResume,
   forgotPassword,
   resetPassword,
+  updateSkills
 };

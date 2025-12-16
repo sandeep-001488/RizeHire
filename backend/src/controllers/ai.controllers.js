@@ -18,7 +18,6 @@ const fallbackSkillsExtraction = (text) => {
       "Swift",
       "Kotlin",
       "Scala",
-      "R",
       "MATLAB",
       "SQL",
       "Dart",
@@ -137,6 +136,54 @@ const fallbackSkillsExtraction = (text) => {
       "Twilio",
       "SendGrid",
     ],
+    testing: [
+    "manual testing", "automation testing",
+    "selenium", "cypress", "playwright",
+    "postman", "swagger", "jmeter",
+    "regression testing", "unit testing",
+    "jest", "mocha", "chai"
+  ],
+  management: [
+    "product management", "scrum", "agile",
+    "jira", "confluence", "project management",
+    "business analysis", "process mapping",
+    "stakeholder management", "wireframing",
+    "roadmapping", "market research"
+  ],blockchain: [
+    "solidity", "web3js", "ethersjs",
+    "smart contracts", "hardhat", "truffle",
+    "ethereum", "polygon", "defi",
+    "nfts", "token standards", "gas optimization"
+  ],
+  cybersecurity: [
+    "penetration testing", "siem", "firewalls",
+    "network security", "vulnerability assessment",
+    "ethical hacking", "owasp", "iso 27001",
+    "incident response", "malware analysis",
+    "identity access management"
+  ],
+   ai: [
+    "huggingface", "langchain", "rag", "vector databases",
+    "pinecone", "weaviate", "chroma db",
+    "fine-tuning", "prompt engineering",
+    "ai model evaluation", "onnx", "model optimization"
+  ],
+  data_science: [
+    "python", "numpy", "pandas", "matplotlib", "seaborn",
+    "scikit-learn", "statistics", "hypothesis testing",
+    "machine learning", "deep learning",
+    "pytorch", "tensorflow", "keras",
+    "nlp", "computer vision",
+    "llm", "transformers",
+    "forecasting", "regression", "classification"
+  ],
+   data_engineering: [
+    "sql", "nosql", "etl", "data pipelines",
+    "airflow", "bigquery", "databricks",
+    "apache spark", "kafka", "hadoop",
+    "data warehousing", "data modeling",
+    "snowflake", "redshift", "powerbi"
+  ],
   };
 
   const extractedSkills = new Set();
