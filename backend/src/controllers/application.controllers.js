@@ -220,6 +220,7 @@ const getMyApplications = async (req, res) => {
   }
 };
 
+
 const getJobApplicants = async (req, res) => {
   try {
     const jobId = req.params.jobId;
@@ -230,6 +231,7 @@ const getJobApplicants = async (req, res) => {
       sortBy = "matchScore",
       sortOrder = "desc",
     } = req.query;
+    
     const job = await Job.findById(jobId);
 
     if (!job) {
@@ -251,7 +253,6 @@ const getJobApplicants = async (req, res) => {
       filter.status = status;
     }
 
-    // Sort by matchScore or appliedAt
     const sortOptions = {};
     if (sortBy === "matchScore") {
       sortOptions.matchScore = sortOrder === "desc" ? -1 : 1;
@@ -270,10 +271,20 @@ const getJobApplicants = async (req, res) => {
 
     const total = await Application.countDocuments(filter);
 
+    // **CRITICAL FIX**: Only update status to "viewed" for pending applications
+    // Do NOT change status for rejected or already-processed applications
     await Application.updateMany(
-      { jobId: jobId, viewedByRecruiter: false },
-      { $set: { viewedByRecruiter: true, status: "viewed" } },
-      { new: true }
+      { 
+        jobId: jobId, 
+        viewedByRecruiter: false,
+        status: "pending" // ONLY change pending applications
+      },
+      { 
+        $set: { 
+          viewedByRecruiter: true, 
+          status: "viewed" 
+        } 
+      }
     );
 
     const stats = await Application.aggregate([
@@ -316,33 +327,31 @@ const getJobApplicants = async (req, res) => {
       }
     });
 
-    
-  // In getJobApplicants, update the mapping to include proper resume URL
-const applicants = applications.map((app) => ({
-  applicationId: app._id,
-  user: app.applicantId ? {
-    name: app.applicantId.name,
-    email: app.applicantId.email,
-    profileImage: app.applicantId.profileImage,
-    skills: app.applicantId.skills,
-    bio: app.applicantId.bio,
-    linkedinUrl: app.applicantId.linkedinUrl,
-    location: app.applicantId.location,
-    gender: app.applicantId.gender,
-    createdAt: app.applicantId.createdAt,
-    parsedResume: app.applicantId.parsedResume,
-  } : null,
-  coverLetter: app.coverLetter,
-  appliedAt: app.appliedAt,
-  status: app.status,
-  feedback: app.feedback,
-  viewedByRecruiter: app.viewedByRecruiter,
-  matchScore: app.matchScore,
-  screeningResult: app.screeningResult,
-  resume: app.resume, // Cloudinary URL
-  resumeUrl: app.resume, // Direct Cloudinary URL
-  rejectionReason: app.rejectionReason, // ADD THIS
-}));
+    const applicants = applications.map((app) => ({
+      applicationId: app._id,
+      user: app.applicantId ? {
+        name: app.applicantId.name,
+        email: app.applicantId.email,
+        profileImage: app.applicantId.profileImage,
+        skills: app.applicantId.skills,
+        bio: app.applicantId.bio,
+        linkedinUrl: app.applicantId.linkedinUrl,
+        location: app.applicantId.location,
+        gender: app.applicantId.gender,
+        createdAt: app.applicantId.createdAt,
+        parsedResume: app.applicantId.parsedResume,
+      } : null,
+      coverLetter: app.coverLetter,
+      appliedAt: app.appliedAt,
+      status: app.status,
+      feedback: app.feedback,
+      viewedByRecruiter: app.viewedByRecruiter,
+      matchScore: app.matchScore,
+      screeningResult: app.screeningResult,
+      resume: app.resume,
+      resumeUrl: app.resume,
+      rejectionReason: app.rejectionReason,
+    }));
 
     res.json({
       success: true,

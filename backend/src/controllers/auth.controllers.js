@@ -300,6 +300,81 @@ const updateSkills = async (req, res) => {
 };
 
 // UPDATED: Parse and Save Resume with Gender Priority Logic ---
+// const parseAndSaveResume = async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Resume file (PDF/DOCX) is required",
+//       });
+//     }
+
+//     const resumeText = await extractTextFromResume(req.file.path);
+    
+//     if (!resumeText || resumeText.trim().length < 50) {
+//       fs.unlinkSync(req.file.path);
+//       return res.status(400).json({
+//         success: false,
+//         message: "Could not extract meaningful text from resume.",
+//       });
+//     }
+
+//     const parsedData = await parseResumeWithAI(resumeText);
+//     await uploadToCloudinary(req.file.path);
+
+//     const user = req.user;
+
+//     // Gender priority logic
+//     if (user.gender && (user.gender === "male" || user.gender === "female")) {
+//       parsedData.gender = user.gender;
+//     } else if (parsedData.gender && user.gender === "other") {
+//       user.gender = parsedData.gender;
+//     }
+
+//     user.parsedResume = parsedData;
+
+//     // FIXED: Properly merge and update skills
+//     if (parsedData.skills && parsedData.skills.length > 0) {
+//       const existingSkills = user.skills || [];
+//       const allSkills = [...existingSkills, ...parsedData.skills];
+      
+//       // Remove duplicates (case-insensitive)
+//       const uniqueSkills = [...new Set(
+//         allSkills.map(skill => skill.trim().toLowerCase())
+//       )].map(lowerSkill => {
+//         return allSkills.find(s => s.toLowerCase() === lowerSkill);
+//       });
+
+//       user.skills = uniqueSkills; 
+//     }
+
+//     await user.save();
+
+//     res.json({
+//       success: true,
+//       message: "Resume parsed and profile updated successfully",
+//       data: {
+//         user,
+//         parsedDetails: {
+//           name: parsedData.name,
+//           email: parsedData.email,
+//           phone: parsedData.phone,
+//           skills: parsedData.skills,
+//           yearsOfExperience: parsedData.yearsOfExperience,
+//           gender: parsedData.gender,
+//           location: parsedData.location,
+//           education: parsedData.education,
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Resume parsing error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: `Failed to parse resume: ${error.message}`,
+//     });
+//   }
+// };
 const parseAndSaveResume = async (req, res) => {
   try {
     if (!req.file) {
@@ -309,7 +384,11 @@ const parseAndSaveResume = async (req, res) => {
       });
     }
 
+    console.log("📄 Parsing resume file:", req.file.originalname);
+
     const resumeText = await extractTextFromResume(req.file.path);
+    
+    console.log("📝 Extracted text length:", resumeText.length);
     
     if (!resumeText || resumeText.trim().length < 50) {
       fs.unlinkSync(req.file.path);
@@ -319,8 +398,17 @@ const parseAndSaveResume = async (req, res) => {
       });
     }
 
+    console.log("🤖 Sending to AI for parsing...");
     const parsedData = await parseResumeWithAI(resumeText);
-    await uploadToCloudinary(req.file.path);
+    console.log("✅ AI parsing complete:", {
+      name: parsedData.name,
+      skillsCount: parsedData.skills?.length || 0,
+      skills: parsedData.skills,
+    });
+
+    // Upload resume to Cloudinary
+    const resumeUrl = await uploadToCloudinary(req.file.path);
+    console.log("☁️ Uploaded to Cloudinary:", resumeUrl);
 
     const user = req.user;
 
@@ -331,24 +419,44 @@ const parseAndSaveResume = async (req, res) => {
       user.gender = parsedData.gender;
     }
 
-    user.parsedResume = parsedData;
+    // **CRITICAL FIX**: Save parsed resume data
+    user.parsedResume = {
+      name: parsedData.name,
+      email: parsedData.email,
+      phone: parsedData.phone,
+      skills: parsedData.skills || [],
+      yearsOfExperience: parsedData.yearsOfExperience || 0,
+      gender: parsedData.gender,
+      location: parsedData.location || { city: null, country: null },
+      education: parsedData.education || [],
+    };
 
-    // FIXED: Properly merge and update skills
-    if (parsedData.skills && parsedData.skills.length > 0) {
+    // **FIX**: Properly merge skills
+    console.log("📊 Current user skills:", user.skills?.length || 0);
+    console.log("📊 Parsed skills:", parsedData.skills?.length || 0);
+
+    if (parsedData.skills && Array.isArray(parsedData.skills) && parsedData.skills.length > 0) {
       const existingSkills = user.skills || [];
+      
+      // Combine all skills
       const allSkills = [...existingSkills, ...parsedData.skills];
       
       // Remove duplicates (case-insensitive)
-      const uniqueSkills = [...new Set(
-        allSkills.map(skill => skill.trim().toLowerCase())
-      )].map(lowerSkill => {
-        return allSkills.find(s => s.toLowerCase() === lowerSkill);
+      const uniqueSkillsMap = new Map();
+      allSkills.forEach(skill => {
+        const lowerSkill = skill.trim().toLowerCase();
+        if (!uniqueSkillsMap.has(lowerSkill)) {
+          uniqueSkillsMap.set(lowerSkill, skill.trim());
+        }
       });
-
-      user.skills = uniqueSkills; 
+      
+      user.skills = Array.from(uniqueSkillsMap.values());
+      console.log("✅ Final merged skills:", user.skills.length);
     }
 
     await user.save();
+
+    console.log("💾 User profile updated successfully");
 
     res.json({
       success: true,
@@ -368,7 +476,7 @@ const parseAndSaveResume = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Resume parsing error:", error);
+    console.error("❌ Resume parsing error:", error);
     res.status(500).json({
       success: false,
       message: `Failed to parse resume: ${error.message}`,

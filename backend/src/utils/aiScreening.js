@@ -123,17 +123,24 @@ Return ONLY the JSON, nothing else.
 }
 
 /** AI resume parser */
+
 async function parseResumeWithAI(resumeText) {
   const prompt = `
 Parse the following resume text and extract information into a structured JSON format.
+
+CRITICAL: Extract skills comprehensively - look for:
+- Technical skills (programming languages, frameworks, tools)
+- Software and technologies mentioned
+- Certifications and platforms
+- Any technical keywords
 
 Required JSON structure:
 {
   "name": string or null,
   "email": string or null,
   "phone": string or null,
-  "skills": array of strings (technical skills, tools, technologies),
-  "yearsOfExperience": number (total years, calculate if not explicit),
+  "skills": array of strings (BE COMPREHENSIVE - extract ALL technical skills, tools, technologies),
+  "yearsOfExperience": number (total years, calculate from job history),
   "gender": "male" or "female" or null (only if explicitly mentioned),
   "location": {
     "city": string or null,
@@ -143,10 +150,9 @@ Required JSON structure:
 }
 
 Important:
-- Extract ONLY information that is explicitly present
-- Do NOT infer or assume information
-- For gender, only extract if clearly stated (e.g., "Gender: Male" or pronouns used)
-- Skills should be technical/professional skills only
+- Extract EVERY technical skill, tool, framework, and technology mentioned
+- Include programming languages, databases, cloud platforms, frameworks
+- Look for skills in: job descriptions, projects, certifications, summary
 - Return ONLY the JSON object, no markdown formatting
 
 Resume Text:
@@ -165,25 +171,33 @@ ${resumeText.slice(0, 15000)}
   };
 
   try {
+    console.log("🤖 Calling AI for resume parsing...");
     const raw = await generateContent(prompt);
+    console.log("📥 AI response received, length:", raw.length);
+    
     const match = raw.match(/\{[\s\S]*\}/);
 
     if (!match) {
-      console.warn("Resume parsing: No JSON found in AI response");
+      console.warn("⚠️ No JSON found in AI response");
       return fallback;
     }
 
     const parsed = JSON.parse(match[0]);
+    console.log("✅ Parsed JSON:", {
+      name: parsed.name,
+      skillsCount: parsed.skills?.length,
+      skills: parsed.skills,
+    });
 
-    // Sanitize and validate parsed data
-    return {
+    // Sanitize and validate
+    const result = {
       name: parsed.name || null,
       email: parsed.email || null,
       phone: parsed.phone || null,
       skills: Array.isArray(parsed.skills)
         ? parsed.skills
-            .slice(0, 30)
             .map((s) => String(s).trim())
+            .filter(s => s.length > 0)
             .filter(Boolean)
         : [],
       yearsOfExperience: Math.max(0, Number(parsed.yearsOfExperience) || 0),
@@ -194,13 +208,20 @@ ${resumeText.slice(0, 15000)}
       },
       education: Array.isArray(parsed.education)
         ? parsed.education
-            .slice(0, 10)
             .map((e) => String(e).trim())
             .filter(Boolean)
         : [],
     };
+
+    console.log("✅ Final parsed result:", {
+      name: result.name,
+      skillsCount: result.skills.length,
+      skills: result.skills,
+    });
+
+    return result;
   } catch (error) {
-    console.error("Resume parsing error:", error);
+    console.error("❌ Resume parsing error:", error);
     return fallback;
   }
 }
