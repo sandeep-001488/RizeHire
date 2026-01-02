@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import useAuthStore from "@/stores/authStore";
 import { jobsAPI, aiAPI, applicationsAPI } from "@/lib/api";
 import { formatDate, formatSalary } from "@/lib/utils";
@@ -29,6 +30,7 @@ import {
   Brain,
   ArrowLeft,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 
 export default function JobDetailPage({ params }) {
@@ -45,6 +47,8 @@ export default function JobDetailPage({ params }) {
   const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [showQuestions, setShowQuestions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showResumeAlert, setShowResumeAlert] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(10);
 
   useEffect(() => {
     fetchJobDetails();
@@ -56,6 +60,28 @@ export default function JobDetailPage({ params }) {
       fetchMatchScore();
     }
   }, [job, isAuthenticated]);
+
+  // Check if user has parsed resume when component mounts
+  useEffect(() => {
+    if (isAuthenticated && user && user.role === "seeker") {
+      const hasParsedResume = user.parsedResume && Object.keys(user.parsedResume).length > 0;
+      if (!hasParsedResume) {
+        setShowResumeAlert(true);
+      }
+    }
+  }, [isAuthenticated, user]);
+
+  // Countdown timer for redirect
+  useEffect(() => {
+    if (showResumeAlert && redirectCountdown > 0) {
+      const timer = setTimeout(() => {
+        setRedirectCountdown(redirectCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (showResumeAlert && redirectCountdown === 0) {
+      router.push("/profile");
+    }
+  }, [showResumeAlert, redirectCountdown, router]);
 
   const fetchJobDetails = async () => {
     try {
@@ -214,6 +240,42 @@ export default function JobDetailPage({ params }) {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back
       </Button>
+
+      {/* Resume Parse Alert */}
+      {showResumeAlert && (
+        <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950">
+          <AlertCircle className="h-4 w-4 text-orange-600" />
+          <AlertTitle className="text-orange-800 dark:text-orange-200">Resume Not Parsed</AlertTitle>
+          <AlertDescription className="text-orange-700 dark:text-orange-300">
+            <p className="mb-2">
+              You need to parse your resume before applying for jobs. Please go to your profile and upload your resume.
+            </p>
+            <p className="font-semibold">
+              Redirecting to your profile in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}...
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => router.push("/profile")}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                Go to Profile Now
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowResumeAlert(false);
+                  setRedirectCountdown(10);
+                }}
+                className="border-orange-600 text-orange-600 hover:bg-orange-100"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>
@@ -388,7 +450,9 @@ export default function JobDetailPage({ params }) {
               <CardHeader>
                 <CardTitle>Apply for this Position</CardTitle>
                 <CardDescription>
-                  Tell the employer why you're the perfect fit for this role
+                  {showResumeAlert
+                    ? "Please parse your resume before applying"
+                    : "Tell the employer why you're the perfect fit for this role"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -402,6 +466,7 @@ export default function JobDetailPage({ params }) {
       onChange={(e) => setCoverLetter(e.target.value)}
       rows={6}
       required
+      disabled={showResumeAlert}
     />
   </div>
   
@@ -444,6 +509,7 @@ export default function JobDetailPage({ params }) {
         accept=".pdf,.docx"
         onChange={(e) => setSelectedResume(e.target.files[0])}
         className="hidden"
+        disabled={showResumeAlert}
       />
     </div>
     
@@ -494,13 +560,18 @@ export default function JobDetailPage({ params }) {
   
   <Button
     type="submit"
-    disabled={isApplying}
+    disabled={isApplying || showResumeAlert}
     className="w-full"
   >
     {isApplying ? (
       <>
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         Submitting...
+      </>
+    ) : showResumeAlert ? (
+      <>
+        <AlertCircle className="mr-2 h-4 w-4" />
+        Parse Resume First
       </>
     ) : (
       <>
