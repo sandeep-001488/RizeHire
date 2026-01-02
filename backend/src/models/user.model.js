@@ -84,8 +84,6 @@ const userSchema = new mongoose.Schema(
     ],
     walletAddress: {
       type: String,
-      unique: true,
-      sparse: true,
       validate: {
         validator: function (v) {
           if (!v) return true;

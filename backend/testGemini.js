@@ -4,11 +4,9 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const MODELS_TO_TEST = [
-  "gemini-pro",
-  "gemini-pro-vision",
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-8b",
-  // sometimes required
+  "gemini-1.5-pro",
+  "gemini-1.5-flash-latest",
+  "gemini-2.0-flash",
 ];
 
 async function testModel(modelName) {

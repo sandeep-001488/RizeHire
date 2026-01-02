@@ -2,12 +2,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+// Gemini model name from environment variable
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-exp";
+
 const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
 
 const model = genAI
-  ? genAI.getGenerativeModel({ model: "gemini-pro-vision" })
+  ? genAI.getGenerativeModel({ model: GEMINI_MODEL })
   : null;
 
 const generateContent = async (prompt) => {

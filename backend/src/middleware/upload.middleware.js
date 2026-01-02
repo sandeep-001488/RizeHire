@@ -45,6 +45,8 @@ export const uploadToCloudinary = async (localPath) => {
     const result = await cloudinary.uploader.upload(localPath, {
       folder: "resumes",
       resource_type: "raw",
+      type: "upload",
+      access_mode: "public",
     });
     
     // Delete local file after upload

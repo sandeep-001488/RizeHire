@@ -358,7 +358,8 @@ export default function DashboardPage() {
                         <action.icon className="h-5 w-5 text-white" />
                       </div>
                       <CardTitle className="text-base">
-                        </CardTitle>
+                        {action.title}
+                      </CardTitle>
                     </CardHeader>
                   </Card>
                 </Link>

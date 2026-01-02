@@ -46,6 +46,16 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import { FaLinkedin } from "react-icons/fa"
+
+// Helper function to get resume URL - now uses direct Cloudinary URLs
+const getResumeViewUrl = (cloudinaryUrl) => {
+  if (!cloudinaryUrl) return null;
+  
+  // With "PDF and ZIP files delivery" enabled in Cloudinary,
+  // we can use direct URLs without authentication
+  return cloudinaryUrl;
+};
 
 export default function JobApplicantsPage() {
   const params = useParams();
@@ -727,14 +737,14 @@ export default function JobApplicantsPage() {
                                       size="sm"
                                       variant="outline"
                                       asChild
-                                      className="text-xs"
+                                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
                                     >
                                       <a
                                         href={applicant.user.linkedinUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                       >
-                                        <ExternalLink className="mr-1 h-3 w-3" />
+                                        <FaLinkedin className="mr-1 h-3 w-3" />
                                         LinkedIn
                                       </a>
                                     </Button>
@@ -752,7 +762,7 @@ export default function JobApplicantsPage() {
       className="w-full"
     >
       <a
-        href={applicant.resumeUrl}
+        href={getResumeViewUrl(applicant.resumeUrl)}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -807,10 +817,16 @@ export default function JobApplicantsPage() {
                                     </div>
                                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 text-xs md:text-sm text-muted-foreground mb-3">
                                       <div className="flex items-center min-w-0">
-                                        <Mail className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
-                                        <span className="break-all">
-                                          {applicant.user.email}
-                                        </span>
+                                        <a
+                                          href={`mailto:${applicant.user.email}`}
+                                          className="flex items-center hover:text-primary transition-colors group"
+                                          title="Send email"
+                                        >
+                                          <Mail className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0 text-red-500 group-hover:text-red-600" />
+                                          <span className="break-all underline decoration-dotted">
+                                            {applicant.user.email}
+                                          </span>
+                                        </a>
                                       </div>
                                       <div className="flex items-center">
                                         <Calendar className="h-3 w-3 md:h-4 md:w-4 mr-1" />
@@ -910,7 +926,7 @@ export default function JobApplicantsPage() {
     className="w-full text-xs"
   >
     <a
-      href={applicant.resumeUrl}
+      href={getResumeViewUrl(applicant.resumeUrl)}
       target="_blank"
       rel="noopener noreferrer"
     >
@@ -1343,13 +1359,19 @@ export default function JobApplicantsPage() {
 
                                 {/* LinkedIn Button on desktop */}
                                 {applicant.user.linkedinUrl && (
-                                  <Button size="sm" variant="outline" asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    asChild
+                                    className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                                  >
                                     <a
                                       href={applicant.user.linkedinUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                     >
-                                      <ExternalLink className="mr-2 h-4 w-4" />
+                                                                              <FaLinkedin className="mr-1 h-3 w-3" />
+
                                       LinkedIn
                                     </a>
                                   </Button>

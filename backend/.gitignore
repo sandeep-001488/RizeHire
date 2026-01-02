@@ -15,7 +15,7 @@ node_modules/
 jspm_packages/
 
 # Do not commit job seeder
-src/seeds/job.seeds.js
+src/seeds/
 
 #uploads folder
 uploads/

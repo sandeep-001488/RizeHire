@@ -368,25 +368,61 @@ const getMyJobs = async (req, res) => {
 
     const jobs = await Job.find({ postedBy: req.user._id })
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
       .lean();
 
-    const jobsWithApplicationCount = await Promise.all(
+    // Get application data for each job including latest application date
+    const jobsWithApplicationData = await Promise.all(
       jobs.map(async (job) => {
         const applicationCount = await Application.countDocuments({
           jobId: job._id,
         });
-        return { ...job, applicationCount };
+        
+        // Get the most recent application for this job
+        const latestApplication = await Application.findOne({
+          jobId: job._id,
+        })
+          .sort({ appliedAt: -1 })
+          .select('appliedAt')
+          .lean();
+
+        console.log(`Job: ${job.title}, Applications: ${applicationCount}, Latest: ${latestApplication?.appliedAt}`);
+
+        return {
+          ...job,
+          applicationCount,
+          latestApplicationDate: latestApplication?.appliedAt || null,
+        };
       })
     );
+
+    // Sort jobs by latest application date (jobs with recent applications first)
+    jobsWithApplicationData.sort((a, b) => {
+      // Jobs with applications come before jobs without applications
+      if (a.latestApplicationDate && !b.latestApplicationDate) return -1;
+      if (!a.latestApplicationDate && b.latestApplicationDate) return 1;
+      
+      // If both have applications, sort by most recent
+      if (a.latestApplicationDate && b.latestApplicationDate) {
+        return new Date(b.latestApplicationDate) - new Date(a.latestApplicationDate);
+      }
+      
+      // If neither has applications, sort by job creation date
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    console.log('Sorted jobs order:', jobsWithApplicationData.map(j => j.title));
+
+    // Apply pagination after sorting
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedJobs = jobsWithApplicationData.slice(startIndex, endIndex);
 
     const total = await Job.countDocuments({ postedBy: req.user._id });
 
     res.json({
       success: true,
       data: {
-        jobs: jobsWithApplicationCount,
+        jobs: paginatedJobs,
         pagination: {
           current: parseInt(page),
           pages: Math.ceil(total / limit),
