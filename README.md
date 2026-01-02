@@ -328,26 +328,6 @@ http://localhost:5000/api
 | PUT | `/applications/:id/status` | Update application status |
 | POST | `/applications/:id/feedback` | Add feedback |
 
-## 🧪 Testing
-
-### Seed Database
-
-To populate the database with test data:
-
-```bash
-cd backend
-node src/seeds/user.seeds.js
-```
-
-### Test Accounts
-
-After seeding, you can use these test accounts:
-
-**Poster Account:**
-- Email: sandeepsanu1230@gmail.com
-- Password: 123456
-- Role: Poster
-
 ## 🤝 Contributing
 
 1. Fork the repository
