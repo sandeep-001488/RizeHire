@@ -39,6 +39,7 @@ export default function JobDetailPage({ params }) {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
 
+  // Job and application state
   const [job, setJob] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isApplying, setIsApplying] = useState(false);
@@ -47,8 +48,11 @@ export default function JobDetailPage({ params }) {
   const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [showQuestions, setShowQuestions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Resume parse validation state
+  // These states control the alert shown when a seeker hasn't parsed their resume
   const [showResumeAlert, setShowResumeAlert] = useState(false);
-  const [redirectCountdown, setRedirectCountdown] = useState(10);
+  const [redirectCountdown, setRedirectCountdown] = useState(10); // 10-second countdown before auto-redirect
 
   useEffect(() => {
     fetchJobDetails();
@@ -61,24 +65,37 @@ export default function JobDetailPage({ params }) {
     }
   }, [job, isAuthenticated]);
 
-  // Check if user has parsed resume when component mounts
+  /**
+   * Resume Parse Validation Effect
+   * Checks if the authenticated seeker has parsed their resume
+   * If not, shows an alert and prevents job application
+   * Only applies to seekers, not posters
+   */
   useEffect(() => {
     if (isAuthenticated && user && user.role === "seeker") {
+      // Check if parsedResume exists and has data
       const hasParsedResume = user.parsedResume && Object.keys(user.parsedResume).length > 0;
       if (!hasParsedResume) {
-        setShowResumeAlert(true);
+        setShowResumeAlert(true); // Show warning alert
       }
     }
   }, [isAuthenticated, user]);
 
-  // Countdown timer for redirect
+  /**
+   * Auto-Redirect Countdown Timer
+   * Counts down from 10 seconds and automatically redirects to profile page
+   * User can manually redirect or dismiss the alert
+   * Timer cleans up on component unmount
+   */
   useEffect(() => {
     if (showResumeAlert && redirectCountdown > 0) {
       const timer = setTimeout(() => {
         setRedirectCountdown(redirectCountdown - 1);
       }, 1000);
+      // Cleanup timer on unmount or when dependencies change
       return () => clearTimeout(timer);
     } else if (showResumeAlert && redirectCountdown === 0) {
+      // Redirect when countdown reaches 0
       router.push("/profile");
     }
   }, [showResumeAlert, redirectCountdown, router]);
@@ -241,7 +258,16 @@ export default function JobDetailPage({ params }) {
         Back
       </Button>
 
-      {/* Resume Parse Alert */}
+      {/*
+        Resume Parse Alert Component
+        Displays when a seeker hasn't parsed their resume yet
+        Features:
+        - Orange warning alert with clear message
+        - 10-second countdown timer with auto-redirect
+        - Manual "Go to Profile Now" button for immediate action
+        - "Dismiss" button to close alert and continue browsing
+        - Form fields below are disabled when this alert is shown
+      */}
       {showResumeAlert && (
         <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950">
           <AlertCircle className="h-4 w-4 text-orange-600" />
@@ -254,6 +280,7 @@ export default function JobDetailPage({ params }) {
               Redirecting to your profile in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}...
             </p>
             <div className="mt-3 flex gap-2">
+              {/* Immediate redirect button */}
               <Button
                 size="sm"
                 onClick={() => router.push("/profile")}
@@ -261,12 +288,13 @@ export default function JobDetailPage({ params }) {
               >
                 Go to Profile Now
               </Button>
+              {/* Dismiss alert and reset countdown */}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
                   setShowResumeAlert(false);
-                  setRedirectCountdown(10);
+                  setRedirectCountdown(10); // Reset countdown for next time
                 }}
                 className="border-orange-600 text-orange-600 hover:bg-orange-100"
               >
@@ -459,6 +487,7 @@ export default function JobDetailPage({ params }) {
              <form onSubmit={handleApply} className="space-y-4">
   <div>
     <Label htmlFor="coverLetter">Cover Letter</Label>
+    {/* Disabled when resume not parsed to prevent application submission */}
     <Textarea
       id="coverLetter"
       placeholder="Write a compelling cover letter..."
@@ -466,7 +495,7 @@ export default function JobDetailPage({ params }) {
       onChange={(e) => setCoverLetter(e.target.value)}
       rows={6}
       required
-      disabled={showResumeAlert}
+      disabled={showResumeAlert} // Prevents editing when resume not parsed
     />
   </div>
   
