@@ -741,37 +741,28 @@ export default function JobApplicantsPage() {
                                   )}
                                 </div>
                                 {/* Resume Buttons */}
-                                {applicant.resumeUrl && (
-                                  <div className="flex gap-2 mb-3">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      asChild
-                                    >
-                                      <a
-                                        href={applicant.resumeUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <ExternalLink className="mr-2 h-4 w-4" />
-                                        View Resume
-                                      </a>
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      asChild
-                                    >
-                                      <a
-                                        href={applicant.resumeUrl}
-                                        download={`${applicant.user?.name || 'resume'}_resume.pdf`}
-                                      >
-                                        <FileText className="mr-2 h-4 w-4" />
-                                        Download
-                                      </a>
-                                    </Button>
-                                  </div>
-                                )}
+                                
+                              {/* Resume Button - Single option to view */}
+{applicant.resumeUrl && (
+  <div className="mb-3">
+    <Button
+      size="sm"
+      variant="outline"
+      asChild
+      className="w-full"
+    >
+      <a
+        href={applicant.resumeUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <FileText className="mr-2 h-4 w-4" />
+        View Resume (PDF)
+      </a>
+    </Button>
+  </div>
+)}
+
 
                                 {/* Show Rejection Reason for Recruiters */}
                                 {applicant.status === "rejected" && applicant.rejectionReason && (
@@ -910,37 +901,25 @@ export default function JobApplicantsPage() {
                                       </div>
                                     )}
                                     {/* Resume Buttons */}
-                                    {applicant.resumeUrl && (
-                                      <div className="flex gap-2 mb-3">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          asChild
-                                        >
-                                          <a
-                                            href={applicant.resumeUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                          >
-                                            <ExternalLink className="mr-2 h-4 w-4" />
-                                            View Resume
-                                          </a>
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          asChild
-                                        >
-                                          <a
-                                            href={applicant.resumeUrl}
-                                            download={`${applicant.user?.name || 'resume'}_resume.pdf`}
-                                          >
-                                            <FileText className="mr-2 h-4 w-4" />
-                                            Download
-                                          </a>
-                                        </Button>
-                                      </div>
-                                    )}
+                                 {/* Resume Button - Mobile */}
+{applicant.resumeUrl && (
+  <Button
+    size="sm"
+    variant="outline"
+    asChild
+    className="w-full text-xs"
+  >
+    <a
+      href={applicant.resumeUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <FileText className="mr-1 h-3 w-3" />
+      View Resume
+    </a>
+  </Button>
+)}
+
                                     {/* Show Rejection Reason for Recruiters */}
                                     {applicant.status === "rejected" && applicant.rejectionReason && (
                                       <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
