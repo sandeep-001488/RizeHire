@@ -60,7 +60,7 @@ export default function JobDetailPage({ params }) {
 
   useEffect(() => {
     if (job && isAuthenticated) {
-      console.log(" job:", job);
+      // console.log(" job:", job);
       fetchMatchScore();
     }
   }, [job, isAuthenticated]);

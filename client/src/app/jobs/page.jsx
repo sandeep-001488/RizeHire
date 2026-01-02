@@ -41,7 +41,7 @@ export default function JobsPage() {
 
   useEffect(() => {
     fetchJobs();
-    console.log(user);
+    // console.log(user);
   }, [filters, pagination.current]);
 
   const fetchJobs = async () => {
