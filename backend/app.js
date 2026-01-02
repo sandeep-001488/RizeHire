@@ -28,13 +28,16 @@ app.use(
   })
 );
 app.options(allowedOrigin, cors());
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 200, // Increased limit
-    message: { error: "Too many requests, try again later." },
-  })
-);
+
+// Rate limiter specifically for AI routes only
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // 50 AI requests per 15 minutes
+  message: { error: "Too many AI requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,7 +59,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api", jobSeedRoutes);
 app.use("/api/applications", applicationRoutes);
-app.use("/api/ai", aiRoutes);
+app.use("/api/ai", aiLimiter, aiRoutes); // Apply rate limiter only to AI routes
 app.use("/api/resume", resumeRoutes);
 
 
