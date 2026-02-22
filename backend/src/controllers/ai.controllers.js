@@ -4,6 +4,12 @@ import Job from "../models/job.model.js";
 import { getSmartSkillSuggestions } from "../utils/skillSuggestions.js";
 import { trainModel, getModelPerformance, predictAcceptance } from "../utils/mlModel.js";
 import { calculateJobMatch as calculateMatch } from "../utils/jobMatching.js";
+import {
+  getSHAPExplanation,
+  getLIMEExplanation,
+  getCombinedExplanation,
+  isPythonServiceHealthy,
+} from "../services/explainability.service.js";
 
 const fallbackSkillsExtraction = (text) => {
   const skillCategories = {
@@ -903,6 +909,154 @@ const getMLPrediction = async (req, res) => {
   }
 };
 
+/**
+ * EXPLAINABLE AI ENDPOINTS (SHAP & LIME)
+ * Provides interpretable explanations for ML predictions
+ */
+
+/**
+ * Check Python explainability service health
+ */
+const checkExplainabilityService = async (req, res) => {
+  try {
+    const isHealthy = await isPythonServiceHealthy();
+
+    res.json({
+      success: true,
+      data: {
+        status: isHealthy ? 'healthy' : 'unavailable',
+        service: 'SHAP/LIME Explainability Service',
+        url: process.env.PYTHON_EXPLAINABILITY_URL || 'http://localhost:5001',
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get SHAP explanation for a job match
+ */
+const getSHAPForJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    // Get job
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found',
+      });
+    }
+
+    // Calculate match
+    const match = calculateMatch(req.user, job);
+
+    // Get SHAP explanation
+    const explanation = await getSHAPExplanation(match.breakdown);
+
+    res.json({
+      success: true,
+      data: {
+        jobTitle: job.title,
+        matchScore: match.overallScore,
+        explanation,
+      },
+    });
+  } catch (error) {
+    console.error('SHAP explanation error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get LIME explanation for a job match
+ */
+const getLIMEForJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    // Get job
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found',
+      });
+    }
+
+    // Calculate match
+    const match = calculateMatch(req.user, job);
+
+    // Get LIME explanation
+    const explanation = await getLIMEExplanation(match.breakdown);
+
+    res.json({
+      success: true,
+      data: {
+        jobTitle: job.title,
+        matchScore: match.overallScore,
+        explanation,
+      },
+    });
+  } catch (error) {
+    console.error('LIME explanation error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get combined SHAP + LIME explanation
+ * Provides comprehensive explainability
+ */
+const getCombinedExplanationForJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    // Get job
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found',
+      });
+    }
+
+    // Calculate match
+    const match = calculateMatch(req.user, job);
+
+    // Get combined explanation
+    const explanation = await getCombinedExplanation(match.breakdown);
+
+    res.json({
+      success: true,
+      data: {
+        jobTitle: job.title,
+        matchScore: match.overallScore,
+        matchCategory: match.matchCategory,
+        breakdown: match.breakdown,
+        explanation,
+      },
+    });
+  } catch (error) {
+    console.error('Combined explanation error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export {
   extractSkills,
   calculateJobMatch,
@@ -916,4 +1070,9 @@ export {
   trainMLModel,
   getMLModelPerformance,
   getMLPrediction,
+  // Explainability Endpoints (SHAP & LIME)
+  checkExplainabilityService,
+  getSHAPForJob,
+  getLIMEForJob,
+  getCombinedExplanationForJob,
 };

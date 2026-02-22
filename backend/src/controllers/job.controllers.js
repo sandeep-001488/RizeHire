@@ -133,6 +133,8 @@ const getJobs = async (req, res) => {
 
     const filter = { isActive: true };
 
+    // Get applied job IDs to mark them (but don't exclude them)
+    let appliedJobIdsArray = [];
     if (req.user) {
       const appliedJobIds = await Application.find({
         applicantId: req.user._id,
@@ -140,13 +142,7 @@ const getJobs = async (req, res) => {
         .select("jobId")
         .lean();
 
-      const appliedJobIdsArray = appliedJobIds.map((app) =>
-        app.jobId.toString()
-      );
-
-      if (appliedJobIdsArray.length > 0) {
-        filter._id = { $nin: appliedJobIdsArray };
-      }
+      appliedJobIdsArray = appliedJobIds.map((app) => app.jobId.toString());
     }
 
     if (skills) {
@@ -192,18 +188,29 @@ const getJobs = async (req, res) => {
       ];
     }
 
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
+    // For seekers: Get ALL jobs first, then sort by match score, then paginate
+    // For employers/guests: Use database sorting and pagination
+    let allJobs;
+    if (req.user && req.user.role === "seeker") {
+      // Get ALL jobs without pagination (for seekers to sort by match score)
+      allJobs = await Job.find(filter)
+        .populate("postedBy", "name email profileImage")
+        .lean();
+    } else {
+      // For non-seekers, use traditional database sorting and pagination
+      const sortOptions = {};
+      sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
 
-    const jobs = await Job.find(filter)
-      .populate("postedBy", "name email profileImage")
-      .sort(sortOptions)
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .lean();
+      allJobs = await Job.find(filter)
+        .populate("postedBy", "name email profileImage")
+        .sort(sortOptions)
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .lean();
+    }
 
     const jobsWithApplicationCount = await Promise.all(
-      jobs.map(async (job) => {
+      allJobs.map(async (job) => {
         const applicationCount = await Application.countDocuments({
           jobId: job._id,
         });
@@ -213,16 +220,20 @@ const getJobs = async (req, res) => {
 
     // Calculate match scores if user is logged in (seeker)
     let jobsWithMatchScores = jobsWithApplicationCount;
+    console.log("🔍 DEBUG /jobs - User:", req.user?.name, "Role:", req.user?.role, "Jobs count:", jobsWithApplicationCount.length);
     if (req.user && req.user.role === "seeker") {
       console.log("🎯 Calculating match scores for seeker:", req.user.name);
 
-      // Calculate match scores and ML predictions in parallel
+      // Calculate match scores and ML predictions in parallel for ALL jobs
       jobsWithMatchScores = await Promise.all(
         jobsWithApplicationCount.map(async (job) => {
           const match = calculateJobMatch(req.user, job);
 
           // Get ML prediction based on match breakdown
           const mlPrediction = await predictAcceptance(match.breakdown);
+
+          // Check if user has applied to this job
+          const isApplied = appliedJobIdsArray.includes(job._id.toString());
 
           return {
             ...job,
@@ -232,6 +243,7 @@ const getJobs = async (req, res) => {
             matchBreakdown: match.breakdown,
             whyThisJob: match.whyThisJob,
             recommendation: match.recommendation,
+            isApplied, // NEW: Flag to show if user has applied
             mlPrediction: {
               acceptanceProbability: mlPrediction.acceptanceProbability,
               confidence: mlPrediction.confidence,
@@ -242,10 +254,22 @@ const getJobs = async (req, res) => {
         })
       );
 
-      // If sorting by relevance/match, sort by match score
-      if (sortBy === "relevance" || sortBy === "match") {
-        jobsWithMatchScores.sort((a, b) => b.matchScore - a.matchScore);
-      }
+      // Sort ALL jobs by match score (highest first), then by acceptance rate (highest first)
+      jobsWithMatchScores.sort((a, b) => {
+        // Primary sort: Match score (descending)
+        const matchScoreDiff = b.matchScore - a.matchScore;
+        if (matchScoreDiff !== 0) return matchScoreDiff;
+
+        // Secondary sort: Acceptance rate (descending) if match scores are equal
+        const aAcceptance = a.mlPrediction?.acceptanceProbability || 0;
+        const bAcceptance = b.mlPrediction?.acceptanceProbability || 0;
+        return bAcceptance - aAcceptance;
+      });
+
+      // NOW apply pagination AFTER sorting all jobs
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + parseInt(limit);
+      jobsWithMatchScores = jobsWithMatchScores.slice(startIndex, endIndex);
     }
 
     const total = await Job.countDocuments(filter);
@@ -595,18 +619,13 @@ const getRecommendations = async (req, res) => {
 
     const appliedJobIdsArray = appliedJobIds.map(app => app.jobId.toString());
 
-    // Filter out applied jobs
-    const availableJobs = allJobs.filter(
-      job => !appliedJobIdsArray.includes(job._id.toString())
-    );
-
-    // Rank jobs by relevance
-    const rankedJobs = rankJobsByRelevance(availableJobs, req.user);
+    // Rank ALL jobs by relevance (including applied ones - we'll mark them later)
+    const rankedJobs = rankJobsByRelevance(allJobs, req.user);
 
     // Get top recommendations
     const recommendations = rankedJobs.slice(0, parseInt(limit));
 
-    // Add application count and ML predictions
+    // Add application count, ML predictions, and isApplied flag
     const recommendationsWithCount = await Promise.all(
       recommendations.map(async (job) => {
         const applicationCount = await Application.countDocuments({
@@ -616,9 +635,13 @@ const getRecommendations = async (req, res) => {
         // Get ML prediction for this job
         const mlPrediction = await predictAcceptance(job.matchBreakdown);
 
+        // Check if user has applied to this job
+        const isApplied = appliedJobIdsArray.includes(job._id.toString());
+
         return {
           ...job,
           applicationCount,
+          isApplied, // NEW: Flag to show if user has applied
           mlPrediction: {
             acceptanceProbability: mlPrediction.acceptanceProbability,
             confidence: mlPrediction.confidence,
@@ -628,6 +651,18 @@ const getRecommendations = async (req, res) => {
         };
       })
     );
+
+    // Sort by match score first, then by acceptance rate (for jobs with same match score)
+    recommendationsWithCount.sort((a, b) => {
+      // Primary sort: Match score (descending)
+      const matchScoreDiff = b.matchScore - a.matchScore;
+      if (matchScoreDiff !== 0) return matchScoreDiff;
+
+      // Secondary sort: Acceptance rate (descending) if match scores are equal
+      const aAcceptance = a.mlPrediction?.acceptanceProbability || 0;
+      const bAcceptance = b.mlPrediction?.acceptanceProbability || 0;
+      return bAcceptance - aAcceptance;
+    });
 
     res.json({
       success: true,

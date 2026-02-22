@@ -97,6 +97,18 @@ const userSchema = new mongoose.Schema(
       type: parsedResumeSchema,
       default: null,
     },
+    // --- RELOCATION PREFERENCES (for location matching) ---
+    preferences: {
+      willingToRelocate: {
+        type: Boolean,
+        default: true, // Default to true for backward compatibility
+      },
+      relocationType: {
+        type: String,
+        enum: ['same-city-only', 'within-country', 'international'],
+        default: 'within-country',
+      },
+    },
     profileImage: String,
     refreshTokens: [
       {

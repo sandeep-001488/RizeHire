@@ -129,6 +129,11 @@ export const aiAPI = {
   trainMLModel: () => api.post("/ai/ml/train"),
   getMLPerformance: () => api.get("/ai/ml/performance"),
   getMLPrediction: (jobId) => api.get(`/ai/ml/predict/${jobId}`),
+  // Explainability APIs (SHAP & LIME)
+  checkExplainabilityHealth: () => api.get("/ai/explainability/health"),
+  getSHAPExplanation: (jobId) => api.get(`/ai/explainability/shap/${jobId}`),
+  getLIMEExplanation: (jobId) => api.get(`/ai/explainability/lime/${jobId}`),
+  getCombinedExplanation: (jobId) => api.get(`/ai/explainability/combined/${jobId}`),
 };
 
 

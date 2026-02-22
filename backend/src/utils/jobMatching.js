@@ -129,21 +129,34 @@ function calculateExperienceMatch(candidateYears, requiredYears, experienceLevel
 }
 
 /**
- * Calculate location match score
+ * Calculate location match score with relocation preferences
  * @param {String} candidateLocation - Candidate's location
  * @param {Object} jobLocation - Job's location {city, country}
  * @param {String} workMode - Job's work mode (remote, hybrid, onsite)
+ * @param {Object} preferences - Candidate's relocation preferences
  * @returns {Object} Location match details
  */
-function calculateLocationMatch(candidateLocation, jobLocation, workMode) {
+function calculateLocationMatch(candidateLocation, jobLocation, workMode, preferences = {}) {
   // Remote jobs are always a match
   if (workMode && workMode.toLowerCase() === 'remote') {
-    return { score: 100, explanation: 'Remote position - location flexible' };
+    return {
+      score: 100,
+      explanation: 'Remote position - location flexible',
+      requiresRelocation: false,
+    };
   }
 
   if (!candidateLocation || !jobLocation) {
-    return { score: 50, explanation: 'Location preference not specified' };
+    return {
+      score: 50,
+      explanation: 'Location preference not specified',
+      requiresRelocation: false,
+    };
   }
+
+  // Extract relocation preferences (default to willing for backward compatibility)
+  const willingToRelocate = preferences?.willingToRelocate ?? true;
+  const relocationType = preferences?.relocationType || 'within-country';
 
   // Ensure candidateLocation is a string
   const candidateLower = String(candidateLocation || '').toLowerCase();
@@ -152,20 +165,72 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode) {
 
   // Exact city match
   if (candidateLower.includes(jobCity) && jobCity) {
-    return { score: 100, explanation: `Same city - ${jobLocation.city}` };
+    return {
+      score: 100,
+      explanation: `Same city - ${jobLocation.city}`,
+      requiresRelocation: false,
+    };
   }
 
-  // Same country
-  if (candidateLower.includes(jobCountry) && jobCountry) {
-    return { score: 70, explanation: `Same country - ${jobLocation.country}` };
+  // Check if same country
+  const isSameCountry = candidateLower.includes(jobCountry) && jobCountry;
+
+  // SAME COUNTRY, DIFFERENT CITY
+  if (isSameCountry) {
+    // Willing to relocate within country → Minimal penalty
+    if (willingToRelocate && (relocationType === 'within-country' || relocationType === 'international')) {
+      return {
+        score: 95,
+        explanation: `Willing to relocate within ${jobLocation.country}`,
+        requiresRelocation: true,
+        relocationCity: jobLocation.city,
+        relocationCountry: jobLocation.country,
+      };
+    }
+
+    // NOT willing to relocate → Moderate penalty
+    return {
+      score: 50,
+      explanation: `Different city, relocation required`,
+      requiresRelocation: true,
+      relocationCity: jobLocation.city,
+      relocationCountry: jobLocation.country,
+    };
   }
 
-  // Different location
-  if (workMode && workMode.toLowerCase() === 'hybrid') {
-    return { score: 40, explanation: 'Different location, but hybrid work available' };
+  // DIFFERENT COUNTRY (International)
+  const isDifferentCountry = !isSameCountry;
+
+  if (isDifferentCountry) {
+    // Willing to relocate internationally → Still penalty (visa)
+    if (willingToRelocate && relocationType === 'international') {
+      return {
+        score: 45,
+        explanation: `International relocation (${jobLocation.country}), visa required`,
+        requiresRelocation: true,
+        relocationCity: jobLocation.city,
+        relocationCountry: jobLocation.country,
+        requiresVisa: true,
+      };
+    }
+
+    // NOT willing → Large penalty
+    return {
+      score: 20,
+      explanation: `International relocation required`,
+      requiresRelocation: true,
+      relocationCity: jobLocation.city,
+      relocationCountry: jobLocation.country,
+      requiresVisa: true,
+    };
   }
 
-  return { score: 20, explanation: 'Different location - relocation required' };
+  // Fallback
+  return {
+    score: 50,
+    explanation: 'Location compatibility unclear',
+    requiresRelocation: false,
+  };
 }
 
 /**
@@ -218,6 +283,7 @@ export function calculateJobMatch(candidate, job) {
   const candidateSkills = candidate?.skills || candidate?.parsedResume?.skills || [];
   const candidateYears = candidate?.parsedResume?.yearsOfExperience || candidate?.yearsOfExperience || 0;
   const candidateLocation = candidate?.location || candidate?.parsedResume?.location || '';
+  const preferences = candidate?.preferences || {}; // Relocation preferences
 
   // Safely extract job requirements with defaults
   const jobSkills = job?.skills || job?.required_skills || [];
@@ -230,14 +296,14 @@ export function calculateJobMatch(candidate, job) {
   // Calculate individual scores
   const skillMatch = calculateSkillMatch(candidateSkills, jobSkills);
   const experienceMatch = calculateExperienceMatch(candidateYears, requiredYears, experienceLevel);
-  const locationMatch = calculateLocationMatch(candidateLocation, jobLocation, workMode);
+  const locationMatch = calculateLocationMatch(candidateLocation, jobLocation, workMode, preferences);
   const salaryMatch = calculateSalaryMatch(null, null, jobBudget); // Candidate salary not in profile yet
 
   // Weighted scoring (skills are most important)
   const weights = {
     skills: 0.50,      // 50% - Most important
-    experience: 0.30,  // 30% - Very important
-    location: 0.15,    // 15% - Important for onsite
+    experience: 0.35,  // 35% - Very important (increased from 30%)
+    location: 0.10,    // 10% - Less important (reduced from 15%, since within-country relocation is common)
     salary: 0.05,      // 5% - Less weight (often negotiable)
   };
 

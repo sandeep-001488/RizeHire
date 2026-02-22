@@ -15,6 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import useAuthStore from "@/stores/authStore";
 import { jobsAPI, aiAPI, applicationsAPI } from "@/lib/api";
 import { formatDate, formatSalary } from "@/lib/utils";
@@ -48,6 +56,11 @@ export default function JobDetailPage({ params }) {
   const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [showQuestions, setShowQuestions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Relocation confirmation
+  const [showRelocationDialog, setShowRelocationDialog] = useState(false);
+  const [willingToRelocateForJob, setWillingToRelocateForJob] = useState(true);
+  const [pendingApplication, setPendingApplication] = useState(null);
   
   // Resume parse validation state
   // These states control the alert shown when a seeker hasn't parsed their resume
@@ -165,29 +178,69 @@ export default function JobDetailPage({ params }) {
     }
   };
 
+  // Check if relocation is required
+  const requiresRelocation = () => {
+    if (!user || !job) return false;
+    if (job.workMode === 'remote') return false; // Remote jobs don't need relocation
+
+    const userCity = String(user.location || '').toLowerCase();
+    const jobCity = String(job.location?.city || '').toLowerCase();
+
+    // Check if different city
+    return jobCity && userCity && !userCity.includes(jobCity);
+  };
+
+  // Handle apply with relocation check
   const handleApply = async (e) => {
     e.preventDefault();
+
+    // Validation
+    if (!coverLetter.trim()) {
+      alert("Cover letter is required");
+      return;
+    }
+
+    if (coverLetter.trim().length < 10) {
+      alert("Cover letter must be at least 10 characters long");
+      return;
+    }
+
+    if (!isAuthenticated || !user) {
+      alert("Please log in to apply for this job");
+      return;
+    }
+
+    // Check if relocation required
+    if (requiresRelocation()) {
+      // Store form data for later submission
+      setPendingApplication({
+        coverLetter: coverLetter.trim(),
+        resume: selectedResume,
+      });
+      // Pre-check based on user preference
+      setWillingToRelocateForJob(user.preferences?.willingToRelocate ?? true);
+      // Show relocation confirmation dialog
+      setShowRelocationDialog(true);
+      return;
+    }
+
+    // If no relocation needed, submit directly
+    await submitApplication(coverLetter.trim(), selectedResume, null);
+  };
+
+  // Submit application (called after confirmation)
+  const submitApplication = async (coverLetterText, resume, willingToRelocate) => {
     setIsApplying(true);
 
     try {
-      if (!coverLetter.trim()) {
-        alert("Cover letter is required");
-        return;
-      }
-
-      if (coverLetter.trim().length < 10) {
-        alert("Cover letter must be at least 10 characters long");
-        return;
-      }
-
-      if (!isAuthenticated || !user) {
-        alert("Please log in to apply for this job");
-        return;
-      }
-
       const formData = new FormData();
-      formData.append("coverLetter", coverLetter.trim());
-      formData.append("resume", selectedResume); // Append the resume file
+      formData.append("coverLetter", coverLetterText);
+      formData.append("resume", resume);
+
+      // Add relocation preference if applicable
+      if (willingToRelocate !== null) {
+        formData.append("willingToRelocate", willingToRelocate.toString());
+      }
 
       const response = await applicationsAPI.applyToJob(jobId, formData);
 
@@ -224,9 +277,21 @@ export default function JobDetailPage({ params }) {
       }
     } finally {
       setIsApplying(false);
+      setShowRelocationDialog(false);
+      setPendingApplication(null);
     }
   };
 
+  // Handle relocation confirmation
+  const handleConfirmRelocation = async () => {
+    if (!pendingApplication) return;
+
+    await submitApplication(
+      pendingApplication.coverLetter,
+      pendingApplication.resume,
+      willingToRelocateForJob
+    );
+  };
 
   const hasApplied = job?.hasApplied || false;
   const [selectedResume, setSelectedResume] = useState(null);
@@ -755,6 +820,102 @@ export default function JobDetailPage({ params }) {
           )}
         </div>
       </div>
+
+      {/* Relocation Confirmation Dialog */}
+      <Dialog open={showRelocationDialog} onOpenChange={setShowRelocationDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-orange-600" />
+              Relocation Required
+            </DialogTitle>
+            <DialogDescription>
+              This position requires relocation to a different city.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Location Info */}
+            <div className="space-y-2">
+              <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Job Location</p>
+                  <p className="text-sm text-muted-foreground">
+                    {job?.location?.city}, {job?.location?.country}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Your Current Location</p>
+                  <p className="text-sm text-muted-foreground">
+                    {user?.location || "Not specified"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Confirmation Checkbox */}
+            <div className="flex items-start space-x-3 p-4 border rounded-lg bg-orange-50 dark:bg-orange-900/10">
+              <input
+                type="checkbox"
+                id="relocate-confirm"
+                checked={willingToRelocateForJob}
+                onChange={(e) => setWillingToRelocateForJob(e.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <label htmlFor="relocate-confirm" className="flex-1 cursor-pointer">
+                <p className="text-sm font-medium">
+                  I confirm I'm willing to relocate to {job?.location?.city}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  By checking this box, you confirm that you understand this position
+                  requires relocation and you're willing to move if offered the role.
+                </p>
+              </label>
+            </div>
+
+            {/* Info */}
+            <div className="text-xs text-muted-foreground p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-md">
+              💡 <strong>Note:</strong> This preference will be included in your application.
+              The employer may discuss relocation support during the interview process.
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRelocationDialog(false);
+                setPendingApplication(null);
+              }}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmRelocation}
+              disabled={!willingToRelocateForJob || isApplying}
+              className="w-full sm:w-auto"
+            >
+              {isApplying ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Confirm & Apply
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
