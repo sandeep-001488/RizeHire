@@ -27,6 +27,7 @@ import AuthGuard from "@/components/auth-guard/authGuard";
 import { applicationsAPI, jobsAPI } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuthStore } from "@/stores/authStore";
 import {
   MessageSquare,
   ArrowRight,
@@ -48,19 +49,11 @@ import {
 } from "lucide-react";
 import { FaLinkedin } from "react-icons/fa"
 
-// Helper function to get resume URL - now uses direct Cloudinary URLs
-const getResumeViewUrl = (cloudinaryUrl) => {
-  if (!cloudinaryUrl) return null;
-  
-  // With "PDF and ZIP files delivery" enabled in Cloudinary,
-  // we can use direct URLs without authentication
-  return cloudinaryUrl;
-};
-
 export default function JobApplicantsPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = params.jobId;
+  const { tokens } = useAuthStore();
 
   // Local state management
   const [jobApplicants, setJobApplicants] = useState([]);
@@ -102,6 +95,45 @@ export default function JobApplicantsPage() {
       fetchApplicants(activeTab);
     }
   }, [activeTab]);
+
+  // Helper function to view resume with authentication
+  const viewResume = async (applicationId) => {
+    if (!applicationId) return;
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+      if (!tokens?.accessToken) {
+        toast.error('Please login to view resume');
+        return;
+      }
+
+      // Fetch PDF with authentication
+      const response = await fetch(`${baseUrl}/applications/${applicationId}/resume`, {
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+          'X-Refresh-Token': tokens.refreshToken || '',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load resume');
+      }
+
+      // Create blob URL from response
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Open in new tab
+      window.open(url, '_blank');
+
+      // Clean up blob URL after a delay
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error('Error viewing resume:', error);
+      toast.error('Failed to load resume');
+    }
+  };
 
   const fetchJobDetails = async () => {
     try {
@@ -758,17 +790,11 @@ export default function JobApplicantsPage() {
     <Button
       size="sm"
       variant="outline"
-      asChild
       className="w-full"
+      onClick={() => viewResume(applicant.applicationId)}
     >
-      <a
-        href={getResumeViewUrl(applicant.resumeUrl)}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <FileText className="mr-2 h-4 w-4" />
-        View Resume (PDF)
-      </a>
+      <FileText className="mr-2 h-4 w-4" />
+      View Resume (PDF)
     </Button>
   </div>
 )}
@@ -793,21 +819,21 @@ export default function JobApplicantsPage() {
                               <div className="flex-1 min-w-0">
                                 {/* min-w-0 allows flex child to shrink */}
                                 <div className="flex items-start space-x-3 md:space-x-4">
-                                  <Avatar className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0">
+                                  <Avatar className="h-10 w-10 md:h-12 md:w-12 shrink-0">
                                     <AvatarImage
                                       src={applicant?.user?.profileImage}
-                                      alt={applicant?.user?.name}
+                                      alt={applicant?.user?.name || "Unknown"}
                                     />
                                     <AvatarFallback>
-                                      {getInitials(applicant.user.name)}
+                                      {applicant?.user?.name ? getInitials(applicant.user.name) : "??"}
                                     </AvatarFallback>
                                   </Avatar>
 
                                   <div className="flex-1 min-w-0">
                                     {/* min-w-0 allows flex child to shrink */}
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                                      <h3 className="text-base md:text-lg font-semibold break-words">
-                                        {applicant.user.name}
+                                      <h3 className="text-base md:text-lg font-semibold wrap-break-word">
+                                        {applicant?.user?.name || "Unknown Applicant"}
                                       </h3>
                                       <Badge
                                         className={`${getStatusColor(applicant.status)} w-fit text-xs`}
@@ -816,18 +842,20 @@ export default function JobApplicantsPage() {
                                       </Badge>
                                     </div>
                                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 text-xs md:text-sm text-muted-foreground mb-3">
-                                      <div className="flex items-center min-w-0">
-                                        <a
-                                          href={`mailto:${applicant.user.email}`}
-                                          className="flex items-center hover:text-primary transition-colors group"
-                                          title="Send email"
-                                        >
-                                          <Mail className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0 text-red-500 group-hover:text-red-600" />
-                                          <span className="break-all underline decoration-dotted">
-                                            {applicant.user.email}
-                                          </span>
-                                        </a>
-                                      </div>
+                                      {applicant?.user?.email && (
+                                        <div className="flex items-center min-w-0">
+                                          <a
+                                            href={`mailto:${applicant.user.email}`}
+                                            className="flex items-center hover:text-primary transition-colors group"
+                                            title="Send email"
+                                          >
+                                            <Mail className="h-3 w-3 md:h-4 md:w-4 mr-1 shrink-0 text-red-500 group-hover:text-red-600" />
+                                            <span className="break-all underline decoration-dotted">
+                                              {applicant.user.email}
+                                            </span>
+                                          </a>
+                                        </div>
+                                      )}
                                       <div className="flex items-center">
                                         <Calendar className="h-3 w-3 md:h-4 md:w-4 mr-1" />
                                         <span>
@@ -835,16 +863,16 @@ export default function JobApplicantsPage() {
                                           {formatDate(applicant.appliedAt)}
                                         </span>
                                       </div>
-                                      {applicant.user.location && (
+                                      {applicant?.user?.location && (
                                         <div className="flex items-center min-w-0">
-                                          <MapPin className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
-                                          <span className="break-words">
+                                          <MapPin className="h-3 w-3 md:h-4 md:w-4 mr-1 shrink-0" />
+                                          <span className="wrap-break-word">
                                             {applicant.user.location}
                                           </span>
                                         </div>
                                       )}
                                     </div>
-                                    {applicant.user.skills &&
+                                    {applicant?.user?.skills &&
                                       applicant.user.skills.length > 0 && (
                                         <div className="flex flex-wrap gap-1 mb-3">
                                           {applicant.user.skills
@@ -853,7 +881,7 @@ export default function JobApplicantsPage() {
                                               <Badge
                                                 key={index}
                                                 variant="outline"
-                                                className="text-xs break-words"
+                                                className="text-xs wrap-break-word"
                                               >
                                                 {skill}
                                               </Badge>
@@ -876,7 +904,7 @@ export default function JobApplicantsPage() {
                                           <FileText className="h-3 w-3 md:h-4 md:w-4 mr-1" />
                                           Cover Letter:
                                         </h4>
-                                        <p className="text-xs md:text-sm text-muted-foreground line-clamp-3 break-words">
+                                        <p className="text-xs md:text-sm text-muted-foreground line-clamp-3 wrap-break-word">
                                           {applicant.coverLetter}
                                         </p>
                                         {applicant.coverLetter.length > 150 && (
@@ -899,7 +927,7 @@ export default function JobApplicantsPage() {
                                               <DialogHeader>
                                                 <DialogTitle>
                                                   Cover Letter -{" "}
-                                                  {applicant.user.name}
+                                                  {applicant?.user?.name || "Unknown Applicant"}
                                                 </DialogTitle>
                                                 <DialogDescription>
                                                   Application for{" "}
@@ -907,7 +935,7 @@ export default function JobApplicantsPage() {
                                                 </DialogDescription>
                                               </DialogHeader>
                                               <div className="mt-4">
-                                                <p className="text-sm whitespace-pre-wrap break-words">
+                                                <p className="text-sm whitespace-pre-wrap wrap-break-word">
                                                   {applicant.coverLetter}
                                                 </p>
                                               </div>
@@ -922,17 +950,11 @@ export default function JobApplicantsPage() {
   <Button
     size="sm"
     variant="outline"
-    asChild
     className="w-full text-xs"
+    onClick={() => viewResume(applicant.applicationId)}
   >
-    <a
-      href={getResumeViewUrl(applicant.resumeUrl)}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <FileText className="mr-1 h-3 w-3" />
-      View Resume
-    </a>
+    <FileText className="mr-1 h-3 w-3" />
+    View Resume
   </Button>
 )}
 
@@ -966,7 +988,7 @@ export default function JobApplicantsPage() {
                                           <DialogHeader>
                                             <DialogTitle>
                                               Full Application Details -{" "}
-                                              {applicant.user.name}
+                                              {applicant?.user?.name || "Unknown Applicant"}
                                             </DialogTitle>
                                           </DialogHeader>
                                           <div className="space-y-4 mt-4">
@@ -974,7 +996,7 @@ export default function JobApplicantsPage() {
                                               <h4 className="font-semibold mb-2">
                                                 Skills
                                               </h4>
-                                              {applicant.user.skills &&
+                                              {applicant?.user?.skills &&
                                               applicant.user.skills.length >
                                                 0 ? (
                                                 <div className="flex flex-wrap gap-2">
@@ -996,18 +1018,18 @@ export default function JobApplicantsPage() {
                                               )}
                                             </div>
 
-                                            {applicant.user.bio && (
+                                            {applicant?.user?.bio && (
                                               <div>
                                                 <h4 className="font-semibold mb-2">
                                                   Bio
                                                 </h4>
-                                                <p className="text-sm bg-muted p-3 rounded-lg break-words">
+                                                <p className="text-sm bg-muted p-3 rounded-lg wrap-break-word">
                                                   {applicant.user.bio}
                                                 </p>
                                               </div>
                                             )}
 
-                                            {applicant.user.linkedinUrl && (
+                                            {applicant?.user?.linkedinUrl && (
                                               <div>
                                                 <h4 className="font-semibold mb-2">
                                                   LinkedIn
@@ -1086,11 +1108,11 @@ export default function JobApplicantsPage() {
                                                     )}`}
                                                   >
                                                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                                                      <p className="text-xs md:text-sm break-words flex-1 leading-relaxed">
+                                                      <p className="text-xs md:text-sm wrap-break-word flex-1 leading-relaxed">
                                                         {feedback.message}
                                                       </p>
                                                       {feedback.createdAt && (
-                                                        <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                                        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
                                                           {formatDate(
                                                             feedback.createdAt
                                                           )}
@@ -1109,7 +1131,7 @@ export default function JobApplicantsPage() {
                               </div>
 
                               {/* Desktop Action Buttons - Hidden on mobile */}
-                              <div className="hidden md:flex flex-col gap-2 min-w-[140px]">
+                              <div className="hidden md:flex flex-col gap-2 min-w-35">
                                 {applicant.status === "pending" && (
                                   <>
                                     <Button
@@ -1358,7 +1380,7 @@ export default function JobApplicantsPage() {
                                 </Button>
 
                                 {/* LinkedIn Button on desktop */}
-                                {applicant.user.linkedinUrl && (
+                                {applicant?.user?.linkedinUrl && (
                                   <Button
                                     size="sm"
                                     variant="outline"

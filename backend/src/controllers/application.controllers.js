@@ -1,8 +1,11 @@
 import mongoose from "mongoose";
+import axios from "axios";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
 import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
-import { uploadToCloudinary } from "../middleware/upload.middleware.js";
+import { uploadToCloudinary, generateSignedUrl } from "../middleware/upload.middleware.js";
+import { generateRejectionFeedback } from "../utils/rejectionFeedback.js";
+import { sendRejectionEmail, sendAcceptanceEmail } from "../services/email.service.js";
 
 const applyToJob = async (req, res) => {
   try {
@@ -45,18 +48,13 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    // Handle resume upload
+    // Handle resume upload - store locally instead of Cloudinary
     let resumeUrl = null;
     if (req.file) {
-      try {
-        resumeUrl = await uploadToCloudinary(req.file.path);
-      } catch (uploadError) {
-        console.error("Resume upload error:", uploadError);
-        return res.status(500).json({
-          success: false,
-          message: "Failed to upload resume",
-        });
-      }
+      // Store the relative path to the uploaded file
+      // File is already saved locally by multer in uploads/resumes/
+      resumeUrl = `/uploads/resumes/${req.file.filename}`;
+      console.log("✅ Resume saved locally:", resumeUrl);
     }
 
     // Create screening profile with gender priority
@@ -403,7 +401,7 @@ const updateApplicationStatus = async (req, res) => {
 
     const application = await Application.findById(applicationId)
       .populate("jobId")
-      .populate("applicantId", "name email profileImage");
+      .populate("applicantId", "name email profileImage skills parsedResume");
 
     if (!application) {
       return res.status(404).json({
@@ -423,6 +421,82 @@ const updateApplicationStatus = async (req, res) => {
     application.viewedByRecruiter = true;
     application.lastUpdated = new Date();
 
+    // Handle rejection with AI-powered feedback
+    if (status === "rejected") {
+      console.log("🤖 Generating AI-powered rejection feedback...");
+
+      try {
+        // Generate detailed feedback
+        const rejectionFeedback = await generateRejectionFeedback({
+          job: application.jobId,
+          candidateProfile: application.applicantId.parsedResume || {
+            skills: application.applicantId.skills || [],
+            yearsOfExperience: 0,
+          },
+          screeningResult: application.screeningResult || { reasons: [] },
+          matchScore: application.matchScore || 0,
+        });
+
+        // Store detailed rejection reason
+        application.rejectionReason = rejectionFeedback.primaryReasons.join(". ");
+
+        // Add AI-generated feedback to feedback array
+        application.feedback.push({
+          message: `Match Score: ${rejectionFeedback.matchScore}%\n\n${rejectionFeedback.detailedAnalysis.skillGapAnalysis || ""}`,
+          givenBy: req.user._id,
+          visibleToApplicant: true,
+          createdAt: new Date(),
+        });
+
+        console.log("✅ Rejection feedback generated successfully");
+
+        // Send rejection email asynchronously (don't wait for it)
+        sendRejectionEmail({
+          candidateEmail: application.applicantId.email,
+          candidateName: application.applicantId.name,
+          jobTitle: application.jobId.title,
+          companyName: application.jobId.company?.name,
+          rejectionFeedback,
+        })
+          .then((result) => {
+            if (result.success) {
+              console.log("✅ Rejection email sent to:", application.applicantId.email);
+            } else {
+              console.warn("⚠️  Failed to send rejection email:", result.message || result.error);
+            }
+          })
+          .catch((err) => {
+            console.error("❌ Error sending rejection email:", err);
+          });
+      } catch (feedbackError) {
+        console.error("❌ Error generating rejection feedback:", feedbackError);
+        // Continue without AI feedback if it fails
+        application.rejectionReason = "Your application did not meet the job requirements.";
+      }
+    }
+
+    // Handle acceptance with email notification
+    if (status === "accepted") {
+      console.log("🎉 Sending acceptance email...");
+
+      sendAcceptanceEmail({
+        candidateEmail: application.applicantId.email,
+        candidateName: application.applicantId.name,
+        jobTitle: application.jobId.title,
+        companyName: application.jobId.company?.name,
+        nextSteps: "The recruiter will contact you soon with next steps.",
+      })
+        .then((result) => {
+          if (result.success) {
+            console.log("✅ Acceptance email sent to:", application.applicantId.email);
+          }
+        })
+        .catch((err) => {
+          console.error("❌ Error sending acceptance email:", err);
+        });
+    }
+
+    // Add manual feedback if provided
     if (feedback && feedback.trim()) {
       application.feedback.push({
         message: feedback.trim(),
@@ -604,20 +678,99 @@ const getApplicationResume = async (req, res) => {
     }
 
     if (!application.resume) {
+      console.log("⚠️  No resume found for application:", applicationId);
+      console.log("Application data:", {
+        id: application._id,
+        applicantId: application.applicantId?._id,
+        applicantName: application.applicantId?.name,
+        resume: application.resume,
+      });
       return res.status(404).json({
         success: false,
         message: "Resume not found for this application",
       });
     }
 
-    // Return the Cloudinary URL directly as JSON (don't redirect)
-    res.json({
-      success: true,
-      data: {
-        resumeUrl: application.resume,
-        applicantName: application.applicantId.name,
-      },
-    });
+    // Serve PDF from local storage or Cloudinary
+    try {
+      console.log("📄 Attempting to serve resume from:", application.resume);
+
+      // Check if it's a local file path or Cloudinary URL
+      if (application.resume.startsWith('/uploads/')) {
+        // Local file - serve directly from filesystem
+        const fs = await import('fs');
+        const path = await import('path');
+
+        const filePath = path.join(process.cwd(), application.resume);
+
+        console.log("📂 Serving local file from:", filePath);
+
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+          console.error("❌ File not found:", filePath);
+          return res.status(404).json({
+            success: false,
+            message: "Resume file not found on server",
+          });
+        }
+
+        // Read file
+        const fileBuffer = fs.readFileSync(filePath);
+
+        console.log("✅ Successfully loaded resume, size:", fileBuffer.length, "bytes");
+
+        // Set appropriate headers for PDF viewing
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `inline; filename="${application.applicantId.name.replace(/[^a-zA-Z0-9]/g, '_')}_resume.pdf"`);
+        res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+
+        // Send the PDF buffer
+        return res.send(fileBuffer);
+      } else if (application.resume.includes('cloudinary.com')) {
+        // Cloudinary URL - try to fetch (for backward compatibility with old uploads)
+        console.log("☁️  Fetching from Cloudinary...");
+
+        let pdfUrl = application.resume;
+
+        // If URL contains '/raw/upload/', try to generate signed URL
+        if (application.resume.includes('/raw/upload/')) {
+          try {
+            pdfUrl = generateSignedUrl(application.resume);
+          } catch (signError) {
+            console.warn("Could not generate signed URL:", signError.message);
+          }
+        }
+
+        const response = await axios.get(pdfUrl, {
+          responseType: "arraybuffer",
+          timeout: 30000,
+        });
+
+        console.log("✅ Successfully fetched resume from Cloudinary, size:", response.data.length, "bytes");
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `inline; filename="${application.applicantId.name.replace(/[^a-zA-Z0-9]/g, '_')}_resume.pdf"`);
+        res.setHeader("Cache-Control", "public, max-age=3600");
+
+        return res.send(Buffer.from(response.data));
+      } else {
+        console.error("❌ Unknown resume URL format:", application.resume);
+        return res.status(400).json({
+          success: false,
+          message: "Invalid resume URL format",
+        });
+      }
+    } catch (fetchError) {
+      console.error("❌ Error serving resume:", {
+        message: fetchError.message,
+        url: application.resume,
+      });
+      return res.status(500).json({
+        success: false,
+        message: "Failed to load resume",
+        error: fetchError.message,
+      });
+    }
   } catch (error) {
     console.error("Error in getApplicationResume:", error);
     res.status(500).json({

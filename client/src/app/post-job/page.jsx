@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import RoleGuard from "@/components/auth-guard/RoleGuard";
 import { jobsAPI, aiAPI } from "@/lib/api";
-import { Loader2, Brain, AlertTriangle } from "lucide-react";
+import { Loader2, Brain, AlertTriangle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import useAuthStore from "@/stores/authStore";
 
@@ -23,8 +23,12 @@ export default function PostJobPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [suggestedSkills, setSuggestedSkills] = useState([]); // NEW: AI suggested skills
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false); // NEW: Loading state
   const [formData, setFormData] = useState({
     title: "",
+    category: "other", // NEW: Job category
+    industry: "Other", // NEW: Industry
     description: "",
     skills: [],
     jobType: "full-time",
@@ -57,6 +61,42 @@ export default function PostJobPage() {
   });
   const [skillInput, setSkillInput] = useState("");
   const [tagInput, setTagInput] = useState("");
+
+  // NEW: Fetch AI skill suggestions when job title or category changes
+  useEffect(() => {
+    const fetchSkillSuggestions = async () => {
+      // Only fetch if we have both title and category
+      if (formData.title.length < 3 || !formData.category) {
+        setSuggestedSkills([]);
+        return;
+      }
+
+      setIsLoadingSkills(true);
+      try {
+        const response = await aiAPI.suggestSkills({
+          jobTitle: formData.title,
+          category: formData.category,
+          description: formData.description,
+        });
+        
+        // Filter out skills that are already added
+        const newSuggestions = response.data.data.skills.filter(
+          (skill) => !formData.skills.includes(skill)
+        );
+        
+        setSuggestedSkills(newSuggestions);
+      } catch (error) {
+        console.error("Failed to fetch skill suggestions:", error);
+        setSuggestedSkills([]);
+      } finally {
+        setIsLoadingSkills(false);
+      }
+    };
+
+    // Debounce the API call
+    const timeoutId = setTimeout(fetchSkillSuggestions, 800);
+    return () => clearTimeout(timeoutId);
+  }, [formData.title, formData.category, formData.skills]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -139,6 +179,19 @@ export default function PostJobPage() {
     }
   };
 
+  // NEW: Add skill from suggestions
+  const addSuggestedSkill = (skill) => {
+    if (!formData.skills.includes(skill)) {
+      setFormData((prev) => ({
+        ...prev,
+        skills: [...prev.skills, skill],
+      }));
+      // Remove from suggestions
+      setSuggestedSkills((prev) => prev.filter((s) => s !== skill));
+      toast.success(`Added "${skill}" to required skills`);
+    }
+  };
+
   const removeSkill = (skillToRemove) => {
     setFormData((prev) => ({
       ...prev,
@@ -180,6 +233,43 @@ export default function PostJobPage() {
     }
   };
 
+  // NEW: Job categories for universal platform
+  const jobCategories = [
+    { value: "technology", label: "Technology & IT" },
+    { value: "business", label: "Business & Management" },
+    { value: "marketing", label: "Marketing & Sales" },
+    { value: "finance", label: "Finance & Accounting" },
+    { value: "healthcare", label: "Healthcare & Medical" },
+    { value: "education", label: "Education & Training" },
+    { value: "creative", label: "Creative & Design" },
+    { value: "operations", label: "Operations & Logistics" },
+    { value: "sales", label: "Sales & Business Development" },
+    { value: "engineering", label: "Engineering (Non-IT)" },
+    { value: "legal", label: "Legal & Compliance" },
+    { value: "hr", label: "Human Resources" },
+    { value: "other", label: "Other" },
+  ];
+
+  // NEW: Industries
+  const industries = [
+    "IT & Software",
+    "Banking & Finance",
+    "Healthcare & Medical",
+    "Education & Training",
+    "Retail & E-commerce",
+    "Manufacturing",
+    "Consulting",
+    "Media & Entertainment",
+    "Real Estate",
+    "Hospitality & Tourism",
+    "Telecommunications",
+    "Automotive",
+    "Energy & Utilities",
+    "Government & Public Sector",
+    "Non-Profit",
+    "Other",
+  ];
+
   const jobTypes = [
     "full-time",
     "part-time",
@@ -218,7 +308,7 @@ export default function PostJobPage() {
           <div>
             <h1 className="text-3xl font-bold">Post a New Job</h1>
             <p className="text-muted-foreground mt-2">
-              Share your opportunity with thousands of talented developers
+              Share your opportunity with thousands of talented professionals across all industries
             </p>
           </div>
 
@@ -237,6 +327,50 @@ export default function PostJobPage() {
                   onChange={handleChange}
                   required
                 />
+              </div>
+
+              {/* NEW: Category and Industry Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="category">Job Category *</Label>
+                  <select
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                    required
+                  >
+                    {jobCategories.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Select the category that best fits this role
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="industry">Industry</Label>
+                  <select
+                    id="industry"
+                    name="industry"
+                    value={formData.industry}
+                    onChange={handleChange}
+                    className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                  >
+                    {industries.map((ind) => (
+                      <option key={ind} value={ind}>
+                        {ind}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Optional: Specify the industry sector
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -355,6 +489,45 @@ export default function PostJobPage() {
                   </div>
                 )}
               </div>
+
+              {/* NEW: AI Skill Suggestions */}
+              {(isLoadingSkills || suggestedSkills.length > 0) && (
+                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <h4 className="font-medium text-blue-900 dark:text-blue-100">
+                      AI Suggested Skills
+                    </h4>
+                    {isLoadingSkills && (
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    )}
+                  </div>
+                  
+                  {isLoadingSkills ? (
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Analyzing job requirements...
+                    </p>
+                  ) : suggestedSkills.length > 0 ? (
+                    <>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                        Click to add relevant skills for this {formData.category} position:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestedSkills.map((skill, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors border-blue-300 dark:border-blue-700"
+                            onClick={() => addSuggestedSkill(skill)}
+                          >
+                            + {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              )}
             </CardContent>
           </Card>
 

@@ -10,6 +10,44 @@ const hardConstraintsSchema = Joi.object({
 
 const createJobSchema = Joi.object({
   title: Joi.string().min(5).max(200).required(),
+  // NEW: Category and Industry fields
+  category: Joi.string()
+    .valid(
+      "technology",
+      "business",
+      "marketing",
+      "finance",
+      "healthcare",
+      "education",
+      "creative",
+      "operations",
+      "sales",
+      "engineering",
+      "legal",
+      "hr",
+      "other"
+    )
+    .required(),
+  industry: Joi.string()
+    .valid(
+      "IT & Software",
+      "Banking & Finance",
+      "Healthcare & Medical",
+      "Education & Training",
+      "Retail & E-commerce",
+      "Manufacturing",
+      "Consulting",
+      "Media & Entertainment",
+      "Real Estate",
+      "Hospitality & Tourism",
+      "Telecommunications",
+      "Automotive",
+      "Energy & Utilities",
+      "Government & Public Sector",
+      "Non-Profit",
+      "Other"
+    )
+    .optional(),
   company: Joi.object({
     name: Joi.string().max(200).optional(),
     website: Joi.string().uri().optional(),
@@ -84,6 +122,8 @@ const getJobs = async (req, res) => {
       workMode,
       location,
       experienceLevel,
+      category, // NEW: Category filter
+      industry, // NEW: Industry filter
       search,
       sortBy = "createdAt",
       sortOrder = "desc",
@@ -130,6 +170,16 @@ const getJobs = async (req, res) => {
 
     if (experienceLevel) {
       filter.experienceLevel = experienceLevel;
+    }
+
+    // NEW: Category filter
+    if (category) {
+      filter.category = category;
+    }
+
+    // NEW: Industry filter
+    if (industry) {
+      filter.industry = industry;
     }
 
     if (search) {
@@ -250,6 +300,44 @@ const updateJob = async (req, res) => {
 
     const updateSchema = Joi.object({
       title: Joi.string().min(5).max(200).optional(),
+      // NEW: Allow updating category and industry
+      category: Joi.string()
+        .valid(
+          "technology",
+          "business",
+          "marketing",
+          "finance",
+          "healthcare",
+          "education",
+          "creative",
+          "operations",
+          "sales",
+          "engineering",
+          "legal",
+          "hr",
+          "other"
+        )
+        .optional(),
+      industry: Joi.string()
+        .valid(
+          "IT & Software",
+          "Banking & Finance",
+          "Healthcare & Medical",
+          "Education & Training",
+          "Retail & E-commerce",
+          "Manufacturing",
+          "Consulting",
+          "Media & Entertainment",
+          "Real Estate",
+          "Hospitality & Tourism",
+          "Telecommunications",
+          "Automotive",
+          "Energy & Utilities",
+          "Government & Public Sector",
+          "Non-Profit",
+          "Other"
+        )
+        .optional(),
       company: Joi.object({
         name: Joi.string().max(200).allow("").optional(),
         website: Joi.string().uri().allow("").optional(),

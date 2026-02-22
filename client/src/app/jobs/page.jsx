@@ -89,6 +89,42 @@ export default function JobsPage() {
   ];
   const workModes = ["remote", "hybrid", "onsite"];
   const experienceLevels = ["entry", "junior", "mid", "senior", "expert"];
+  
+  // NEW: Category and Industry options
+  const categories = [
+    "technology",
+    "business",
+    "marketing",
+    "finance",
+    "healthcare",
+    "education",
+    "creative",
+    "operations",
+    "sales",
+    "engineering",
+    "legal",
+    "hr",
+    "other",
+  ];
+  
+  const industries = [
+    "IT & Software",
+    "Banking & Finance",
+    "Healthcare & Medical",
+    "Education & Training",
+    "Retail & E-commerce",
+    "Manufacturing",
+    "Consulting",
+    "Media & Entertainment",
+    "Real Estate",
+    "Hospitality & Tourism",
+    "Telecommunications",
+    "Automotive",
+    "Energy & Utilities",
+    "Government & Public Sector",
+    "Non-Profit",
+    "Other",
+  ];
 
   return (
     <div className="space-y-6">
@@ -140,7 +176,45 @@ export default function JobsPage() {
             </div>
 
             {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t">
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    id="category"
+                    value={filters.category || ""}
+                    onChange={(e) =>
+                      handleFilterChange("category", e.target.value)
+                    }
+                    className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="industry">Industry</Label>
+                  <select
+                    id="industry"
+                    value={filters.industry || ""}
+                    onChange={(e) =>
+                      handleFilterChange("industry", e.target.value)
+                    }
+                    className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                  >
+                    <option value="">All Industries</option>
+                    {industries.map((ind) => (
+                      <option key={ind} value={ind}>
+                        {ind}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <Label htmlFor="jobType">Job Type</Label>
                   <select
@@ -428,6 +502,8 @@ export default function JobsPage() {
               onClick={() => {
                 setFilters({
                   search: "",
+                  category: "",
+                  industry: "",
                   jobType: "",
                   workMode: "",
                   location: "",

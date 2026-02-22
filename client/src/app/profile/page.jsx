@@ -246,20 +246,22 @@ export default function ProfilePage() {
                     disabled={!isEditing}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="walletAddress">
-                    Wallet Address{" "}
-                    {user?.role === "poster" && "(Required for posting jobs)"}
-                  </Label>
-                  <Input
-                    id="walletAddress"
-                    name="walletAddress"
-                    placeholder="0x..."
-                    value={formData.walletAddress}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                  />
-                </div>
+                {/* Wallet Address - Only for Posters */}
+                {user?.role === "poster" && (
+                  <div>
+                    <Label htmlFor="walletAddress">
+                      Wallet Address (Required for posting jobs)
+                    </Label>
+                    <Input
+                      id="walletAddress"
+                      name="walletAddress"
+                      placeholder="0x..."
+                      value={formData.walletAddress}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
