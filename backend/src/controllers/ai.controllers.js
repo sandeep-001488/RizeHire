@@ -2,6 +2,8 @@ import { generateContent } from "../config/gemini.js";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
 import { getSmartSkillSuggestions } from "../utils/skillSuggestions.js";
+import { trainModel, getModelPerformance, predictAcceptance } from "../utils/mlModel.js";
+import { calculateJobMatch as calculateMatch } from "../utils/jobMatching.js";
 
 const fallbackSkillsExtraction = (text) => {
   const skillCategories = {
@@ -799,6 +801,108 @@ const suggestSkills = async (req, res) => {
   }
 };
 
+/**
+ * ML MODEL ENDPOINTS
+ * Train and evaluate the neural network model
+ */
+
+/**
+ * Train the ML model
+ * Only accessible by admin/poster for demo purposes
+ */
+const trainMLModel = async (req, res) => {
+  try {
+    console.log("🧠 Training ML model...");
+
+    const stats = await trainModel();
+
+    res.json({
+      success: true,
+      message: "ML model trained successfully",
+      data: {
+        iterations: stats.iterations,
+        finalError: stats.error,
+        trainingTime: stats.iterations * 0.001, // Approximate time in seconds
+      },
+    });
+  } catch (error) {
+    console.error("ML training error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get ML model performance metrics
+ */
+const getMLModelPerformance = async (req, res) => {
+  try {
+    const performance = await getModelPerformance();
+
+    res.json({
+      success: true,
+      data: performance,
+    });
+  } catch (error) {
+    console.error("ML performance error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get ML prediction for a specific job
+ * Helps users understand their chances before applying
+ */
+const getMLPrediction = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    // Get job details
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Calculate match breakdown
+    const match = calculateMatch(req.user, job);
+
+    // Get ML prediction
+    const mlPrediction = await predictAcceptance(match.breakdown);
+
+    res.json({
+      success: true,
+      data: {
+        jobTitle: job.title,
+        matchScore: match.overallScore,
+        matchCategory: match.matchCategory,
+        mlPrediction: {
+          acceptanceProbability: mlPrediction.acceptanceProbability,
+          confidence: mlPrediction.confidence,
+          confidenceScore: mlPrediction.confidenceScore,
+          recommendation: mlPrediction.recommendation,
+          insight: mlPrediction.insight,
+        },
+        breakdown: match.breakdown,
+        whyThisJob: match.whyThisJob,
+      },
+    });
+  } catch (error) {
+    console.error("ML prediction error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export {
   extractSkills,
   calculateJobMatch,
@@ -807,5 +911,9 @@ export {
   optimizeJobDescription,
   generateInterviewQuestions,
   testAI,
-  suggestSkills, // NEW
+  suggestSkills,
+  // ML Endpoints
+  trainMLModel,
+  getMLModelPerformance,
+  getMLPrediction,
 };

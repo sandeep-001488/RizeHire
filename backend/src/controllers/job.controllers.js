@@ -1,6 +1,8 @@
 import Job from "../models/job.model.js";
 import Application from "../models/application.model.js";
 import Joi from "joi";
+import { calculateJobMatch, rankJobsByRelevance } from "../utils/jobMatching.js";
+import { predictAcceptance } from "../utils/mlModel.js";
 
 const hardConstraintsSchema = Joi.object({
   gender: Joi.string().valid("male", "female", null).optional(),
@@ -209,12 +211,49 @@ const getJobs = async (req, res) => {
       })
     );
 
+    // Calculate match scores if user is logged in (seeker)
+    let jobsWithMatchScores = jobsWithApplicationCount;
+    if (req.user && req.user.role === "seeker") {
+      console.log("🎯 Calculating match scores for seeker:", req.user.name);
+
+      // Calculate match scores and ML predictions in parallel
+      jobsWithMatchScores = await Promise.all(
+        jobsWithApplicationCount.map(async (job) => {
+          const match = calculateJobMatch(req.user, job);
+
+          // Get ML prediction based on match breakdown
+          const mlPrediction = await predictAcceptance(match.breakdown);
+
+          return {
+            ...job,
+            matchScore: match.overallScore,
+            matchCategory: match.matchCategory,
+            matchBadge: match.matchBadge,
+            matchBreakdown: match.breakdown,
+            whyThisJob: match.whyThisJob,
+            recommendation: match.recommendation,
+            mlPrediction: {
+              acceptanceProbability: mlPrediction.acceptanceProbability,
+              confidence: mlPrediction.confidence,
+              recommendation: mlPrediction.recommendation,
+              insight: mlPrediction.insight,
+            },
+          };
+        })
+      );
+
+      // If sorting by relevance/match, sort by match score
+      if (sortBy === "relevance" || sortBy === "match") {
+        jobsWithMatchScores.sort((a, b) => b.matchScore - a.matchScore);
+      }
+    }
+
     const total = await Job.countDocuments(filter);
 
     res.json({
       success: true,
       data: {
-        jobs: jobsWithApplicationCount,
+        jobs: jobsWithMatchScores,
         pagination: {
           current: parseInt(page),
           pages: Math.ceil(total / limit),
@@ -527,4 +566,83 @@ const getMyJobs = async (req, res) => {
   }
 };
 
-export { createJob, getJobs, getJob, updateJob, deleteJob, getMyJobs };
+// Get personalized job recommendations for seeker
+const getRecommendations = async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    // Must be a seeker
+    if (!req.user || req.user.role !== "seeker") {
+      return res.status(403).json({
+        success: false,
+        message: "Only seekers can get recommendations",
+      });
+    }
+
+    console.log("🎯 Generating personalized recommendations for:", req.user.name);
+
+    // Get all active jobs
+    const allJobs = await Job.find({ isActive: true })
+      .populate("postedBy", "name email profileImage")
+      .lean();
+
+    // Get jobs already applied to
+    const appliedJobIds = await Application.find({
+      applicantId: req.user._id,
+    })
+      .select("jobId")
+      .lean();
+
+    const appliedJobIdsArray = appliedJobIds.map(app => app.jobId.toString());
+
+    // Filter out applied jobs
+    const availableJobs = allJobs.filter(
+      job => !appliedJobIdsArray.includes(job._id.toString())
+    );
+
+    // Rank jobs by relevance
+    const rankedJobs = rankJobsByRelevance(availableJobs, req.user);
+
+    // Get top recommendations
+    const recommendations = rankedJobs.slice(0, parseInt(limit));
+
+    // Add application count and ML predictions
+    const recommendationsWithCount = await Promise.all(
+      recommendations.map(async (job) => {
+        const applicationCount = await Application.countDocuments({
+          jobId: job._id,
+        });
+
+        // Get ML prediction for this job
+        const mlPrediction = await predictAcceptance(job.matchBreakdown);
+
+        return {
+          ...job,
+          applicationCount,
+          mlPrediction: {
+            acceptanceProbability: mlPrediction.acceptanceProbability,
+            confidence: mlPrediction.confidence,
+            recommendation: mlPrediction.recommendation,
+            insight: mlPrediction.insight,
+          },
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: {
+        recommendations: recommendationsWithCount,
+        total: rankedJobs.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting recommendations:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export { createJob, getJobs, getJob, updateJob, deleteJob, getMyJobs, getRecommendations };
