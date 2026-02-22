@@ -6,6 +6,7 @@ import {
   updateJob,
   deleteJob,
   getMyJobs,
+  getRecommendations,
 } from "../controllers/job.controllers.js";
 import { protect, optionalAuth } from "../middleware/auth.middleware.js";
 import { isPoster, hasWallet } from "../middleware/role.middleware.js";
@@ -19,6 +20,9 @@ router.use(protect);
 router.post("/", isPoster, hasWallet, createJob);
 
 router.get("/my-posted-jobs", isPoster, getMyJobs);
+
+// Personalized recommendations (must be before /:id route)
+router.get("/recommendations/for-me", getRecommendations);
 
 router.get("/:id", getJob);
 

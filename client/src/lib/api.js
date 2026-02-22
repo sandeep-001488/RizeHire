@@ -73,6 +73,7 @@ export const authAPI = {
 export const jobsAPI = {
   getJobs: (params) => api.get("/jobs", { params }),
   getJob: (id) => api.get(`/jobs/${id}`),
+  getRecommendations: (params) => api.get("/jobs/recommendations/for-me", { params }),
   createJob: (data) => {
     const { hardConstraints, ...jobData } = data;
     const hardConstraintsData = {
@@ -123,7 +124,11 @@ export const aiAPI = {
   getCareerSuggestions: () => api.get("/ai/career-suggestions"),
   optimizeDescription: (data) => api.post("/ai/optimize-description", data),
   getInterviewQuestions: (jobId) => api.get(`/ai/interview-questions/${jobId}`),
-  suggestSkills: (data) => api.post("/ai/suggest-skills", data), // NEW: AI skill suggestions
+  suggestSkills: (data) => api.post("/ai/suggest-skills", data),
+  // ML Model APIs
+  trainMLModel: () => api.post("/ai/ml/train"),
+  getMLPerformance: () => api.get("/ai/ml/performance"),
+  getMLPrediction: (jobId) => api.get(`/ai/ml/predict/${jobId}`),
 };
 
 

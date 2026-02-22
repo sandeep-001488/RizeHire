@@ -7,7 +7,10 @@ import {
   optimizeJobDescription,
   generateInterviewQuestions,
   testAI,
-  suggestSkills, // NEW
+  suggestSkills,
+  trainMLModel,
+  getMLModelPerformance,
+  getMLPrediction,
 } from "../controllers/ai.controllers.js";
 import { protect } from "../middleware/auth.middleware.js";
 
@@ -20,8 +23,13 @@ router.post("/extract-skills", extractSkills);
 router.get("/recommendations", getJobRecommendations);
 router.get("/career-suggestions", getCareerSuggestions);
 router.post("/optimize-description", optimizeJobDescription);
-router.post("/suggest-skills", suggestSkills); // NEW: AI skill suggestions
+router.post("/suggest-skills", suggestSkills);
 router.get("/job-match/:jobId", calculateJobMatch);
 router.get("/interview-questions/:jobId", generateInterviewQuestions);
+
+// ML Model Endpoints
+router.post("/ml/train", trainMLModel); // Train the neural network
+router.get("/ml/performance", getMLModelPerformance); // Get model metrics
+router.get("/ml/predict/:jobId", getMLPrediction); // Get ML prediction for a job
 
 export default router;
