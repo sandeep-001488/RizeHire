@@ -234,7 +234,12 @@ const updateProfile = async (req, res) => {
       bio: Joi.string().max(10000).optional().allow(""),
       linkedinUrl: Joi.string().uri().optional().allow(""),
       walletAddress: Joi.string().optional().allow(""),
-      skills: Joi.array().items(Joi.string().max(50)).optional(), 
+      skills: Joi.array().items(Joi.string().max(50)).optional(),
+      // Relocation preferences
+      preferences: Joi.object({
+        willingToRelocate: Joi.boolean().optional(),
+        relocationType: Joi.string().valid('same-city-only', 'within-country', 'international').optional(),
+      }).optional(),
     });
 
     const { error, value } = updateSchema.validate(req.body);

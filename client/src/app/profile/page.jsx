@@ -26,6 +26,7 @@ import {
   Loader2,
   CheckCircle,
   AlertTriangle,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,6 +44,10 @@ export default function ProfilePage() {
     skills: [],
     technicalSkills: [],
     gender: "",
+    preferences: {
+      willingToRelocate: true,
+      relocationType: "within-country",
+    },
   });
   const [skillInput, setSkillInput] = useState("");
 
@@ -56,6 +61,10 @@ export default function ProfilePage() {
         walletAddress: user.walletAddress || "",
         skills: user.skills || [],
         gender: user.gender || "",
+        preferences: {
+          willingToRelocate: user.preferences?.willingToRelocate ?? true,
+          relocationType: user.preferences?.relocationType || "within-country",
+        },
       });
     }
   }, [user]);
@@ -265,6 +274,157 @@ export default function ProfilePage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Relocation Preferences - Only for Seekers */}
+          {user?.role === "seeker" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Relocation Preferences
+                </CardTitle>
+                <CardDescription>
+                  Set your preferences for job locations and relocation
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Willing to Relocate Toggle */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="willingToRelocate" className="text-base font-medium">
+                      Willing to Relocate
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Are you open to relocating for job opportunities?
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="willingToRelocate"
+                      checked={formData.preferences.willingToRelocate}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          preferences: {
+                            ...formData.preferences,
+                            willingToRelocate: e.target.checked,
+                          },
+                        })
+                      }
+                      disabled={!isEditing}
+                      className="h-4 w-4"
+                    />
+                  </div>
+                </div>
+
+                {/* Relocation Type */}
+                {formData.preferences.willingToRelocate && (
+                  <div className="space-y-3">
+                    <Label>Where are you willing to relocate?</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
+                        <input
+                          type="radio"
+                          id="same-city-only"
+                          name="relocationType"
+                          value="same-city-only"
+                          checked={formData.preferences.relocationType === "same-city-only"}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              preferences: {
+                                ...formData.preferences,
+                                relocationType: e.target.value,
+                              },
+                            })
+                          }
+                          disabled={!isEditing}
+                          className="h-4 w-4"
+                        />
+                        <label
+                          htmlFor="same-city-only"
+                          className="flex-1 cursor-pointer"
+                        >
+                          <div className="font-medium">Same City Only</div>
+                          <div className="text-sm text-muted-foreground">
+                            Only jobs in my current city or remote positions
+                          </div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
+                        <input
+                          type="radio"
+                          id="within-country"
+                          name="relocationType"
+                          value="within-country"
+                          checked={formData.preferences.relocationType === "within-country"}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              preferences: {
+                                ...formData.preferences,
+                                relocationType: e.target.value,
+                              },
+                            })
+                          }
+                          disabled={!isEditing}
+                          className="h-4 w-4"
+                        />
+                        <label
+                          htmlFor="within-country"
+                          className="flex-1 cursor-pointer"
+                        >
+                          <div className="font-medium">Within My Country</div>
+                          <div className="text-sm text-muted-foreground">
+                            Open to relocating anywhere within my country
+                          </div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
+                        <input
+                          type="radio"
+                          id="international"
+                          name="relocationType"
+                          value="international"
+                          checked={formData.preferences.relocationType === "international"}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              preferences: {
+                                ...formData.preferences,
+                                relocationType: e.target.value,
+                              },
+                            })
+                          }
+                          disabled={!isEditing}
+                          className="h-4 w-4"
+                        />
+                        <label
+                          htmlFor="international"
+                          className="flex-1 cursor-pointer"
+                        >
+                          <div className="font-medium">International</div>
+                          <div className="text-sm text-muted-foreground">
+                            Open to relocating to other countries (visa required)
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                      <p className="text-sm text-blue-800 dark:text-blue-300">
+                        💡 <strong>Note:</strong> This preference will be used to calculate your job match scores. You can always override this when applying to specific jobs.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Skills Section */}
           <Card>
