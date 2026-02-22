@@ -84,6 +84,7 @@ const userSchema = new mongoose.Schema(
     ],
     walletAddress: {
       type: String,
+      required: false, // Optional for all users
       validate: {
         validator: function (v) {
           if (!v) return true;

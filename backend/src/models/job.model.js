@@ -25,6 +25,50 @@ const jobSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, "Title too long"],
     },
+    // --- NEW: Job Category (for universal platform support) ---
+    category: {
+      type: String,
+      enum: [
+        "technology",
+        "business",
+        "marketing",
+        "finance",
+        "healthcare",
+        "education",
+        "creative",
+        "operations",
+        "sales",
+        "engineering",
+        "legal",
+        "hr",
+        "other"
+      ],
+      required: [true, "Job category is required"],
+      default: "other"
+    },
+    // --- NEW: Industry (optional, for better categorization) ---
+    industry: {
+      type: String,
+      enum: [
+        "IT & Software",
+        "Banking & Finance",
+        "Healthcare & Medical",
+        "Education & Training",
+        "Retail & E-commerce",
+        "Manufacturing",
+        "Consulting",
+        "Media & Entertainment",
+        "Real Estate",
+        "Hospitality & Tourism",
+        "Telecommunications",
+        "Automotive",
+        "Energy & Utilities",
+        "Government & Public Sector",
+        "Non-Profit",
+        "Other"
+      ],
+      default: "Other"
+    },
     company: {
       name: { type: String, trim: true },
       website: { type: String },
@@ -127,6 +171,10 @@ jobSchema.index({ jobType: 1 });
 jobSchema.index({ "location.city": 1 });
 jobSchema.index({ createdAt: -1 });
 jobSchema.index({ isActive: 1 });
+// NEW: Indexes for category and industry for better filtering performance
+jobSchema.index({ category: 1 });
+jobSchema.index({ industry: 1 });
+jobSchema.index({ category: 1, industry: 1 }); // Compound index for combined filtering
 
 jobSchema.methods.incrementViews = function () {
   this.views += 1;

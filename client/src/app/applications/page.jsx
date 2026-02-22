@@ -16,6 +16,10 @@ import {
   MessageSquare,
   ChevronUp,
   ChevronDown,
+  XCircle,
+  TrendingUp,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -248,6 +252,148 @@ export default function ApplicationsPage() {
                           )}
                         </div>
                       )}
+
+                      {/* Enhanced Rejection Feedback Section */}
+                      {application.status === "rejected" && (
+                        <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
+                          <div className="flex items-start gap-3">
+                            <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-red-900 dark:text-red-100 mb-2">
+                                Application Not Selected
+                              </h4>
+
+                              {/* Match Score */}
+                              {application.matchScore !== undefined && (
+                                <div className="mb-3">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-medium text-red-800 dark:text-red-200">
+                                      Match Score:
+                                    </span>
+                                    <Badge
+                                      variant="outline"
+                                      className={`
+                                        ${application.matchScore >= 70 ? "bg-green-100 text-green-800 border-green-300" : ""}
+                                        ${application.matchScore >= 40 && application.matchScore < 70 ? "bg-yellow-100 text-yellow-800 border-yellow-300" : ""}
+                                        ${application.matchScore < 40 ? "bg-red-100 text-red-800 border-red-300" : ""}
+                                      `}
+                                    >
+                                      {application.matchScore}%
+                                    </Badge>
+                                  </div>
+                                  {/* Progress Bar */}
+                                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className={`h-full transition-all ${
+                                        application.matchScore >= 70 ? "bg-green-500" :
+                                        application.matchScore >= 40 ? "bg-yellow-500" :
+                                        "bg-red-500"
+                                      }`}
+                                      style={{ width: `${application.matchScore}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Rejection Reason */}
+                              {application.rejectionReason && (
+                                <div className="mb-3">
+                                  <p className="text-sm text-red-800 dark:text-red-200">
+                                    <strong>Reason:</strong> {application.rejectionReason}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* View Detailed Feedback Button */}
+                              {application.feedback && application.feedback.length > 0 && (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="mt-2 border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20"
+                                    >
+                                      <TrendingUp className="mr-2 h-4 w-4" />
+                                      View Detailed Feedback & Improvement Tips
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                                    <DialogHeader>
+                                      <DialogTitle className="flex items-center gap-2">
+                                        <TrendingUp className="h-5 w-5 text-blue-600" />
+                                        Detailed Feedback & Improvement Suggestions
+                                      </DialogTitle>
+                                      <DialogDescription>
+                                        Learn how to improve for future opportunities
+                                      </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="mt-6 space-y-4">
+                                      {/* Match Score Section */}
+                                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                        <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
+                                          <AlertCircle className="h-5 w-5" />
+                                          Your Match Score
+                                        </h3>
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                                            {application.matchScore}%
+                                          </span>
+                                          <div className="flex-1">
+                                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                                              <div
+                                                className={`h-full transition-all ${
+                                                  application.matchScore >= 70 ? "bg-green-500" :
+                                                  application.matchScore >= 40 ? "bg-yellow-500" :
+                                                  "bg-red-500"
+                                                }`}
+                                                style={{ width: `${application.matchScore}%` }}
+                                              />
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                              {application.matchScore >= 70 ? "Strong match - keep building on this!" :
+                                               application.matchScore >= 40 ? "Moderate match - focus on key skills" :
+                                               "Low match - develop core skills for this role"}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Feedback Messages */}
+                                      {application.feedback.map((feedback, index) => (
+                                        <div
+                                          key={index}
+                                          className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                                        >
+                                          <div className="flex items-start gap-2 mb-2">
+                                            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                                            <span className="text-xs text-muted-foreground">
+                                              {formatDate(feedback.createdAt)}
+                                            </span>
+                                          </div>
+                                          <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                                            {feedback.message}
+                                          </p>
+                                        </div>
+                                      ))}
+
+                                      {/* Encouragement Section */}
+                                      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                        <h3 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+                                          ✨ Keep Going!
+                                        </h3>
+                                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                                          Every application is a learning opportunity. Use this feedback to strengthen your profile and apply to more opportunities. You're making progress!
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {/* {added } */}
                       {application.feedback &&
                         application.feedback.length > 0 && (
@@ -327,14 +473,8 @@ export default function ApplicationsPage() {
                           {application.status || "pending"}
                         </Badge>
                         <p className="text-xs text-muted-foreground">
--------
                           {getStatusInfo(application.status).description}
                         </p>
-                        {application.rejectionReason && (
-                         <p className="text-xs text-red-500 mt-1">
-                           Reason: {application.rejectionReason}
-                         </p>
-                       )}
                       </div>
                     </div>
                   </div>

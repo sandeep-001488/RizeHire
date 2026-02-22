@@ -1,6 +1,7 @@
 import { generateContent } from "../config/gemini.js";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
+import { getSmartSkillSuggestions } from "../utils/skillSuggestions.js";
 
 const fallbackSkillsExtraction = (text) => {
   const skillCategories = {
@@ -674,30 +675,77 @@ const generateInterviewQuestions = async (req, res) => {
     let questions = [];
 
     try {
-      const prompt = `Generate 5-7 interview questions for ${
-        job.title
-      } position requiring ${JSON.stringify(
-        job.skills
-      )}. Return as JSON array: ["question1", "question2", ...]`;
+      // Add timestamp and random seed for uniqueness
+      const timestamp = Date.now();
+      const randomSeed = Math.floor(Math.random() * 10000);
+      
+      // Build a rich context for more authentic questions
+      const jobContext = {
+        title: job.title,
+        skills: job.skills || [],
+        category: job.category || "general",
+        experienceLevel: job.experienceLevel || "mid",
+        workMode: job.workMode || "hybrid",
+        description: job.description ? job.description.substring(0, 200) : "",
+      };
+
+      const prompt = `You are an expert technical interviewer. Generate 5-7 unique, authentic interview questions for the following job position. Make each question specific, practical, and relevant to real-world scenarios.
+
+Job Details:
+- Title: ${jobContext.title}
+- Category: ${jobContext.category}
+- Experience Level: ${jobContext.experienceLevel}
+- Work Mode: ${jobContext.workMode}
+- Required Skills: ${JSON.stringify(jobContext.skills)}
+- Description: ${jobContext.description}
+
+Requirements:
+1. Generate UNIQUE questions each time (seed: ${randomSeed}, time: ${timestamp})
+2. Mix technical, behavioral, and situational questions
+3. Make questions specific to the role and skills
+4. Include real-world scenarios and problem-solving questions
+5. Vary difficulty based on experience level
+6. Return ONLY a valid JSON array of strings
+
+Example format: ["Question 1?", "Question 2?", "Question 3?", ...]
+
+Generate the questions now:`;
 
       const response = await generateContent(prompt);
       const jsonMatch = response.match(/\[[\s\S]*\]/);
 
       if (jsonMatch) {
         questions = JSON.parse(jsonMatch[0]);
+        
+        // Ensure we have 5-7 questions
+        if (questions.length < 5) {
+          throw new Error("Not enough questions generated");
+        }
+        
+        // Limit to 7 questions max
+        questions = questions.slice(0, 7);
       } else {
         throw new Error("No valid JSON array found");
       }
     } catch (aiError) {
       console.warn("AI question generation failed:", aiError.message);
 
+      // Enhanced fallback with more variety
+      const skillBased = job.skills?.[0]
+        ? `Tell me about a complex project where you used ${job.skills[0]}. What challenges did you face and how did you overcome them?`
+        : "Describe a challenging technical project you've worked on recently.";
+      
+      const experienceBased = job.experienceLevel === "senior" || job.experienceLevel === "expert"
+        ? "How do you mentor junior team members and ensure code quality across the team?"
+        : "How do you stay updated with the latest technologies and best practices in your field?";
+
       questions = [
-        `Tell me about your experience with ${
-          job.skills?.[0] || "the required technologies"
-        }.`,
-        "Describe a challenging project you've worked on recently.",
-        "How do you approach debugging complex issues?",
-        "What interests you about this role?",
+        skillBased,
+        `What interests you specifically about the ${job.title} role at our company?`,
+        "Describe a situation where you had to debug a critical production issue. What was your approach?",
+        experienceBased,
+        "Can you walk me through your development workflow from requirements to deployment?",
+        `How would you approach learning ${job.skills?.[1] || "a new technology"} if you haven't used it before?`,
       ];
     }
 
@@ -713,6 +761,44 @@ const generateInterviewQuestions = async (req, res) => {
   }
 };
 
+/**
+ * NEW: Get AI-powered skill suggestions for job posting
+ * Works for ALL job categories (tech, business, marketing, etc.)
+ */
+const suggestSkills = async (req, res) => {
+  try {
+    const { jobTitle, category, description } = req.body;
+
+    if (!jobTitle || !category) {
+      return res.status(400).json({
+        success: false,
+        message: "Job title and category are required",
+      });
+    }
+
+    // Get smart skill suggestions (AI + historical data)
+    const skills = await getSmartSkillSuggestions(
+      jobTitle,
+      category,
+      description || ""
+    );
+
+    res.json({
+      success: true,
+      data: {
+        skills,
+        source: skills.length > 0 ? "ai" : "fallback",
+      },
+    });
+  } catch (error) {
+    console.error("Skill suggestion error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export {
   extractSkills,
   calculateJobMatch,
@@ -721,4 +807,5 @@ export {
   optimizeJobDescription,
   generateInterviewQuestions,
   testAI,
+  suggestSkills, // NEW
 };

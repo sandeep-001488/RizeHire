@@ -30,7 +30,10 @@ function applyHardRules(jobConstraints, parsedResume) {
   }
 
   // Experience rules
-  const candidateExp = Number(parsedResume.yearsOfExperience || 0);
+  // Support both field names and take the maximum value
+  const exp1 = Number(parsedResume.yearsOfExperience || 0);
+  const exp2 = Number(parsedResume.total_experience_years || 0);
+  const candidateExp = Math.max(exp1, exp2);
 
   if (
     jobConstraints.minYears !== null &&

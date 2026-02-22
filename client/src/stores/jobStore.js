@@ -7,6 +7,8 @@ const useJobStore = create((set, get) => ({
   myJobs: [],
   filters: {
     search: "",
+    category: "",
+    industry: "",
     jobType: "",
     workMode: "",
     location: "",
@@ -73,6 +75,8 @@ const useJobStore = create((set, get) => ({
     set({
       filters: {
         search: "",
+        category: "",
+        industry: "",
         jobType: "",
         workMode: "",
         location: "",

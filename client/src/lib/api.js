@@ -123,6 +123,7 @@ export const aiAPI = {
   getCareerSuggestions: () => api.get("/ai/career-suggestions"),
   optimizeDescription: (data) => api.post("/ai/optimize-description", data),
   getInterviewQuestions: (jobId) => api.get(`/ai/interview-questions/${jobId}`),
+  suggestSkills: (data) => api.post("/ai/suggest-skills", data), // NEW: AI skill suggestions
 };
 
 
