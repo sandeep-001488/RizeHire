@@ -4,7 +4,6 @@ import {
   getMyApplications,
   getJobApplicants,
   updateApplicationStatus,
-  addFeedback,
   getApplication,
   getApplicationResume,
 } from "../controllers/application.controllers.js";
@@ -23,7 +22,6 @@ router.get("/my-applications", getMyApplications);
 // --- Recruiter (Poster) Routes ---
 router.get("/jobs/:jobId/applicants", isPoster, getJobApplicants);
 router.put("/:applicationId/status", isPoster, updateApplicationStatus);
-router.post("/:applicationId/feedback", isPoster, addFeedback);
 
 // --- Shared Route (Applicant & Poster) ---
 router.get("/:applicationId", getApplication);

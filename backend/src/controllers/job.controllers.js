@@ -536,8 +536,6 @@ const getMyJobs = async (req, res) => {
           .select('appliedAt')
           .lean();
 
-        console.log(`Job: ${job.title}, Applications: ${applicationCount}, Latest: ${latestApplication?.appliedAt}`);
-
         return {
           ...job,
           applicationCount,
@@ -560,8 +558,6 @@ const getMyJobs = async (req, res) => {
       // If neither has applications, sort by job creation date
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-
-    console.log('Sorted jobs order:', jobsWithApplicationData.map(j => j.title));
 
     // Apply pagination after sorting
     const startIndex = (page - 1) * limit;

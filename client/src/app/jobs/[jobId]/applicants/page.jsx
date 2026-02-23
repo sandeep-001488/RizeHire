@@ -26,7 +26,6 @@ import { toast } from "sonner";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import { applicationsAPI, jobsAPI } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/stores/authStore";
 import {
   MessageSquare,
@@ -76,13 +75,6 @@ export default function JobApplicantsPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedApplicant, setSelectedApplicant] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null); // Will store { applicationId, action }
-  const [addingFeedback, setAddingFeedback] = useState(null); // Separate state for feedback loading
-  const [feedbackDialog, setFeedbackDialog] = useState({
-    open: false,
-    applicationId: null,
-  });
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [expandedFeedback, setExpandedFeedback] = useState({});
 
   useEffect(() => {
     if (jobId) {
@@ -228,61 +220,6 @@ export default function JobApplicantsPage() {
     }
   };
 
-  const handleAddFeedback = async (applicationId) => {
-    if (!feedbackMessage.trim()) {
-      toast.error("Please enter feedback message");
-      return;
-    }
-
-    // Track feedback loading state
-    setAddingFeedback(applicationId);
-
-    // Store feedback message before clearing
-    const newFeedback = {
-      message: feedbackMessage,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Store original state for rollback
-    const originalApplicants = [...jobApplicants];
-
-    try {
-      // Optimistic update - add feedback immediately to UI
-      setJobApplicants(prevApplicants =>
-        prevApplicants.map(app =>
-          app.applicationId === applicationId
-            ? {
-                ...app,
-                feedback: [...(app.feedback || []), newFeedback]
-              }
-            : app
-        )
-      );
-
-      // Make API call in background
-      await applicationsAPI.addFeedback(applicationId, {
-        message: feedbackMessage,
-      });
-
-      setFeedbackDialog({ open: false, applicationId: null });
-      setFeedbackMessage("");
-      toast.success("Feedback sent to applicant");
-    } catch (error) {
-      // Rollback on error
-      setJobApplicants(originalApplicants);
-      console.error("Error adding feedback:", error);
-      toast.error("Failed to send feedback");
-    } finally {
-      setAddingFeedback(null);
-    }
-  };
-  const toggleFeedback = (applicationId) => {
-    setExpandedFeedback((prev) => ({
-      ...prev,
-      [applicationId]: !prev[applicationId],
-    }));
-  };
-
   // Helper function to check if a specific button is loading
   const isButtonLoading = (applicationId, action) => {
     return updatingStatus?.applicationId === applicationId && updatingStatus?.action === action;
@@ -291,11 +228,6 @@ export default function JobApplicantsPage() {
   // Helper function to check if any status button for this applicant is loading
   const isAnyStatusLoading = (applicationId) => {
     return updatingStatus?.applicationId === applicationId;
-  };
-
-  // Helper function to check if feedback is being added
-  const isFeedbackLoading = (applicationId) => {
-    return addingFeedback === applicationId;
   };
 
   const getStatusColor = (status) => {
@@ -322,29 +254,6 @@ export default function JobApplicantsPage() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
-  const getFeedbackStatusColor = (feedbackIndex, totalFeedbacks) => {
-    const statusProgression = [
-      "pending",
-      "viewed",
-      "moving-forward",
-      "accepted",
-    ];
-    const progressIndex = Math.min(feedbackIndex, statusProgression.length - 1);
-    const status = statusProgression[progressIndex];
-
-    switch (status) {
-      case "pending":
-        return "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400";
-      case "viewed":
-        return "bg-blue-50 dark:bg-blue-900/20 border-blue-400";
-      case "moving-forward":
-        return "bg-purple-50 dark:bg-purple-900/20 border-purple-400";
-      case "accepted":
-        return "bg-green-50 dark:bg-green-900/20 border-green-400";
-      default:
-        return "bg-gray-50 dark:bg-gray-900/20 border-gray-400";
-    }
   };
 
   const handlePageChange = (newPage) => {
@@ -794,21 +703,21 @@ export default function JobApplicantsPage() {
                                   </div>
                                 )}
 
-                                {/* Always show feedback and LinkedIn buttons on mobile */}
+                                {/* Always show message and LinkedIn buttons on mobile */}
                                 <div className="grid grid-cols-1 gap-2">
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() =>
-                                      setFeedbackDialog({
-                                        open: true,
-                                        applicationId: applicant.applicationId,
-                                      })
-                                    }
+                                    onClick={() => router.push(`/messages?application=${applicant.applicationId}`)}
                                     className="text-xs"
                                   >
                                     <MessageSquare className="mr-1 h-3 w-3" />
-                                    Add Feedback
+                                    Message Candidate
+                                    {applicant.unreadMessageCount > 0 && (
+                                      <Badge variant="destructive" className="ml-2 text-xs">
+                                        {applicant.unreadMessageCount}
+                                      </Badge>
+                                    )}
                                   </Button>
                                   {applicant.user && applicant.user.linkedinUrl && (
                                     <Button
@@ -1096,82 +1005,6 @@ export default function JobApplicantsPage() {
                                         </DialogContent>
                                       </Dialog>
                                     </div>
-                                    {/* Display Feedback */}
-                                    {applicant.feedback &&
-                                      applicant.feedback.length > 0 && (
-                                        <div className="mt-3">
-                                          <div className="flex items-center justify-between mb-3">
-                                            <h4 className="font-medium text-xs md:text-sm flex items-center text-gray-50">
-                                              <MessageSquare
-                                                className="h-3 w-3 md:h-4 md:w-4 mr-1 text-teal-600"
-                                                strokeWidth={3}
-                                              />
-                                              Feedback (
-                                              {applicant.feedback.length}):
-                                            </h4>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              onClick={() =>
-                                                toggleFeedback(
-                                                  applicant.applicationId
-                                                )
-                                              }
-                                              className="text-xs p-1 h-auto bg-gray-600"
-                                            >
-                                              {expandedFeedback[
-                                                applicant.applicationId
-                                              ] ? (
-                                                <>
-                                                  <ChevronUp
-                                                    className="h-4 w-5 mr-1 text-white"
-                                                    strokeWidth={5}
-                                                  />
-                                                  Hide
-                                                </>
-                                              ) : (
-                                                <>
-                                                  <ChevronDown
-                                                    className="h-4 w-5 mr-1 text-white"
-                                                    strokeWidth={5}
-                                                  />
-                                                  Show
-                                                </>
-                                              )}
-                                            </Button>
-                                          </div>
-                                          {expandedFeedback[
-                                            applicant.applicationId
-                                          ] && (
-                                            <div className="space-y-2">
-                                              {applicant.feedback.map(
-                                                (feedback, index) => (
-                                                  <div
-                                                    key={index}
-                                                    className={`relative p-3 rounded-lg border-l-4 w-full ${getFeedbackStatusColor(
-                                                      index,
-                                                      applicant.feedback?.length
-                                                    )}`}
-                                                  >
-                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                                                      <p className="text-xs md:text-sm wrap-break-word flex-1 leading-relaxed">
-                                                        {feedback.message}
-                                                      </p>
-                                                      {feedback.createdAt && (
-                                                        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                                                          {formatDate(
-                                                            feedback.createdAt
-                                                          )}
-                                                        </span>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                )
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
                                   </div>
                                 </div>
                               </div>
@@ -1374,19 +1207,19 @@ export default function JobApplicantsPage() {
                                   </>
                                 )}
 
-                                {/* Feedback Button - Always show on desktop */}
+                                {/* Message Button - Always show on desktop */}
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() =>
-                                    setFeedbackDialog({
-                                      open: true,
-                                      applicationId: applicant.applicationId,
-                                    })
-                                  }
+                                  onClick={() => router.push(`/messages?application=${applicant.applicationId}`)}
                                 >
                                   <MessageSquare className="mr-2 h-4 w-4" />
-                                  Add Feedback
+                                  Message Candidate
+                                  {applicant.unreadMessageCount > 0 && (
+                                    <Badge variant="destructive" className="ml-2">
+                                      {applicant.unreadMessageCount}
+                                    </Badge>
+                                  )}
                                 </Button>
 
                                 {/* LinkedIn Button on desktop */}
@@ -1502,47 +1335,6 @@ export default function JobApplicantsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Feedback Dialog */}
-      <Dialog
-        open={feedbackDialog.open}
-        onOpenChange={(open) =>
-          setFeedbackDialog({ open, applicationId: null })
-        }
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Feedback to Applicant</DialogTitle>
-            <DialogDescription>
-              Provide constructive feedback about their application
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Textarea
-              placeholder="Write your feedback here..."
-              value={feedbackMessage}
-              onChange={(e) => setFeedbackMessage(e.target.value)}
-              rows={4}
-            />
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() =>
-                  setFeedbackDialog({ open: false, applicationId: null })
-                }
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => handleAddFeedback(feedbackDialog.applicationId)}
-                disabled={!feedbackMessage.trim()}
-              >
-                Send Feedback
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </AuthGuard>
   );
 }

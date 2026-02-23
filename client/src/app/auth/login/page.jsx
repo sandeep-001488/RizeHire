@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,25 +23,27 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/dashboard";
   const { login, isLoading, error, clearError, isAuthenticated, isHydrated } = useAuthStore();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isHydrated && isAuthenticated) {
-      router.push("/dashboard");
+      router.push(redirectUrl);
     }
-  }, [isAuthenticated, isHydrated, router]);
+  }, [isAuthenticated, isHydrated, router, redirectUrl]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
-    
+
     const result = await login(formData);
-    
+
     if (result.success) {
       toast.success("Login successful! Redirecting...");
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push(redirectUrl);
       }, 100);
     } else {
       toast.error(result.error);
