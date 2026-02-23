@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { messagesAPI, applicationsAPI } from "@/lib/api";
 import { initializeSocket, getSocket, joinConversation, leaveConversation, emitTyping, emitStopTyping } from "@/lib/socket";
@@ -17,10 +17,18 @@ import AuthGuard from "@/components/auth-guard/authGuard";
 
 export default function MessagesPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const applicationId = searchParams.get("application");
+  const [applicationId, setApplicationId] = useState(null);
 
   const { user } = useAuthStore();
+
+  // Get application ID from URL params
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const appId = params.get("application");
+      setApplicationId(appId);
+    }
+  }, []);
   const [conversationData, setConversationData] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
