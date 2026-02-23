@@ -395,20 +395,9 @@ export default function JobsPage() {
               <Card key={job._id} className="hover:shadow-lg transition-all border-2 border-blue-200 dark:border-blue-800">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2 gap-2">
-                    <div className="flex gap-2 flex-wrap">
-                      <Badge className="bg-green-100 text-green-800 border-green-300">
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        {job.matchScore}% Match
-                      </Badge>
-                      {job.isApplied && (
-                        <Badge className="bg-gray-500 text-white">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Applied
-                        </Badge>
-                      )}
-                    </div>
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {job.matchCategory}
+                    <Badge className="bg-green-100 text-green-800 border-green-300">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      {job.matchScore}% Match
                     </Badge>
                   </div>
 
@@ -425,20 +414,14 @@ export default function JobsPage() {
 
                   {/* ML Prediction Badge */}
                   {job.mlPrediction && (
-                    <div className="mb-3 p-2 bg-linear-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-md border border-purple-200 dark:border-purple-800">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                            AI Prediction
-                          </p>
-                          <p className="text-sm font-bold text-purple-900 dark:text-purple-100">
-                            {job.mlPrediction.acceptanceProbability}% Success Rate
-                          </p>
-                        </div>
-                        <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-300">
-                          {job.mlPrediction.confidence}
-                        </Badge>
-                      </div>
+                    <div className="mb-3 p-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-md border border-purple-200 dark:border-purple-800 flex items-center justify-between">
+                      <p className="text-sm font-bold text-purple-900 dark:text-purple-100 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        {job.mlPrediction.acceptanceProbability}% Success Rate
+                      </p>
+                      <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-300">
+                        {job.mlPrediction.confidence}
+                      </Badge>
                     </div>
                   )}
 
@@ -538,16 +521,6 @@ export default function JobsPage() {
                         {job.postedBy?.name || "Sandeep"}
                       </p>
 
-                      {/* Match Category (for seekers only) */}
-                      {user?.role === "seeker" && job.matchCategory && job.matchScore >= 60 && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            {job.matchCategory}
-                          </Badge>
-                        </div>
-                      )}
-
                       {/* Why This Job (for seekers only) */}
                       {user?.role === "seeker" && job.whyThisJob && job.matchScore >= 40 && (
                         <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-md">
@@ -560,7 +533,7 @@ export default function JobsPage() {
 
                       {/* ML Prediction (for seekers only) */}
                       {user?.role === "seeker" && job.mlPrediction && (
-                        <div className={`mt-2 p-2 rounded-md border ${
+                        <div className={`mt-2 p-2 rounded-md border flex items-center justify-between ${
                           job.mlPrediction.acceptanceProbability >= 70
                             ? "bg-green-50 dark:bg-green-900/10 border-green-300 dark:border-green-800"
                             : job.mlPrediction.acceptanceProbability >= 50
@@ -569,16 +542,7 @@ export default function JobsPage() {
                             ? "bg-yellow-50 dark:bg-yellow-900/10 border-yellow-300 dark:border-yellow-800"
                             : "bg-orange-50 dark:bg-orange-900/10 border-orange-300 dark:border-orange-800"
                         }`}>
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-xs font-semibold flex items-center gap-1">
-                              <Sparkles className="h-3 w-3" />
-                              AI Acceptance Prediction
-                            </p>
-                            <Badge variant="outline" className="text-xs">
-                              {job.mlPrediction.confidence} confidence
-                            </Badge>
-                          </div>
-                          <p className={`text-lg font-bold ${
+                          <p className={`text-sm font-bold flex items-center gap-1 ${
                             job.mlPrediction.acceptanceProbability >= 70
                               ? "text-green-700 dark:text-green-300"
                               : job.mlPrediction.acceptanceProbability >= 50
@@ -587,11 +551,12 @@ export default function JobsPage() {
                               ? "text-yellow-700 dark:text-yellow-300"
                               : "text-orange-700 dark:text-orange-300"
                           }`}>
-                            {job.mlPrediction.acceptanceProbability}% Acceptance Rate
+                            <Sparkles className="h-3 w-3" />
+                            {job.mlPrediction.acceptanceProbability}% Success Rate
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {job.mlPrediction.recommendation}
-                          </p>
+                          <Badge variant="outline" className="text-xs">
+                            {job.mlPrediction.confidence}
+                          </Badge>
                         </div>
                       )}
 

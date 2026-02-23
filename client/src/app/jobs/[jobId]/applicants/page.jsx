@@ -75,7 +75,8 @@ export default function JobApplicantsPage() {
   const [currentJob, setCurrentJob] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
   const [selectedApplicant, setSelectedApplicant] = useState(null);
-  const [updatingStatus, setUpdatingStatus] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(null); // Will store { applicationId, action }
+  const [addingFeedback, setAddingFeedback] = useState(null); // Separate state for feedback loading
   const [feedbackDialog, setFeedbackDialog] = useState({
     open: false,
     applicationId: null,
@@ -174,17 +175,52 @@ export default function JobApplicantsPage() {
   };
 
   const handleStatusUpdate = async (applicationId, newStatus) => {
-    setUpdatingStatus(applicationId);
+    // Track which specific button is being clicked
+    setUpdatingStatus({ applicationId, action: newStatus });
+
+    // Store original state for rollback on error
+    const originalApplicants = [...jobApplicants];
+    const originalStats = { ...applicantsStats };
+
     try {
+      // Optimistic update - update UI immediately
+      setJobApplicants(prevApplicants =>
+        prevApplicants.map(app =>
+          app.applicationId === applicationId
+            ? { ...app, status: newStatus }
+            : app
+        )
+      );
+
+      // Update stats optimistically
+      const updatedApplicant = jobApplicants.find(app => app.applicationId === applicationId);
+      if (updatedApplicant) {
+        setApplicantsStats(prevStats => {
+          const newStats = { ...prevStats };
+          // Decrement old status count
+          const oldStatusKey = `${updatedApplicant.status}Applications`;
+          if (newStats[oldStatusKey] !== undefined) {
+            newStats[oldStatusKey] = Math.max(0, newStats[oldStatusKey] - 1);
+          }
+          // Increment new status count
+          const newStatusKey = `${newStatus}Applications`;
+          if (newStats[newStatusKey] !== undefined) {
+            newStats[newStatusKey] = (newStats[newStatusKey] || 0) + 1;
+          }
+          return newStats;
+        });
+      }
+
+      // Make API call in background
       await applicationsAPI.updateApplicationStatus(applicationId, {
         status: newStatus,
       });
 
       toast.success(`Application ${newStatus} successfully`);
-
-      // Refresh applicants to get updated data
-      await fetchApplicants(activeTab);
     } catch (error) {
+      // Rollback on error
+      setJobApplicants(originalApplicants);
+      setApplicantsStats(originalStats);
       console.error("Error updating application status:", error);
       toast.error("Failed to update application status");
     } finally {
@@ -198,19 +234,46 @@ export default function JobApplicantsPage() {
       return;
     }
 
+    // Track feedback loading state
+    setAddingFeedback(applicationId);
+
+    // Store feedback message before clearing
+    const newFeedback = {
+      message: feedbackMessage,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Store original state for rollback
+    const originalApplicants = [...jobApplicants];
+
     try {
+      // Optimistic update - add feedback immediately to UI
+      setJobApplicants(prevApplicants =>
+        prevApplicants.map(app =>
+          app.applicationId === applicationId
+            ? {
+                ...app,
+                feedback: [...(app.feedback || []), newFeedback]
+              }
+            : app
+        )
+      );
+
+      // Make API call in background
       await applicationsAPI.addFeedback(applicationId, {
         message: feedbackMessage,
       });
+
       setFeedbackDialog({ open: false, applicationId: null });
       setFeedbackMessage("");
       toast.success("Feedback sent to applicant");
-
-      // Refresh applicants to get updated data
-      await fetchApplicants(activeTab);
     } catch (error) {
+      // Rollback on error
+      setJobApplicants(originalApplicants);
       console.error("Error adding feedback:", error);
       toast.error("Failed to send feedback");
+    } finally {
+      setAddingFeedback(null);
     }
   };
   const toggleFeedback = (applicationId) => {
@@ -219,6 +282,22 @@ export default function JobApplicantsPage() {
       [applicationId]: !prev[applicationId],
     }));
   };
+
+  // Helper function to check if a specific button is loading
+  const isButtonLoading = (applicationId, action) => {
+    return updatingStatus?.applicationId === applicationId && updatingStatus?.action === action;
+  };
+
+  // Helper function to check if any status button for this applicant is loading
+  const isAnyStatusLoading = (applicationId) => {
+    return updatingStatus?.applicationId === applicationId;
+  };
+
+  // Helper function to check if feedback is being added
+  const isFeedbackLoading = (applicationId) => {
+    return addingFeedback === applicationId;
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "pending":
@@ -518,15 +597,11 @@ export default function JobApplicantsPage() {
                                             "viewed"
                                           )
                                         }
-                                        disabled={
-                                          updatingStatus ===
-                                          applicant.applicationId
-                                        }
+                                        disabled={isAnyStatusLoading(applicant.applicationId)}
                                         variant="outline"
                                         className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
                                       >
-                                        {updatingStatus ===
-                                        applicant.applicationId ? (
+                                        {isButtonLoading(applicant.applicationId, "viewed") ? (
                                           <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
                                           <>
@@ -543,14 +618,10 @@ export default function JobApplicantsPage() {
                                             "moving-forward"
                                           )
                                         }
-                                        disabled={
-                                          updatingStatus ===
-                                          applicant.applicationId
-                                        }
+                                        disabled={isAnyStatusLoading(applicant.applicationId)}
                                         className="bg-purple-600 hover:bg-purple-700 text-xs"
                                       >
-                                        {updatingStatus ===
-                                        applicant.applicationId ? (
+                                        {isButtonLoading(applicant.applicationId, "moving-forward") ? (
                                           <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
                                           <>
@@ -569,14 +640,10 @@ export default function JobApplicantsPage() {
                                             "accepted"
                                           )
                                         }
-                                        disabled={
-                                          updatingStatus ===
-                                          applicant.applicationId
-                                        }
+                                        disabled={isAnyStatusLoading(applicant.applicationId)}
                                         className="bg-green-600 hover:bg-green-700 text-xs"
                                       >
-                                        {updatingStatus ===
-                                        applicant.applicationId ? (
+                                        {isButtonLoading(applicant.applicationId, "accepted") ? (
                                           <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
                                           <>
@@ -594,14 +661,10 @@ export default function JobApplicantsPage() {
                                             "rejected"
                                           )
                                         }
-                                        disabled={
-                                          updatingStatus ===
-                                          applicant.applicationId
-                                        }
+                                        disabled={isAnyStatusLoading(applicant.applicationId)}
                                         className="text-xs"
                                       >
-                                        {updatingStatus ===
-                                        applicant.applicationId ? (
+                                        {isButtonLoading(applicant.applicationId, "rejected") ? (
                                           <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
                                           <>
@@ -625,14 +688,10 @@ export default function JobApplicantsPage() {
                                             "moving-forward"
                                           )
                                         }
-                                        disabled={
-                                          updatingStatus ===
-                                          applicant.applicationId
-                                        }
+                                        disabled={isAnyStatusLoading(applicant.applicationId)}
                                         className="bg-purple-600 hover:bg-purple-700 text-xs"
                                       >
-                                        {updatingStatus ===
-                                        applicant.applicationId ? (
+                                        {isButtonLoading(applicant.applicationId, "moving-forward") ? (
                                           <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
                                           <>
@@ -649,14 +708,10 @@ export default function JobApplicantsPage() {
                                             "accepted"
                                           )
                                         }
-                                        disabled={
-                                          updatingStatus ===
-                                          applicant.applicationId
-                                        }
+                                        disabled={isAnyStatusLoading(applicant.applicationId)}
                                         className="bg-green-600 hover:bg-green-700 text-xs"
                                       >
-                                        {updatingStatus ===
-                                        applicant.applicationId ? (
+                                        {isButtonLoading(applicant.applicationId, "accepted") ? (
                                           <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
                                           <>
@@ -675,10 +730,7 @@ export default function JobApplicantsPage() {
                                           "rejected"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       className="w-full text-xs"
                                     >
                                       {updatingStatus ===
@@ -704,10 +756,7 @@ export default function JobApplicantsPage() {
                                           "accepted"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       className="bg-green-600 hover:bg-green-700 text-xs"
                                     >
                                       {updatingStatus ===
@@ -729,10 +778,7 @@ export default function JobApplicantsPage() {
                                           "rejected"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       className="text-xs"
                                     >
                                       {updatingStatus ===
@@ -1142,15 +1188,11 @@ export default function JobApplicantsPage() {
                                           "viewed"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       variant="outline"
                                       className="bg-blue-600 hover:bg-blue-700 text-white"
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "viewed") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
@@ -1167,14 +1209,10 @@ export default function JobApplicantsPage() {
                                           "moving-forward"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       className="bg-purple-600 hover:bg-purple-700"
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "moving-forward") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
@@ -1191,14 +1229,10 @@ export default function JobApplicantsPage() {
                                           "accepted"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       className="bg-green-600 hover:bg-green-700"
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "accepted") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
@@ -1216,13 +1250,9 @@ export default function JobApplicantsPage() {
                                           "rejected"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "rejected") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
@@ -1244,14 +1274,10 @@ export default function JobApplicantsPage() {
                                           "moving-forward"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       className="bg-purple-600 hover:bg-purple-700"
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "moving-forward") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
@@ -1268,14 +1294,10 @@ export default function JobApplicantsPage() {
                                           "accepted"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       className="bg-green-600 hover:bg-green-700"
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "accepted") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
@@ -1293,13 +1315,9 @@ export default function JobApplicantsPage() {
                                           "rejected"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "rejected") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
@@ -1321,14 +1339,10 @@ export default function JobApplicantsPage() {
                                           "accepted"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                       className="bg-green-600 hover:bg-green-700"
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "accepted") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
@@ -1346,13 +1360,9 @@ export default function JobApplicantsPage() {
                                           "rejected"
                                         )
                                       }
-                                      disabled={
-                                        updatingStatus ===
-                                        applicant.applicationId
-                                      }
+                                      disabled={isAnyStatusLoading(applicant.applicationId)}
                                     >
-                                      {updatingStatus ===
-                                      applicant.applicationId ? (
+                                      {isButtonLoading(applicant.applicationId, "rejected") ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
                                         <>
