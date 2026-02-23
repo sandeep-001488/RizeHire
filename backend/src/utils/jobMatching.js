@@ -102,27 +102,34 @@ function calculateExperienceMatch(candidateYears, requiredYears, experienceLevel
     const distanceFromIdeal = Math.abs(candidateYears - range.ideal);
     score = 100 - (distanceFromIdeal * 5); // Lose 5 points per year from ideal
     score = Math.max(score, 80); // Minimum 80 if within range
-    explanation = `Perfect fit! Your ${candidateYears} years matches the ${level} level.`;
+
+    if (level === 'entry' && candidateYears === 0) {
+      explanation = `Perfect for entry-level candidates`;
+    } else if (candidateYears === 0) {
+      explanation = `Entry-level opportunity`;
+    } else {
+      explanation = `${candidateYears} years - great fit for ${level} role`;
+    }
   }
   // Slightly over-qualified
   else if (candidateYears > range.max && candidateYears <= range.max + 3) {
     score = 70;
-    explanation = `Slightly over-qualified. Great fit with room for growth.`;
+    explanation = `Senior candidate for ${level} role`;
   }
   // Over-qualified
   else if (candidateYears > range.max + 3) {
     score = 50;
-    explanation = `Over-qualified. You may find this role less challenging.`;
+    explanation = `Highly experienced for this ${level} position`;
   }
   // Slightly under-qualified
   else if (candidateYears < range.min && candidateYears >= range.min - 1) {
     score = 60;
-    explanation = `Close match. With strong skills, you could succeed here.`;
+    explanation = `Quick learner can succeed in ${level} role`;
   }
   // Under-qualified
   else {
     score = 30;
-    explanation = `This role requires more experience. Consider entry-level positions.`;
+    explanation = `${level.charAt(0).toUpperCase() + level.slice(1)} role - build more experience`;
   }
 
   return { score, explanation, candidateYears, requiredYears, level };
@@ -334,20 +341,34 @@ export function calculateJobMatch(candidate, job) {
   // Generate "Why This Job" explanation
   const whyThisJob = [];
 
+  // Skills explanation
   if (skillMatch.matchPercentage >= 70) {
-    whyThisJob.push(`Strong skill match (${skillMatch.matchPercentage}%) - you have ${skillMatch.matchingSkills.length} of ${jobSkills.length} required skills`);
-  } else if (skillMatch.matchPercentage >= 40) {
-    whyThisJob.push(`Moderate skill match (${skillMatch.matchPercentage}%) - good foundation with room to grow`);
+    const topSkills = skillMatch.matchingSkills.slice(0, 3).join(', ');
+    whyThisJob.push(`Strong match: ${topSkills}${skillMatch.matchingSkills.length > 3 ? ` +${skillMatch.matchingSkills.length - 3} more` : ''}`);
+  } else if (skillMatch.matchPercentage >= 50) {
+    const topSkills = skillMatch.matchingSkills.slice(0, 2).join(', ');
+    whyThisJob.push(`${skillMatch.matchingSkills.length} matching skills: ${topSkills}`);
+  } else if (skillMatch.matchPercentage >= 30) {
+    whyThisJob.push(`Entry opportunity: ${skillMatch.matchingSkills.length} skills match`);
   } else {
-    whyThisJob.push(`Develop ${skillMatch.missingSkills.slice(0, 3).join(', ')} to improve your fit`);
+    const skillsNeeded = skillMatch.missingSkills.slice(0, 2).join(', ');
+    whyThisJob.push(`Growth opportunity: Learn ${skillsNeeded}`);
   }
 
+  // Experience explanation - only add if score is notable
   if (experienceMatch.score >= 80) {
-    whyThisJob.push(experienceMatch.explanation);
+    whyThisJob.push(`Excellent experience fit`);
+  } else if (experienceMatch.score >= 60 && experienceMatch.score < 80) {
+    whyThisJob.push(`Good experience level`);
   }
 
-  if (locationMatch.score >= 70) {
-    whyThisJob.push(locationMatch.explanation);
+  // Location - only mention if perfect or remote
+  if (locationMatch.score === 100) {
+    if (job.workMode === 'remote') {
+      whyThisJob.push(`Remote work`);
+    } else {
+      whyThisJob.push(`Perfect location`);
+    }
   }
 
   return {

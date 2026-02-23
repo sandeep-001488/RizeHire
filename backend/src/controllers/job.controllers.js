@@ -619,8 +619,11 @@ const getRecommendations = async (req, res) => {
 
     const appliedJobIdsArray = appliedJobIds.map(app => app.jobId.toString());
 
-    // Rank ALL jobs by relevance (including applied ones - we'll mark them later)
-    const rankedJobs = rankJobsByRelevance(allJobs, req.user);
+    // Filter out jobs user has already applied to
+    const unappliedJobs = allJobs.filter(job => !appliedJobIdsArray.includes(job._id.toString()));
+
+    // Rank unapplied jobs by relevance
+    const rankedJobs = rankJobsByRelevance(unappliedJobs, req.user);
 
     // Get top recommendations
     const recommendations = rankedJobs.slice(0, parseInt(limit));
@@ -635,13 +638,9 @@ const getRecommendations = async (req, res) => {
         // Get ML prediction for this job
         const mlPrediction = await predictAcceptance(job.matchBreakdown);
 
-        // Check if user has applied to this job
-        const isApplied = appliedJobIdsArray.includes(job._id.toString());
-
         return {
           ...job,
           applicationCount,
-          isApplied, // NEW: Flag to show if user has applied
           mlPrediction: {
             acceptanceProbability: mlPrediction.acceptanceProbability,
             confidence: mlPrediction.confidence,
