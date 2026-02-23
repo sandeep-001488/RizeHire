@@ -112,9 +112,6 @@ export const applicationsAPI = {
   updateApplicationStatus: (applicationId, data) => {
     return api.put(`/applications/${applicationId}/status`, data);
   },
-  addFeedback: (applicationId, data) => {
-    return api.post(`/applications/${applicationId}/feedback`, data);
-  },
 };
 
 export const aiAPI = {
@@ -136,6 +133,27 @@ export const aiAPI = {
   getCombinedExplanation: (jobId) => api.get(`/ai/explainability/combined/${jobId}`),
 };
 
+export const messagesAPI = {
+  // Send a message
+  sendMessage: (data) => api.post("/messages/send", data),
 
+  // Get all conversations for current user
+  getUserConversations: () => api.get("/messages/conversations"),
+
+  // Get conversation history
+  getConversation: (conversationId, params) =>
+    api.get(`/messages/conversation/${conversationId}`, { params }),
+
+  // Mark messages as read
+  markAsRead: (conversationId) =>
+    api.put(`/messages/read/${conversationId}`),
+
+  // Get unread count
+  getUnreadCount: () => api.get("/messages/unread/count"),
+
+  // Get conversation ID for an application
+  getConversationId: (applicationId) =>
+    api.get(`/messages/conversation-id/${applicationId}`),
+};
 
 export default api;

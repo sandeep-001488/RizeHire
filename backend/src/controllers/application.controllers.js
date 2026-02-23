@@ -2,10 +2,11 @@ import mongoose from "mongoose";
 import axios from "axios";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
+import Message from "../models/message.model.js";
 import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
 import { uploadToCloudinary, generateSignedUrl } from "../middleware/upload.middleware.js";
 import { generateRejectionFeedback } from "../utils/rejectionFeedback.js";
-import { sendRejectionEmail, sendAcceptanceEmail } from "../services/email.service.js";
+import { sendRejectionEmail, sendAcceptanceEmail, sendStatusChangeEmail } from "../services/email.service.js";
 
 const applyToJob = async (req, res) => {
   try {
@@ -185,17 +186,45 @@ const getMyApplications = async (req, res) => {
 
     const total = await Application.countDocuments(filter);
 
- const formattedApplications = applications.map((app) => ({
-  _id: app._id,
-  job: app.jobId,
-  coverLetter: app.coverLetter,
-  status: app.status,
-  appliedAt: app.appliedAt,
-  feedback: app.feedback.filter((f) => f.visibleToApplicant),
-  viewedByRecruiter: app.viewedByRecruiter,
-  matchScore: app.matchScore,
-  rejectionReason: app.rejectionReason, 
-}));
+    // Get message information for each application
+    const formattedApplications = await Promise.all(
+      applications.map(async (app) => {
+        // Create conversation ID
+        const conversationId = Message.createConversationId(
+          app.jobId._id,
+          app.applicantId,
+          app.jobId.postedBy._id
+        );
+
+        // Check if recruiter has sent any messages
+        const recruiterMessages = await Message.countDocuments({
+          conversationId,
+          senderId: app.jobId.postedBy._id,
+        });
+
+        // Check for unread messages from recruiter
+        const unreadCount = await Message.countDocuments({
+          conversationId,
+          receiverId: req.user._id,
+          read: false,
+        });
+
+        return {
+          _id: app._id,
+          job: app.jobId,
+          coverLetter: app.coverLetter,
+          status: app.status,
+          appliedAt: app.appliedAt,
+          feedback: app.feedback.filter((f) => f.visibleToApplicant),
+          viewedByRecruiter: app.viewedByRecruiter,
+          matchScore: app.matchScore,
+          rejectionReason: app.rejectionReason,
+          hasMessages: recruiterMessages > 0,
+          unreadMessageCount: unreadCount,
+          conversationId,
+        };
+      })
+    );
 
     res.json({
       success: true,
@@ -325,7 +354,31 @@ const getJobApplicants = async (req, res) => {
       }
     });
 
-    const applicants = applications.map((app) => ({
+    // Get message information for each applicant
+    const applicants = await Promise.all(
+      applications.map(async (app) => {
+        // Skip message logic if applicant was deleted
+        let conversationId = null;
+        let unreadCount = 0;
+
+        if (app.applicantId) {
+          // Create conversation ID
+          conversationId = Message.createConversationId(
+            app.jobId,
+            app.applicantId._id,
+            req.user._id
+          );
+
+          // Check for unread messages from applicant
+          unreadCount = await Message.countDocuments({
+            conversationId,
+            senderId: app.applicantId._id,
+            receiverId: req.user._id,
+            read: false,
+          });
+        }
+
+        return {
       applicationId: app._id,
       user: app.applicantId ? {
         name: app.applicantId.name,
@@ -349,7 +402,11 @@ const getJobApplicants = async (req, res) => {
       resume: app.resume,
       resumeUrl: app.resume,
       rejectionReason: app.rejectionReason,
-    }));
+      unreadMessageCount: unreadCount,
+      conversationId,
+    };
+      })
+    );
 
     res.json({
       success: true,
@@ -496,6 +553,28 @@ const updateApplicationStatus = async (req, res) => {
         });
     }
 
+    // Handle status change email notifications (viewed, moving-forward)
+    if (status === "viewed" || status === "moving-forward") {
+      console.log(`📧 Sending status change email for: ${status}...`);
+
+      sendStatusChangeEmail({
+        candidate: application.applicantId,
+        recruiter: req.user,
+        job: application.jobId,
+        oldStatus: application.status,
+        newStatus: status,
+        applicationId: application._id,
+      })
+        .then((result) => {
+          if (result.success) {
+            console.log(`✅ Status change email sent to: ${application.applicantId.email}`);
+          }
+        })
+        .catch((err) => {
+          console.error("❌ Error sending status change email:", err);
+        });
+    }
+
     // Add manual feedback if provided
     if (feedback && feedback.trim()) {
       application.feedback.push({
@@ -523,62 +602,6 @@ const updateApplicationStatus = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating application status:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error: " + error.message,
-    });
-  }
-};
-
-const addFeedback = async (req, res) => {
-  try {
-    const { applicationId } = req.params;
-    const { message, visibleToApplicant = true } = req.body;
-
-    if (!message || message.trim().length < 1) {
-      return res.status(400).json({
-        success: false,
-        message: "Feedback message is required",
-      });
-    }
-
-    const application = await Application.findById(applicationId).populate(
-      "jobId"
-    );
-
-    if (!application) {
-      return res.status(404).json({
-        success: false,
-        message: "Application not found",
-      });
-    }
-
-    if (application.jobId.postedBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to add feedback to this application",
-      });
-    }
-
-    const feedbackObj = {
-      message: message.trim(),
-      givenBy: req.user._id,
-      visibleToApplicant,
-      createdAt: new Date(),
-    };
-
-    application.feedback.push(feedbackObj);
-    await application.save();
-
-    res.json({
-      success: true,
-      message: "Feedback added successfully",
-      data: {
-        feedback: application.feedback[application.feedback.length - 1],
-      },
-    });
-  } catch (error) {
-    console.error("Error adding feedback:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error: " + error.message,
@@ -785,7 +808,6 @@ export {
   getMyApplications,
   getJobApplicants,
   updateApplicationStatus,
-  addFeedback,
   getApplication,
   getApplicationResume,
 };

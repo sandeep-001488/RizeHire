@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,8 +15,6 @@ import {
   MapPin,
   Eye,
   MessageSquare,
-  ChevronUp,
-  ChevronDown,
   XCircle,
   TrendingUp,
   CheckCircle,
@@ -31,10 +30,10 @@ import {
 } from "@/components/ui/dialog";
 
 export default function ApplicationsPage() {
+  const router = useRouter();
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [expandedFeedback, setExpandedFeedback] = useState({});
 
   useEffect(() => {
     fetchApplications();
@@ -53,15 +52,8 @@ export default function ApplicationsPage() {
 
   useEffect(()=>{
     console.log("applications",applications);
-    
-  },[])
 
-  const toggleFeedback = (applicationId) => {
-    setExpandedFeedback((prev) => ({
-      ...prev,
-      [applicationId]: !prev[applicationId],
-    }));
-  };
+  },[])
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -115,28 +107,6 @@ export default function ApplicationsPage() {
             "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
           description: "Status unknown",
         };
-    }
-  };
-  const getFeedbackStatusColor = (feedbackIndex, totalFeedbacks) => {
-    const statusProgression = [
-      "pending",
-      "viewed",
-      "moving-forward",
-      "accepted",
-    ];
-    const progressIndex = Math.min(feedbackIndex, statusProgression.length - 1);
-    const status = statusProgression[progressIndex];
-    switch (status) {
-      case "pending":
-        return "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400";
-      case "viewed":
-        return "bg-blue-50 dark:bg-blue-900/20 border-blue-400";
-      case "moving-forward":
-        return "bg-purple-50 dark:bg-purple-900/20 border-purple-400";
-      case "accepted":
-        return "bg-green-50 dark:bg-green-900/20 border-green-400";
-      default:
-        return "bg-gray-50 dark:bg-gray-900/20 border-gray-400";
     }
   };
 
@@ -212,6 +182,25 @@ export default function ApplicationsPage() {
                           {application.status || "pending"}
                         </Badge>
                       </div>
+
+                      {/* Message Button - Show if recruiter has sent messages */}
+                      {application.hasMessages && (
+                        <div className="mt-4">
+                          <Button
+                            onClick={() => router.push(`/messages?application=${application._id}`)}
+                            variant="outline"
+                            className="w-full md:w-auto"
+                          >
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Message Recruiter
+                            {application.unreadMessageCount > 0 && (
+                              <Badge variant="destructive" className="ml-2">
+                                {application.unreadMessageCount} new
+                              </Badge>
+                            )}
+                          </Button>
+                        </div>
+                      )}
 
                       {application.coverLetter && (
                         <div className="mt-4 p-3 bg-muted rounded-lg">
@@ -394,67 +383,6 @@ export default function ApplicationsPage() {
                           </div>
                         </div>
                       )}
-                      {/* {added } */}
-                      {application.feedback &&
-                        application.feedback.length > 0 && (
-                          <div className="mt-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-medium text-sm flex items-center">
-                                <MessageSquare
-                                  className="h-4 w-4 mr-1 text-pink-700"
-                                  strokeWidth={3}
-                                />
-                                Recruiter Feedback (
-                                {application.feedback.length}):
-                              </h4>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => toggleFeedback(application._id)}
-                                className="text-xs p-1 h-auto bg-gray-600"
-                              >
-                                {expandedFeedback[application._id] ? (
-                                  <>
-                                    <ChevronUp
-                                      className="h-4 w-5 mr-1 text-white"
-                                      strokeWidth={5}
-                                    />
-                                    Hide
-                                  </>
-                                ) : (
-                                  <>
-                                    <ChevronDown
-                                      className="h-4 w-5 mr-1 text-white"
-                                      strokeWidth={5}
-                                    />
-                                    Show
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-
-                            {expandedFeedback[application._id] && (
-                              <div className="space-y-2">
-                                {application.feedback.map((feedback, index) => (
-                                  <div
-                                    key={index}
-                                    className={`relative p-3 rounded-lg border-l-4 ${getFeedbackStatusColor(
-                                      index,
-                                      application.feedback?.length
-                                    )}`}
-                                  >
-                                    <p className="text-sm">
-                                      {feedback.message}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {formatDate(feedback.createdAt)}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
                     </div>
 
                     <div className="flex flex-col gap-2 mt-4 md:mt-0 md:ml-6">

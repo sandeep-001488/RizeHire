@@ -147,6 +147,7 @@ const applicationSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // Mark if this data was used to retrain model
     },
+    // AI-generated improvement feedback (not manual recruiter communication)
     feedback: [
       {
         message: {

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import useAuthStore from "@/stores/authStore";
 import { Brain, Briefcase, Loader2 } from "lucide-react";
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const checkAuthCalled = useRef(false);
 
   const {
@@ -36,10 +38,13 @@ export default function AuthGuard({ children }) {
   useEffect(() => {
     if (isHydrated && isInitialized && !isLoading) {
       if (!isAuthenticated) {
-        router.push("/auth/login");
+        // Build redirect URL with current path and query params
+        const redirectPath = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '');
+        const loginUrl = `/auth/login?redirect=${encodeURIComponent(redirectPath)}`;
+        router.push(loginUrl);
       }
     }
-  }, [isHydrated, isInitialized, isLoading, isAuthenticated, router]);
+  }, [isHydrated, isInitialized, isLoading, isAuthenticated, router, pathname, searchParams]);
 
   useEffect(() => {
     let timeoutId;

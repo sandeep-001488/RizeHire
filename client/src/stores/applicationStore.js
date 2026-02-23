@@ -64,14 +64,13 @@ const useApplicationStore = create((set, get) => ({
       myApplications: [application, ...state.myApplications],
     })),
 
-  updateApplicationStatus: (applicationId, newStatus, feedback = null) =>
+  updateApplicationStatus: (applicationId, newStatus) =>
     set((state) => ({
       jobApplicants: state.jobApplicants.map((applicant) =>
         applicant.applicationId === applicationId
           ? {
               ...applicant,
-              status: newStatus || applicant.status, // Allow null to only update feedback
-              ...(feedback && { feedback: [...applicant.feedback, feedback] }),
+              status: newStatus,
             }
           : applicant
       ),
@@ -79,8 +78,7 @@ const useApplicationStore = create((set, get) => ({
         app._id === applicationId
           ? {
               ...app,
-              status: newStatus || app.status,
-              ...(feedback && { feedback: [...app.feedback, feedback] }),
+              status: newStatus,
             }
           : app
       ),
@@ -88,10 +86,7 @@ const useApplicationStore = create((set, get) => ({
         state.currentApplication?._id === applicationId
           ? {
               ...state.currentApplication,
-              status: newStatus || state.currentApplication.status,
-              ...(feedback && {
-                feedback: [...state.currentApplication.feedback, feedback],
-              }),
+              status: newStatus,
             }
           : state.currentApplication,
     })),
@@ -240,26 +235,15 @@ const useApplicationStore = create((set, get) => ({
     }
   },
 
-  updateApplicationStatusById: async (
-    applicationId,
-    status,
-    feedback = null
-  ) => {
+  updateApplicationStatusById: async (applicationId, status) => {
     try {
       const payload = { status };
-      if (feedback) {
-        payload.feedback = feedback;
-      }
       const response = await applicationsAPI.updateApplicationStatus(
         applicationId,
         payload
       );
       if (response.data.success) {
-        get().updateApplicationStatus(
-          applicationId,
-          status,
-          feedback ? { message: feedback, createdAt: new Date() } : null
-        );
+        get().updateApplicationStatus(applicationId, status, null);
         // Refetch stats
         await get().fetchJobApplicants(
           response.data.data.application.jobId,
@@ -269,23 +253,6 @@ const useApplicationStore = create((set, get) => ({
       }
     } catch (error) {
       console.error("Error updating application status:", error);
-      throw error.response?.data || error;
-    }
-  },
-
-  addFeedback: async (applicationId, message, visibleToApplicant = true) => {
-    try {
-      const response = await applicationsAPI.addFeedback(applicationId, {
-        message,
-        visibleToApplicant,
-      });
-      if (response.data.success) {
-        const feedback = response.data.data.feedback;
-        get().updateApplicationStatus(applicationId, null, feedback);
-        return feedback;
-      }
-    } catch (error) {
-      console.error("Error adding feedback:", error);
       throw error.response?.data || error;
     }
   },

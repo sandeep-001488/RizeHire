@@ -414,7 +414,7 @@ export default function JobsPage() {
 
                   {/* ML Prediction Badge */}
                   {job.mlPrediction && (
-                    <div className="mb-3 p-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-md border border-purple-200 dark:border-purple-800 flex items-center justify-between">
+                    <div className="mb-3 p-2 bg-linear-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-md border border-purple-200 dark:border-purple-800 flex items-center justify-between">
                       <p className="text-sm font-bold text-purple-900 dark:text-purple-100 flex items-center gap-1">
                         <Sparkles className="h-3 w-3" />
                         {job.mlPrediction.acceptanceProbability}% Success Rate
@@ -711,7 +711,7 @@ export default function JobsPage() {
                                 )}
 
                                 {/* SHAP/LIME Explainability - Feature Importance */}
-                                <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg border-2 border-orange-300 dark:border-orange-700">
+                                <div className="p-4 bg-linear-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg border-2 border-orange-300 dark:border-orange-700">
                                   <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-2">
                                       <Brain className="h-5 w-5 text-orange-600" />
