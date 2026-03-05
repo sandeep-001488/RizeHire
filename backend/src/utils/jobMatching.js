@@ -137,14 +137,22 @@ function calculateExperienceMatch(candidateYears, requiredYears, experienceLevel
 
 /**
  * Calculate location match score with relocation preferences
+ * Simplified scoring:
+ * - Remote: 100 (location irrelevant)
+ * - Same city (any mode): 100
+ * - Hybrid/Onsite + Different city + Willing to relocate: 100
+ * - Hybrid + Different city + Not willing: 70
+ * - Onsite + Different city + Not willing: 40
+ * - No location provided: 20
+ *
  * @param {String} candidateLocation - Candidate's location
  * @param {Object} jobLocation - Job's location {city, country}
  * @param {String} workMode - Job's work mode (remote, hybrid, onsite)
- * @param {Object} preferences - Candidate's relocation preferences
+ * @param {Boolean} willingToRelocate - User's relocation choice (true/false/null)
  * @returns {Object} Location match details
  */
-function calculateLocationMatch(candidateLocation, jobLocation, workMode, preferences = {}) {
-  // Remote jobs are always a match
+function calculateLocationMatch(candidateLocation, jobLocation, workMode, willingToRelocate = null) {
+  // Rule 1: Remote jobs → location irrelevant
   if (workMode && workMode.toLowerCase() === 'remote') {
     return {
       score: 100,
@@ -153,25 +161,21 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode, prefer
     };
   }
 
+  // Rule 2: No candidate location provided
   if (!candidateLocation || !jobLocation) {
     return {
-      score: 50,
-      explanation: 'Location preference not specified',
+      score: 20,
+      explanation: 'Please add your location for better recommendations',
       requiresRelocation: false,
     };
   }
 
-  // Extract relocation preferences (default to willing for backward compatibility)
-  const willingToRelocate = preferences?.willingToRelocate ?? true;
-  const relocationType = preferences?.relocationType || 'within-country';
+  // Normalize for comparison (case-insensitive)
+  const candidateLower = String(candidateLocation || '').toLowerCase().trim();
+  const jobCity = String(jobLocation.city || '').toLowerCase().trim();
 
-  // Ensure candidateLocation is a string
-  const candidateLower = String(candidateLocation || '').toLowerCase();
-  const jobCity = String(jobLocation.city || '').toLowerCase();
-  const jobCountry = String(jobLocation.country || '').toLowerCase();
-
-  // Exact city match
-  if (candidateLower.includes(jobCity) && jobCity) {
+  // Rule 3: Same city (exact match)
+  if (jobCity && candidateLower.includes(jobCity)) {
     return {
       score: 100,
       explanation: `Same city - ${jobLocation.city}`,
@@ -179,64 +183,41 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode, prefer
     };
   }
 
-  // Check if same country
-  const isSameCountry = candidateLower.includes(jobCountry) && jobCountry;
+  // Rule 4: Different city - check relocation preference
+  // Both Hybrid and Onsite ask relocation question if different city
 
-  // SAME COUNTRY, DIFFERENT CITY
-  if (isSameCountry) {
-    // Willing to relocate within country → Minimal penalty
-    if (willingToRelocate && (relocationType === 'within-country' || relocationType === 'international')) {
-      return {
-        score: 95,
-        explanation: `Willing to relocate within ${jobLocation.country}`,
-        requiresRelocation: true,
-        relocationCity: jobLocation.city,
-        relocationCountry: jobLocation.country,
-      };
-    }
-
-    // NOT willing to relocate → Moderate penalty
+  // 4a: User willing to relocate
+  if (willingToRelocate === true) {
     return {
-      score: 50,
-      explanation: `Different city, relocation required`,
+      score: 100,
+      explanation: `Different city - willing to relocate`,
       requiresRelocation: true,
       relocationCity: jobLocation.city,
       relocationCountry: jobLocation.country,
     };
   }
 
-  // DIFFERENT COUNTRY (International)
-  const isDifferentCountry = !isSameCountry;
-
-  if (isDifferentCountry) {
-    // Willing to relocate internationally → Still penalty (visa)
-    if (willingToRelocate && relocationType === 'international') {
-      return {
-        score: 45,
-        explanation: `International relocation (${jobLocation.country}), visa required`,
-        requiresRelocation: true,
-        relocationCity: jobLocation.city,
-        relocationCountry: jobLocation.country,
-        requiresVisa: true,
-      };
-    }
-
-    // NOT willing → Large penalty
+  // 4b: User NOT willing to relocate
+  if (willingToRelocate === false) {
+    // Hybrid: score 70, Onsite: score 40
+    const score = workMode?.toLowerCase() === 'hybrid' ? 70 : 40;
     return {
-      score: 20,
-      explanation: `International relocation required`,
+      score,
+      explanation: `Different city - not willing to relocate`,
       requiresRelocation: true,
       relocationCity: jobLocation.city,
       relocationCountry: jobLocation.country,
-      requiresVisa: true,
+      userNotWilling: true,
     };
   }
 
-  // Fallback
+  // 4c: User hasn't answered relocation question yet (null)
+  // Default to lower score until they answer
+  const defaultScore = workMode?.toLowerCase() === 'hybrid' ? 40 : 20;
   return {
-    score: 50,
-    explanation: 'Location compatibility unclear',
-    requiresRelocation: false,
+    score: defaultScore,
+    explanation: 'Location mismatch - relocation preference unknown',
+    requiresRelocation: true,
   };
 }
 
@@ -283,9 +264,10 @@ function calculateSalaryMatch(candidateMin, candidateMax, jobBudget) {
  * Calculate overall job match score with weighted factors
  * @param {Object} candidate - Candidate profile
  * @param {Object} job - Job details
+ * @param {Boolean} willingToRelocate - User's relocation choice (for applications)
  * @returns {Object} Comprehensive match score and explanation
  */
-export function calculateJobMatch(candidate, job) {
+export function calculateJobMatch(candidate, job, willingToRelocate = null) {
   // Safely extract candidate info with defaults
   const candidateSkills = candidate?.skills || candidate?.parsedResume?.skills || [];
   const candidateYears = candidate?.parsedResume?.yearsOfExperience || candidate?.yearsOfExperience || 0;
@@ -303,7 +285,13 @@ export function calculateJobMatch(candidate, job) {
   // Calculate individual scores
   const skillMatch = calculateSkillMatch(candidateSkills, jobSkills);
   const experienceMatch = calculateExperienceMatch(candidateYears, requiredYears, experienceLevel);
-  const locationMatch = calculateLocationMatch(candidateLocation, jobLocation, workMode, preferences);
+  // Pass willingToRelocate from application (if set), otherwise use default null
+  const locationMatch = calculateLocationMatch(
+    candidateLocation,
+    jobLocation,
+    workMode,
+    willingToRelocate
+  );
   const salaryMatch = calculateSalaryMatch(null, null, jobBudget); // Candidate salary not in profile yet
 
   // Weighted scoring (skills are most important)

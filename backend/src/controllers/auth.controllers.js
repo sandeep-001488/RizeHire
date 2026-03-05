@@ -230,6 +230,7 @@ const updateProfile = async (req, res) => {
   try {
     const updateSchema = Joi.object({
       name: Joi.string().min(2).max(100).optional(),
+      location: Joi.string().max(200).optional().allow(""), // NEW: Current location field
       gender: Joi.string().valid("male", "female", "other").optional(),
       bio: Joi.string().max(10000).optional().allow(""),
       linkedinUrl: Joi.string().uri().optional().allow(""),
@@ -249,6 +250,16 @@ const updateProfile = async (req, res) => {
         message: error.details[0].message,
       });
     }
+
+    // Priority: If user manually sets location, use that. Otherwise keep existing or parsed resume location
+    if (value.location === "") {
+      // If user clears location, remove it (fallback to resume location will happen on frontend)
+      value.location = "";
+    } else if (value.location) {
+      // If user sets location, use their choice (priority over resume)
+      value.location = value.location.trim();
+    }
+    // If location not provided, keep existing (don't override)
 
     const updatedUser = await User.findByIdAndUpdate(req.user._id, value, {
       new: true,

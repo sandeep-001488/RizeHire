@@ -18,8 +18,19 @@ import AuthGuard from "@/components/auth-guard/authGuard";
 export default function MessagesPage() {
   const router = useRouter();
   const [applicationId, setApplicationId] = useState(null);
+  const [isDark, setIsDark] = useState(false);
 
   const { user } = useAuthStore();
+
+  // Detect dark mode
+  useEffect(() => {
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setIsDark(darkModeMediaQuery.matches);
+
+    const handleChange = (e) => setIsDark(e.matches);
+    darkModeMediaQuery.addEventListener('change', handleChange);
+    return () => darkModeMediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   // Get application ID from URL params
   useEffect(() => {
@@ -103,10 +114,13 @@ export default function MessagesPage() {
       const otherUserId = isApplicant ? recruiterId : applicantId;
 
       // Get other user's details from application
+      // Note: application = appResponse.data.data (already unwrapped)
+      const applicationData = application.application; // The actual application object from backend
       const otherUserData = isApplicant
-        ? application.jobId?.postedBy
-        : application.applicantId;
+        ? applicationData.job?.postedBy
+        : applicationData.applicant;
 
+      console.log("Other User Data:", otherUserData, "Is Applicant:", isApplicant);
       setOtherUser(otherUserData);
 
       // Join conversation room
@@ -146,11 +160,25 @@ export default function MessagesPage() {
       ? conversationData.recruiterId
       : conversationData.applicantId;
 
+    const messageText = newMessage.trim();
+
     try {
       setIsSending(true);
+
+      // Optimistic update - add message to state immediately
+      const optimisticMessage = {
+        _id: Date.now().toString(), // Temporary ID
+        senderId: { _id: user._id, name: user.name, profileImage: user.profileImage },
+        receiverId: receiverId,
+        message: messageText,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, optimisticMessage]);
+      scrollToBottom();
+
       await messagesAPI.sendMessage({
         receiverId: receiverId.toString(),
-        message: newMessage.trim(),
+        message: messageText,
         applicationId: applicationId,
       });
 
@@ -159,6 +187,8 @@ export default function MessagesPage() {
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((msg) => msg._id !== (Date.now().toString())));
     } finally {
       setIsSending(false);
     }
@@ -219,8 +249,8 @@ export default function MessagesPage() {
           </div>
         ) : (
           <>
-            {/* Chat Header */}
-            <div className="p-4 border-b bg-background flex items-center gap-3">
+            {/* Chat Header - WhatsApp Green with Dark Mode Support */}
+            <div className="p-4 border-b bg-linear-to-r from-[#25D366] to-[#20BA5A] dark:from-[#1a8f4e] dark:to-[#0d6633] text-white flex items-center gap-3 shadow-sm">
               <Button
                 variant="ghost"
                 size="icon"
@@ -235,17 +265,24 @@ export default function MessagesPage() {
               </Avatar>
 
               <div className="flex-1">
-                <h3 className="font-semibold">{otherUser?.name}</h3>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Briefcase className="h-3 w-3" />
-                  <span>{jobInfo?.title || "Job Application"}</span>
-                </div>
+                <h3 className="font-semibold text-white text-lg">
+                  {otherUser?.name || (typeof otherUser === 'string' ? 'User' : 'Loading...')}
+                </h3>
+                {jobInfo?.title && (
+                  <div className="flex items-center gap-2 text-xs text-white/70">
+                    <Briefcase className="h-3 w-3" />
+                    <span>{jobInfo.title}</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4 max-w-4xl mx-auto">
+            {/* Messages - WhatsApp-like background with Dark Mode Support */}
+            <ScrollArea className="flex-1 bg-cover bg-center" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              backgroundColor: isDark ? '#1a1a1a' : '#ECE5DD'
+            }}>
+              <div className="space-y-2 py-3 w-full">
                 {messages.length === 0 ? (
                   <div className="text-center text-muted-foreground py-12">
                     <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -262,19 +299,19 @@ export default function MessagesPage() {
                     return (
                       <div
                         key={msg._id}
-                        className={`flex ${isSender ? "justify-end" : "justify-start"}`}
+                        className={`flex w-full ${isSender ? "justify-end pr-4" : "justify-start pl-4"}`}
                       >
                         <div
-                          className={`max-w-[70%] ${
+                          className={`max-w-xs ${
                             isSender
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
-                          } rounded-lg p-3`}
+                              ? "bg-[#DCF8C6] text-gray-900 dark:bg-[#056162] dark:text-white"
+                              : "bg-white text-gray-900 dark:bg-[#1F2937] dark:text-white"
+                          } rounded-2xl px-3 py-2 wrap-break-word shadow-sm`}
                         >
-                          <p className="text-sm whitespace-pre-wrap wrap-break-word">{msg.message}</p>
+                          <p className="text-sm whitespace-pre-wrap wrap-break-word leading-snug">{msg.message}</p>
                           <p
-                            className={`text-xs mt-1 ${
-                              isSender ? "text-primary-foreground/70" : "text-muted-foreground"
+                            className={`text-xs mt-0.5 opacity-60 ${
+                              isSender ? "text-gray-700 dark:text-gray-300" : "text-gray-600 dark:text-gray-400"
                             }`}
                           >
                             {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
@@ -287,8 +324,8 @@ export default function MessagesPage() {
 
                 {isTyping && typingUser && (
                   <div className="flex justify-start">
-                    <div className="bg-muted rounded-lg p-3">
-                      <p className="text-sm text-muted-foreground italic">
+                    <div className="bg-white dark:bg-[#1F2937] rounded-[18px] px-3 py-1.5 shadow-sm">
+                      <p className="text-sm text-gray-600/60 dark:text-gray-400/60 italic leading-tight">
                         {typingUser} is typing...
                       </p>
                     </div>
@@ -300,16 +337,16 @@ export default function MessagesPage() {
             </ScrollArea>
 
             {/* Message Input */}
-            <form onSubmit={sendMessage} className="p-4 border-t bg-background">
-              <div className="flex gap-2 max-w-4xl mx-auto">
+            <form onSubmit={sendMessage} className="px-4 py-3 border-t bg-white dark:bg-gray-900">
+              <div className="flex gap-2">
                 <Input
                   value={newMessage}
                   onChange={handleTyping}
                   placeholder="Type a message..."
                   disabled={isSending}
-                  className="flex-1"
+                  className="flex-1 rounded-full bg-gray-100 dark:bg-gray-800 border-0 placeholder-gray-500 dark:placeholder-gray-500 dark:text-white text-sm py-2"
                 />
-                <Button type="submit" disabled={isSending || !newMessage.trim()}>
+                <Button type="submit" disabled={isSending || !newMessage.trim()} className="rounded-full bg-[#25D366] hover:bg-[#20BA5A] dark:bg-[#1a8f4e] dark:hover:bg-[#0d6633] text-white h-10 w-10 p-0">
                   {isSending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (

@@ -178,7 +178,7 @@ export default function JobDetailPage({ params }) {
     }
   };
 
-  // Check if relocation is required
+  // Check if relocation question should be asked (Hybrid or Onsite with different city)
   const requiresRelocation = () => {
     if (!user || !job) return false;
     if (job.workMode === 'remote') return false; // Remote jobs don't need relocation
@@ -187,7 +187,13 @@ export default function JobDetailPage({ params }) {
     const jobCity = String(job.location?.city || '').toLowerCase();
 
     // Check if different city
-    return jobCity && userCity && !userCity.includes(jobCity);
+    const isDifferentCity = jobCity && userCity && !userCity.includes(jobCity);
+
+    // Ask relocation question for Hybrid or Onsite with different city
+    if (!isDifferentCity) return false; // Same city, no question needed
+
+    // Different city: ask for both Hybrid and Onsite
+    return job.workMode === 'hybrid' || job.workMode === 'onsite';
   };
 
   // Handle apply with relocation check
@@ -827,10 +833,12 @@ export default function JobDetailPage({ params }) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-orange-600" />
-              Relocation Required
+              Location Mismatch
             </DialogTitle>
             <DialogDescription>
-              This position requires relocation to a different city.
+              {job?.workMode === 'hybrid'
+                ? 'This is a hybrid position in a different city.'
+                : 'This position requires relocation to a different city.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -869,11 +877,14 @@ export default function JobDetailPage({ params }) {
               />
               <label htmlFor="relocate-confirm" className="flex-1 cursor-pointer">
                 <p className="text-sm font-medium">
-                  I confirm I'm willing to relocate to {job?.location?.city}
+                  {job?.workMode === 'hybrid'
+                    ? `Yes, I'm open to working from ${job?.location?.city}`
+                    : `Yes, I'm willing to relocate to ${job?.location?.city}`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  By checking this box, you confirm that you understand this position
-                  requires relocation and you're willing to move if offered the role.
+                  {job?.workMode === 'hybrid'
+                    ? 'Checking this will indicate your willingness to visit the office location when needed.'
+                    : 'By checking this box, you confirm you understand this position requires relocation and you\'re willing to move if offered the role.'}
                 </p>
               </label>
             </div>
@@ -898,7 +909,7 @@ export default function JobDetailPage({ params }) {
             </Button>
             <Button
               onClick={handleConfirmRelocation}
-              disabled={!willingToRelocateForJob || isApplying}
+              disabled={isApplying}
               className="w-full sm:w-auto"
             >
               {isApplying ? (

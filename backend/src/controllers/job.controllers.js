@@ -224,6 +224,11 @@ const getJobs = async (req, res) => {
     if (req.user && req.user.role === "seeker") {
       console.log("🎯 Calculating match scores for seeker:", req.user.name);
 
+      // ⚠️ Check if user has location - if not, show warning in recommendations
+      if (!req.user.location) {
+        console.log("⚠️ User has no location - recommendations will show remote jobs only");
+      }
+
       // Calculate match scores and ML predictions in parallel for ALL jobs
       jobsWithMatchScores = await Promise.all(
         jobsWithApplicationCount.map(async (job) => {

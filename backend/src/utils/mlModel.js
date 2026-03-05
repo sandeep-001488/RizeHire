@@ -209,13 +209,25 @@ export async function predictAcceptance(matchBreakdown) {
   // Convert to percentage
   const acceptancePercentage = Math.round(acceptanceProbability * 100);
 
-  // Calculate confidence level based on how extreme the prediction is
-  // Predictions close to 0 or 1 are more confident than those near 0.5
-  const distanceFrom50 = Math.abs(acceptanceProbability - 0.5);
-  const confidence = distanceFrom50 * 2; // 0 = no confidence, 1 = full confidence
+  // Calculate confidence level based on prediction probability
+  // Higher confidence for predictions in the middle range (40-60%)
+  // Lower confidence for extreme predictions (very high/low acceptance rates)
+  let confidence;
+
+  if (acceptanceProbability >= 0.4 && acceptanceProbability <= 0.6) {
+    // Middle range: moderate confidence (0.4-0.6 = 40-60% probability)
+    confidence = 0.6;
+  } else if (acceptanceProbability >= 0.3 && acceptanceProbability <= 0.7) {
+    // Good range: reasonable confidence (30-70% probability)
+    confidence = 0.7;
+  } else {
+    // Extreme predictions (very low <30% or very high >70% acceptance)
+    // These are harder to predict accurately, so lower confidence
+    confidence = 0.3;
+  }
 
   let confidenceLevel;
-  if (confidence > 0.7) {
+  if (confidence > 0.6) {
     confidenceLevel = 'high';
   } else if (confidence > 0.4) {
     confidenceLevel = 'medium';

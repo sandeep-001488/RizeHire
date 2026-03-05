@@ -96,20 +96,20 @@ export default function AuthGuard({ children }) {
 
 function LoadingScreen({ user, message }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="text-center space-y-8 max-w-md">
         <div className="flex items-center justify-center space-x-3">
           <div className="relative">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
+            <div className="w-16 h-16 bg-linear-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
               <Briefcase className="w-8 h-8 text-white" />
             </div>
-            <div className="absolute -top-2 -right-2 w-7 h-7 bg-gradient-to-r from-orange-400 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
+            <div className="absolute -top-2 -right-2 w-7 h-7 bg-linear-to-r from-orange-400 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
               <Brain className="w-4 h-4 text-white" />
             </div>
           </div>
         </div>
         <div className="space-y-4">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-linear-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
             RizeHire
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
