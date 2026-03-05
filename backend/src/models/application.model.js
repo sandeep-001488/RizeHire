@@ -173,6 +173,11 @@ const applicationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // --- NEW: RELOCATION PREFERENCE (for location matching) ---
+    willingToRelocate: {
+      type: Boolean,
+      default: null, // null = not answered, true = yes, false = no
+    },
     appliedAt: {
       type: Date,
       default: Date.now,
@@ -184,6 +189,27 @@ const applicationSchema = new mongoose.Schema(
    rejectionReason: {
       type: String,
       maxlength: 2000,
+    },
+    // --- NEW: Rejection explanation with SHAP/LIME ---
+    rejectionExplanation: {
+      type: {
+        reason: String,                    // Why rejected (hard rule or soft scoring)
+        hardRuleFailed: [String],          // Which hard rules failed
+        matchBreakdown: {                  // Match score breakdown
+          skills: Number,
+          experience: Number,
+          location: Number,
+          salary: Number,
+        },
+        shapExplanation: mongoose.Schema.Types.Mixed,  // SHAP analysis
+        limeExplanation: mongoose.Schema.Types.Mixed,  // LIME analysis
+        recommendations: [String],         // What to improve
+      },
+      default: null,
+    },
+    rejectionEmailSent: {
+      type: Boolean,
+      default: false,
     },
   },
   {

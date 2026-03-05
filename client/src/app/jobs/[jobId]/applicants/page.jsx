@@ -755,16 +755,139 @@ export default function JobApplicantsPage() {
 )}
 
 
-                                {/* Show Rejection Reason for Recruiters */}
-                                {applicant.status === "rejected" && applicant.rejectionReason && (
-                                  <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                                    <h4 className="font-medium text-xs md:text-sm text-red-800 dark:text-red-300 mb-1 flex items-center">
-                                      <X className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                                      Rejection Reason:
-                                    </h4>
-                                    <p className="text-xs md:text-sm text-red-700 dark:text-red-400">
-                                      {applicant.rejectionReason}
-                                    </p>
+                                {/* Show Rejection Reason and Explanation for Recruiters */}
+                                {applicant.status === "rejected" && (applicant.rejectionReason || applicant.rejectionExplanation) && (
+                                  <div className="mb-3">
+                                    {applicant.rejectionExplanation ? (
+                                      <Dialog>
+                                        <DialogTrigger asChild>
+                                          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+                                            <h4 className="font-medium text-xs md:text-sm text-red-800 dark:text-red-300 mb-1 flex items-center">
+                                              <X className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                              Rejection Details (Click to view analysis)
+                                            </h4>
+                                            <p className="text-xs md:text-sm text-red-700 dark:text-red-400 line-clamp-2">
+                                              {applicant.rejectionExplanation.reason || applicant.rejectionReason}
+                                            </p>
+                                          </div>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                                          <DialogHeader>
+                                            <DialogTitle className="flex items-center gap-2">
+                                              <X className="h-5 w-5 text-red-600" />
+                                              Rejection Analysis - {applicant?.user?.name}
+                                            </DialogTitle>
+                                            <DialogDescription>
+                                              AI-driven rejection explanation with match breakdown analysis
+                                            </DialogDescription>
+                                          </DialogHeader>
+
+                                          <div className="space-y-4 mt-4">
+                                            {/* Rejection Reason */}
+                                            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                              <h3 className="font-semibold text-red-900 dark:text-red-100 mb-2">Reason for Rejection</h3>
+                                              <p className="text-sm text-red-800 dark:text-red-200">
+                                                {applicant.rejectionExplanation.reason || applicant.rejectionReason || "No specific reason provided"}
+                                              </p>
+                                            </div>
+
+                                            {/* Match Breakdown */}
+                                            {applicant.rejectionExplanation.matchBreakdown && (
+                                              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">Match Score Breakdown</h3>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                  <div className="text-center">
+                                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                      {applicant.rejectionExplanation.matchBreakdown.skills || 0}%
+                                                    </div>
+                                                    <div className="text-xs text-blue-700 dark:text-blue-300">Skills</div>
+                                                  </div>
+                                                  <div className="text-center">
+                                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                      {applicant.rejectionExplanation.matchBreakdown.experience || 0}%
+                                                    </div>
+                                                    <div className="text-xs text-blue-700 dark:text-blue-300">Experience</div>
+                                                  </div>
+                                                  <div className="text-center">
+                                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                      {applicant.rejectionExplanation.matchBreakdown.location || 0}%
+                                                    </div>
+                                                    <div className="text-xs text-blue-700 dark:text-blue-300">Location</div>
+                                                  </div>
+                                                  <div className="text-center">
+                                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                      {applicant.rejectionExplanation.matchBreakdown.salary || 0}%
+                                                    </div>
+                                                    <div className="text-xs text-blue-700 dark:text-blue-300">Salary</div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            {/* Hard Rules Failed */}
+                                            {applicant.rejectionExplanation.hardRuleFailed && applicant.rejectionExplanation.hardRuleFailed.length > 0 && (
+                                              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                                <h3 className="font-semibold text-orange-900 dark:text-orange-100 mb-2">Hard Requirements Failed</h3>
+                                                <ul className="list-disc list-inside space-y-1">
+                                                  {applicant.rejectionExplanation.hardRuleFailed.map((rule, idx) => (
+                                                    <li key={idx} className="text-sm text-orange-800 dark:text-orange-200">
+                                                      {rule}
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+
+                                            {/* Recommendations */}
+                                            {applicant.rejectionExplanation.recommendations && applicant.rejectionExplanation.recommendations.length > 0 && (
+                                              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                                <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">Candidate Feedback</h3>
+                                                <p className="text-xs text-green-700 dark:text-green-300 mb-2">These are the areas the candidate should focus on:</p>
+                                                <ul className="list-disc list-inside space-y-1">
+                                                  {applicant.rejectionExplanation.recommendations.map((rec, idx) => (
+                                                    <li key={idx} className="text-sm text-green-800 dark:text-green-200">
+                                                      {rec}
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+
+                                            {/* Candidate Location Preference */}
+                                            {applicant.willingToRelocate !== undefined && (
+                                              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                                <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">Candidate Relocation Preference</h3>
+                                                <p className="text-sm text-purple-800 dark:text-purple-200">
+                                                  Willing to relocate: <span className="font-medium">{applicant.willingToRelocate ? 'Yes' : 'No'}</span>
+                                                </p>
+                                              </div>
+                                            )}
+
+                                            {/* Rejection Email Status */}
+                                            <div className="p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-800">
+                                              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Email Notification</h3>
+                                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                {applicant.rejectionEmailSent ? (
+                                                  <span className="text-green-600 dark:text-green-400">✓ Rejection email sent to candidate</span>
+                                                ) : (
+                                                  <span className="text-yellow-600 dark:text-yellow-400">⚠ Rejection email not yet sent</span>
+                                                )}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </DialogContent>
+                                      </Dialog>
+                                    ) : (
+                                      <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                        <h4 className="font-medium text-xs md:text-sm text-red-800 dark:text-red-300 mb-1 flex items-center">
+                                          <X className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                          Rejection Reason:
+                                        </h4>
+                                        <p className="text-xs md:text-sm text-red-700 dark:text-red-400">
+                                          {applicant.rejectionReason}
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -913,16 +1036,139 @@ export default function JobApplicantsPage() {
   </Button>
 )}
 
-                                    {/* Show Rejection Reason for Recruiters */}
-                                    {applicant.status === "rejected" && applicant.rejectionReason && (
-                                      <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                                        <h4 className="font-medium text-xs md:text-sm text-red-800 dark:text-red-300 mb-1 flex items-center">
-                                          <X className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                                          Rejection Reason:
-                                        </h4>
-                                        <p className="text-xs md:text-sm text-red-700 dark:text-red-400">
-                                          {applicant.rejectionReason}
-                                        </p>
+                                    {/* Show Rejection Reason and Explanation for Recruiters */}
+                                    {applicant.status === "rejected" && (applicant.rejectionReason || applicant.rejectionExplanation) && (
+                                      <div className="mb-3">
+                                        {applicant.rejectionExplanation ? (
+                                          <Dialog>
+                                            <DialogTrigger asChild>
+                                              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+                                                <h4 className="font-medium text-xs md:text-sm text-red-800 dark:text-red-300 mb-1 flex items-center">
+                                                  <X className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                                  Rejection Details (Click to view analysis)
+                                                </h4>
+                                                <p className="text-xs md:text-sm text-red-700 dark:text-red-400 line-clamp-2">
+                                                  {applicant.rejectionExplanation.reason || applicant.rejectionReason}
+                                                </p>
+                                              </div>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                                              <DialogHeader>
+                                                <DialogTitle className="flex items-center gap-2">
+                                                  <X className="h-5 w-5 text-red-600" />
+                                                  Rejection Analysis - {applicant?.user?.name}
+                                                </DialogTitle>
+                                                <DialogDescription>
+                                                  AI-driven rejection explanation with match breakdown analysis
+                                                </DialogDescription>
+                                              </DialogHeader>
+
+                                              <div className="space-y-4 mt-4">
+                                                {/* Rejection Reason */}
+                                                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                                  <h3 className="font-semibold text-red-900 dark:text-red-100 mb-2">Reason for Rejection</h3>
+                                                  <p className="text-sm text-red-800 dark:text-red-200">
+                                                    {applicant.rejectionExplanation.reason || applicant.rejectionReason || "No specific reason provided"}
+                                                  </p>
+                                                </div>
+
+                                                {/* Match Breakdown */}
+                                                {applicant.rejectionExplanation.matchBreakdown && (
+                                                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                                    <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">Match Score Breakdown</h3>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                      <div className="text-center">
+                                                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                          {applicant.rejectionExplanation.matchBreakdown.skills || 0}%
+                                                        </div>
+                                                        <div className="text-xs text-blue-700 dark:text-blue-300">Skills</div>
+                                                      </div>
+                                                      <div className="text-center">
+                                                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                          {applicant.rejectionExplanation.matchBreakdown.experience || 0}%
+                                                        </div>
+                                                        <div className="text-xs text-blue-700 dark:text-blue-300">Experience</div>
+                                                      </div>
+                                                      <div className="text-center">
+                                                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                          {applicant.rejectionExplanation.matchBreakdown.location || 0}%
+                                                        </div>
+                                                        <div className="text-xs text-blue-700 dark:text-blue-300">Location</div>
+                                                      </div>
+                                                      <div className="text-center">
+                                                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                          {applicant.rejectionExplanation.matchBreakdown.salary || 0}%
+                                                        </div>
+                                                        <div className="text-xs text-blue-700 dark:text-blue-300">Salary</div>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                )}
+
+                                                {/* Hard Rules Failed */}
+                                                {applicant.rejectionExplanation.hardRuleFailed && applicant.rejectionExplanation.hardRuleFailed.length > 0 && (
+                                                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                                    <h3 className="font-semibold text-orange-900 dark:text-orange-100 mb-2">Hard Requirements Failed</h3>
+                                                    <ul className="list-disc list-inside space-y-1">
+                                                      {applicant.rejectionExplanation.hardRuleFailed.map((rule, idx) => (
+                                                        <li key={idx} className="text-sm text-orange-800 dark:text-orange-200">
+                                                          {rule}
+                                                        </li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                )}
+
+                                                {/* Recommendations */}
+                                                {applicant.rejectionExplanation.recommendations && applicant.rejectionExplanation.recommendations.length > 0 && (
+                                                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                                    <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">Candidate Feedback</h3>
+                                                    <p className="text-xs text-green-700 dark:text-green-300 mb-2">These are the areas the candidate should focus on:</p>
+                                                    <ul className="list-disc list-inside space-y-1">
+                                                      {applicant.rejectionExplanation.recommendations.map((rec, idx) => (
+                                                        <li key={idx} className="text-sm text-green-800 dark:text-green-200">
+                                                          {rec}
+                                                        </li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                )}
+
+                                                {/* Candidate Location Preference */}
+                                                {applicant.willingToRelocate !== undefined && (
+                                                  <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                                    <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">Candidate Relocation Preference</h3>
+                                                    <p className="text-sm text-purple-800 dark:text-purple-200">
+                                                      Willing to relocate: <span className="font-medium">{applicant.willingToRelocate ? 'Yes' : 'No'}</span>
+                                                    </p>
+                                                  </div>
+                                                )}
+
+                                                {/* Rejection Email Status */}
+                                                <div className="p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-800">
+                                                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Email Notification</h3>
+                                                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                    {applicant.rejectionEmailSent ? (
+                                                      <span className="text-green-600 dark:text-green-400">✓ Rejection email sent to candidate</span>
+                                                    ) : (
+                                                      <span className="text-yellow-600 dark:text-yellow-400">⚠ Rejection email not yet sent</span>
+                                                    )}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            </DialogContent>
+                                          </Dialog>
+                                        ) : (
+                                          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                            <h4 className="font-medium text-xs md:text-sm text-red-800 dark:text-red-300 mb-1 flex items-center">
+                                              <X className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                              Rejection Reason:
+                                            </h4>
+                                            <p className="text-xs md:text-sm text-red-700 dark:text-red-400">
+                                              {applicant.rejectionReason}
+                                            </p>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                     {/* View Full Details Button */}

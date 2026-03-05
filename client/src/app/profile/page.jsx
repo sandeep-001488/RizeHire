@@ -38,6 +38,7 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    location: "", 
     bio: "",
     linkedinUrl: "",
     walletAddress: "",
@@ -53,9 +54,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) {
+      
+      const userLocation = user.location || user.parsedResume?.location || "";
+
       setFormData({
         name: user.name || "",
         email: user.email || "",
+        location: userLocation,
         bio: user.bio || "",
         linkedinUrl: user.linkedinUrl || "",
         walletAddress: user.walletAddress || "",
@@ -209,23 +214,41 @@ export default function ProfilePage() {
                   />
                 </div>
                 {user?.role === "seeker" && (
-                  <div>
-                    <Label htmlFor="gender">Gender</Label>
-                    <select
-                      id="gender"
-                      name="gender"
-                      value={formData.gender || ""}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
-                      required
-                    >
-                      <option value="">Select...</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
+                  <>
+                    <div>
+                      <Label htmlFor="location">Current Location</Label>
+                      <Input
+                        id="location"
+                        name="location"
+                        placeholder="e.g., Delhi, India"
+                        value={formData.location}
+                        onChange={handleChange}
+                        disabled={!isEditing}
+                      />
+                      {user?.parsedResume?.location && formData.location !== `${user.parsedResume.location.city}${user.parsedResume.location.country ? `, ${user.parsedResume.location.country}` : ''}` && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          📝 Resume has: {user.parsedResume.location.city}{user.parsedResume.location.country && `, ${user.parsedResume.location.country}`}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="gender">Gender</Label>
+                      <select
+                        id="gender"
+                        name="gender"
+                        value={formData.gender || ""}
+                        onChange={handleChange}
+                        disabled={!isEditing}
+                        className="w-full mt-1 px-3 py-2 border border-input bg-background rounded-md"
+                        required
+                      >
+                        <option value="">Select...</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </>
                 )}
               </div>
 

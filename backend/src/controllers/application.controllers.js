@@ -7,11 +7,12 @@ import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
 import { uploadToCloudinary, generateSignedUrl } from "../middleware/upload.middleware.js";
 import { generateRejectionFeedback } from "../utils/rejectionFeedback.js";
 import { sendRejectionEmail, sendAcceptanceEmail, sendStatusChangeEmail } from "../services/email.service.js";
+import { generateRejectionExplanation, formatRejectionForEmail } from "../services/rejectionExplanation.service.js";
 
 const applyToJob = async (req, res) => {
   try {
     const jobId = req.params.jobId;
-    const { coverLetter } = req.body;
+    const { coverLetter, willingToRelocate } = req.body; // Get relocation choice
     const applicant = req.user;
 
     if (!jobId) {
@@ -83,10 +84,18 @@ const applyToJob = async (req, res) => {
     };
 
     if (hard.hardFail) {
-      // INSTANT REJECTION
+      // INSTANT REJECTION - Generate explanation
       applicationStatus = "rejected";
       matchScore = 0;
       rejectionReason = `Your application did not meet the required criteria: ${hard.reasons.join(", ")}`;
+
+      // Generate rejection explanation with SHAP/LIME (non-blocking)
+      const rejectionExplanation = await generateRejectionExplanation({
+        hardRuleFailed: hard.reasons,
+        matchBreakdown: {},
+        job,
+        candidate: applicant,
+      });
 
       const application = await Application.create({
         jobId: jobId,
@@ -98,6 +107,24 @@ const applyToJob = async (req, res) => {
         matchScore: matchScore,
         screeningResult: screeningResult,
         rejectionReason: rejectionReason,
+        rejectionExplanation: rejectionExplanation,
+        willingToRelocate: willingToRelocate !== undefined ? willingToRelocate : null,
+      });
+
+      // Send rejection email (non-blocking, fire-and-forget)
+      setImmediate(() => {
+        sendRejectionEmail({
+          candidateEmail: applicant.email,
+          candidateName: applicant.name,
+          jobTitle: job.title,
+          companyName: job.company?.name || "Our Company",
+          rejectionFeedback: {
+            matchScore: 0,
+            detailedAnalysis: rejectionExplanation.reason,
+            improvementSuggestions: rejectionExplanation.recommendations,
+            encouragement: "Keep improving and apply to more positions!",
+          },
+        }).catch((err) => console.error("Failed to send rejection email:", err));
       });
 
       const applicationCount = await Application.countDocuments({ jobId: jobId });
@@ -110,6 +137,7 @@ const applyToJob = async (req, res) => {
           applicationStatus,
           matchScore,
           rejectionReason,
+          rejectionExplanation,
           applicationCount,
         },
       });
@@ -141,6 +169,7 @@ const applyToJob = async (req, res) => {
       status: applicationStatus,
       matchScore: matchScore,
       screeningResult: screeningResult,
+      willingToRelocate: willingToRelocate !== undefined ? willingToRelocate : null, // Store relocation choice
     });
 
     const applicationCount = await Application.countDocuments({ jobId: jobId });
@@ -615,7 +644,13 @@ const getApplication = async (req, res) => {
 
     // --- FIXED: Added 'gender' to populate fields ---
     const application = await Application.findById(applicationId)
-      .populate("jobId")
+      .populate({
+        path: "jobId",
+        populate: {
+          path: "postedBy",
+          select: "name email profileImage"
+        }
+      })
       .populate(
         "applicantId",
         "name email profileImage skills bio linkedinUrl gender parsedResume"
@@ -630,8 +665,13 @@ const getApplication = async (req, res) => {
 
     const isApplicant =
       application.applicantId._id.toString() === req.user._id.toString();
+
+    // Handle both cases: postedBy can be an ID string or populated object
+    const recruiterId = typeof application.jobId.postedBy === 'object'
+      ? application.jobId.postedBy._id
+      : application.jobId.postedBy;
     const isJobPoster =
-      application.jobId.postedBy.toString() === req.user._id.toString();
+      recruiterId.toString() === req.user._id.toString();
 
     if (!isApplicant && !isJobPoster) {
       return res.status(403).json({

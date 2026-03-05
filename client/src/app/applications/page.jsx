@@ -284,12 +284,45 @@ export default function ApplicationsPage() {
                                 </div>
                               )}
 
-                              {/* Rejection Reason */}
+                              {/* Rejection Reason & Explanation */}
                               {application.rejectionReason && (
                                 <div className="mb-3">
                                   <p className="text-sm text-red-800 dark:text-red-200">
                                     <strong>Reason:</strong> {application.rejectionReason}
                                   </p>
+                                </div>
+                              )}
+
+                              {/* Rejection Explanation with SHAP/LIME */}
+                              {application.rejectionExplanation && (
+                                <div className="mb-3 p-3 bg-red-100/50 dark:bg-red-900/20 rounded border border-red-300 dark:border-red-700">
+                                  <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
+                                    📊 Detailed Analysis:
+                                  </p>
+                                  <div className="text-sm text-red-800 dark:text-red-200 space-y-1">
+                                    {application.rejectionExplanation.matchBreakdown && (
+                                      <>
+                                        <div>Skills: {application.rejectionExplanation.matchBreakdown.skills || 0}%</div>
+                                        <div>Experience: {application.rejectionExplanation.matchBreakdown.experience || 0}%</div>
+                                        <div>Location: {application.rejectionExplanation.matchBreakdown.location || 0}%</div>
+                                        <div>Salary: {application.rejectionExplanation.matchBreakdown.salary || 0}%</div>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Improvement Recommendations */}
+                                  {application.rejectionExplanation.recommendations && application.rejectionExplanation.recommendations.length > 0 && (
+                                    <div className="mt-3 pt-3 border-t border-red-300 dark:border-red-700">
+                                      <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
+                                        💡 How to Improve:
+                                      </p>
+                                      <ul className="text-sm text-red-800 dark:text-red-200 list-disc list-inside space-y-1">
+                                        {application.rejectionExplanation.recommendations.map((rec, idx) => (
+                                          <li key={idx}>{rec}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
                                 </div>
                               )}
 

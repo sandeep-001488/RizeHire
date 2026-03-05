@@ -75,6 +75,11 @@ const userSchema = new mongoose.Schema(
         message: "Invalid LinkedIn URL",
       },
     },
+    location: {
+      type: String,
+      maxlength: [200, "Location too long"],
+      default: "", 
+    },
     skills: [
       {
         type: String,

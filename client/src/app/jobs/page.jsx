@@ -54,6 +54,7 @@ export default function JobsPage() {
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [showAllRecommendations, setShowAllRecommendations] = useState(false);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
 
   // SHAP/LIME explainability
   const [shapData, setShapData] = useState({});
@@ -66,6 +67,10 @@ export default function JobsPage() {
     fetchJobs();
     // Fetch recommendations if user is a seeker
     if (user?.role === "seeker") {
+      // Show location prompt if no location
+      if (!user.location) {
+        setShowLocationPrompt(true);
+      }
       fetchRecommendations();
     }
     // console.log(user);
@@ -380,6 +385,35 @@ export default function JobsPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Location Missing Prompt (for seekers without location) */}
+      {user?.role === "seeker" && showLocationPrompt && !user?.location && (
+        <Card className="mb-8 border-2 border-orange-200 bg-orange-50 dark:bg-orange-900/10">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="font-semibold text-orange-900 dark:text-orange-100 mb-1">
+                  📍 Complete Your Profile
+                </h3>
+                <p className="text-sm text-orange-800 dark:text-orange-200 mb-3">
+                  Add your current location to get better job recommendations based on location match and relocation preferences.
+                </p>
+                <Link href="/profile">
+                  <Button size="sm" variant="default">
+                    Go to Profile <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+              <button
+                onClick={() => setShowLocationPrompt(false)}
+                className="text-orange-600 dark:text-orange-400 hover:text-orange-700 text-lg"
+              >
+                ×
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Personalized Recommendations Section (for seekers only) */}
       {user?.role === "seeker" && recommendations.length > 0 && (
