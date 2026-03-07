@@ -58,3 +58,7 @@ uploads/resumes/
 # Optional: If using Next.js in same repo
 .next/
 out/
+
+# Generated ML files (regenerable at runtime)
+training_data.json
+ml-models/
