@@ -93,7 +93,36 @@ export const optionalAuth = async (req, res, next) => {
           req.user = user;
         }
       } catch (error) {
-        // Token invalid, just continue without user
+        // Token may be expired, try to refresh
+        if (error.message === "Access token expired") {
+          const refreshToken = req.headers["x-refresh-token"];
+
+          if (refreshToken) {
+            try {
+              const { verifyRefreshToken } = await import("../utils/jwt.utils.js");
+              const refreshDecoded = verifyRefreshToken(refreshToken);
+
+              const user = await User.findById(refreshDecoded.userId);
+              if (user && user.refreshTokens.some(rt => rt.token === refreshToken)) {
+                // Generate new tokens
+                const newTokens = generateTokenPair({
+                  userId: user._id,
+                  email: user.email,
+                });
+
+                // Set new tokens in response headers
+                res.setHeader("X-New-Access-Token", newTokens.accessToken);
+                res.setHeader("X-New-Refresh-Token", newTokens.refreshToken);
+
+                // Set user for this request
+                req.user = user;
+              }
+            } catch (refreshError) {
+              // Refresh failed, continue without user
+            }
+          }
+        }
+        // Other token errors: just continue without user
       }
     }
 

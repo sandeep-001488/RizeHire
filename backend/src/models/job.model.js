@@ -11,7 +11,7 @@ const hardConstraintsSchema = new mongoose.Schema(
     minYears: {
       type: Number,
       min: 0,
-      default: null,
+      default: 0,
     },
   },
   { _id: false }
@@ -137,6 +137,10 @@ const jobSchema = new mongoose.Schema(
     applicationUrl: String,
     applicationEmail: String,
     applicationDeadline: Date,
+    acceptingApplications: {
+      type: Boolean,
+      default: true,
+    },
     isActive: {
       type: Boolean,
       default: true,

@@ -129,11 +129,17 @@ export default function MyJobsPage() {
                         {job.experienceLevel && (
                           <Badge variant="outline">{job.experienceLevel}</Badge>
                         )}
-                        <Badge
-                          variant={job.isActive ? "default" : "destructive"}
-                        >
-                          {job.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                        {job.applicationDeadline && new Date(job.applicationDeadline) < new Date() ? (
+                          <Badge variant="destructive">Deadline Passed</Badge>
+                        ) : job.acceptingApplications === false ? (
+                          <Badge variant="outline" className="bg-orange-100 text-orange-900 dark:bg-orange-900/20 dark:text-orange-100">
+                            Not Accepting
+                          </Badge>
+                        ) : (
+                          <Badge variant={job.isActive ? "default" : "destructive"}>
+                            {job.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        )}
                       </div>
 
                       {job.skills && job.skills.length > 0 && (

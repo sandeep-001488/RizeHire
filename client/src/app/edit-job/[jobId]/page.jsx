@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import { jobsAPI, aiAPI } from "@/lib/api";
 import { ArrowLeft, Loader2, Brain, Save } from "lucide-react";
@@ -18,6 +19,7 @@ export default function EditJobPage({ params }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [originalFormData, setOriginalFormData] = useState(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -40,12 +42,12 @@ export default function EditJobPage({ params }) {
     applicationUrl: "",
     applicationEmail: "",
     applicationDeadline: "",
+    acceptingApplications: true,
     tags: [],
     isActive: true,
     hardConstraints: {
       gender: null,
-      minYears: null,
-      maxYears: null,
+      minYears: 0,
     },
   });
   const [skillInput, setSkillInput] = useState("");
@@ -81,14 +83,46 @@ export default function EditJobPage({ params }) {
         applicationDeadline: job.applicationDeadline
           ? new Date(job.applicationDeadline).toISOString().split("T")[0]
           : "",
+        acceptingApplications: job.acceptingApplications !== undefined ? job.acceptingApplications : true,
         tags: Array.isArray(job.tags)
           ? job.tags.filter((tag) => typeof tag === "string")
           : [],
         isActive: job.isActive !== undefined ? job.isActive : true,
         hardConstraints: job.hardConstraints || {
           gender: null,
-          minYears: null,
-          maxYears: null,
+          minYears: 0,
+        },
+      });
+      // Store original data to detect changes
+      setOriginalFormData({
+        title: job.title || "",
+        description: job.description || "",
+        skills: Array.isArray(job.skills)
+          ? job.skills.filter((skill) => typeof skill === "string")
+          : [],
+        jobType: job.jobType || "full-time",
+        workMode: job.workMode || "remote",
+        location: job.location || { city: "", state: "", country: "" },
+        budget: job.budget || {
+          min: "",
+          max: "",
+          currency: "USD",
+          period: "monthly",
+        },
+        experienceLevel: job.experienceLevel || "mid",
+        applicationUrl: job.applicationUrl || "",
+        applicationEmail: job.applicationEmail || "",
+        applicationDeadline: job.applicationDeadline
+          ? new Date(job.applicationDeadline).toISOString().split("T")[0]
+          : "",
+        acceptingApplications: job.acceptingApplications !== undefined ? job.acceptingApplications : true,
+        tags: Array.isArray(job.tags)
+          ? job.tags.filter((tag) => typeof tag === "string")
+          : [],
+        isActive: job.isActive !== undefined ? job.isActive : true,
+        hardConstraints: job.hardConstraints || {
+          gender: null,
+          minYears: 0,
         },
       });
     } catch (error) {
@@ -98,6 +132,8 @@ export default function EditJobPage({ params }) {
       setIsLoading(false);
     }
   };
+
+  const hasChanges = originalFormData && JSON.stringify(formData) !== JSON.stringify(originalFormData);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -130,17 +166,14 @@ export default function EditJobPage({ params }) {
         location: formData.location.city ? formData.location : undefined,
         hardConstraints: {
           gender: formData.hardConstraints?.gender || null,
-          minYears: formData.hardConstraints?.minYears
+          minYears: formData.hardConstraints?.minYears && formData.hardConstraints.minYears !== ""
             ? Number(formData.hardConstraints.minYears)
-            : null,
-          maxYears: formData.hardConstraints?.maxYears
-            ? Number(formData.hardConstraints.maxYears)
             : null,
         },
       };
 
       await jobsAPI.updateJob(jobId, jobData);
-      router.push(`/jobs/${jobId}`);
+      router.push(`/jobs/my-posted-jobs`);
     } catch (error) {
       alert(error.response?.data?.message || "Failed to update job");
     } finally {
@@ -458,20 +491,6 @@ export default function EditJobPage({ params }) {
                     onChange={handleChange}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="hardConstraints.maxYears">
-                    Max Years Experience
-                  </Label>
-                  <Input
-                    id="hardConstraints.maxYears"
-                    name="hardConstraints.maxYears"
-                    type="number"
-                    min="0"
-                    placeholder="e.g., 10"
-                    value={formData.hardConstraints?.maxYears || ""}
-                    onChange={handleChange}
-                  />
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -654,6 +673,30 @@ export default function EditJobPage({ params }) {
                   onChange={handleChange}
                 />
               </div>
+
+              {!formData.applicationDeadline || new Date(formData.applicationDeadline) >= new Date() ? (
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="acceptingApplications">
+                        Accepting Applications
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {formData.acceptingApplications
+                          ? "✅ This job is currently accepting applications"
+                          : "❌ This job is not accepting applications"}
+                      </p>
+                    </div>
+                    <Switch
+                      id="acceptingApplications"
+                      checked={formData.acceptingApplications}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, acceptingApplications: checked })
+                      }
+                    />
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -665,7 +708,7 @@ export default function EditJobPage({ params }) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !hasChanges}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

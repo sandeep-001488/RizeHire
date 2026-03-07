@@ -300,6 +300,9 @@ export default function JobDetailPage({ params }) {
   };
 
   const hasApplied = job?.hasApplied || false;
+  const isDeadlinePassed = job?.isDeadlinePassed || false;
+  const isNotAccepting = job?.acceptingApplications === false;
+  const canApply = !isDeadlinePassed && (job?.acceptingApplications !== false);
   const [selectedResume, setSelectedResume] = useState(null);
   const isJobPoster = user && job && job.postedBy && job.postedBy._id === user._id ? true : false;
 
@@ -374,6 +377,27 @@ export default function JobDetailPage({ params }) {
             </div>
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Status Alert - Show only one based on priority */}
+      {isDeadlinePassed ? (
+        <Alert variant="destructive" className="border-red-500 bg-red-50 dark:bg-red-950">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-800 dark:text-red-200">Application Deadline Passed</AlertTitle>
+          <AlertDescription className="text-red-700 dark:text-red-300">
+            This job is no longer accepting applications. The deadline was {formatDate(job.applicationDeadline)}.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        isNotAccepting && (
+          <Alert variant="destructive" className="border-red-500 bg-red-50 dark:bg-red-950">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertTitle className="text-red-800 dark:text-red-200">Currently Not Receiving Applications</AlertTitle>
+            <AlertDescription className="text-red-700 dark:text-red-300">
+              The recruiter has temporarily closed this job from new applications. Please check back later.
+            </AlertDescription>
+          </Alert>
+        )
       )}
 
       <Card>
@@ -464,13 +488,22 @@ export default function JobDetailPage({ params }) {
                   </Button>
                 </div>
               ) : isAuthenticated && !hasApplied ? (
-                <Button
-                  onClick={() =>
-                    document.getElementById("apply-section")?.scrollIntoView()
-                  }
-                >
-                  Apply Now
-                </Button>
+                <>
+                  <Button
+                    onClick={() =>
+                      document.getElementById("apply-section")?.scrollIntoView()
+                    }
+                    disabled={!canApply}
+                    className={!canApply ? "opacity-50 cursor-not-allowed" : ""}
+                  >
+                    {canApply ? "Apply Now" : "Applications Closed"}
+                  </Button>
+                  {!canApply && (
+                    <div className="text-sm text-muted-foreground mt-2">
+                      {isDeadlinePassed ? "Deadline has passed" : "Currently not accepting applications"}
+                    </div>
+                  )}
+                </>
               ) : hasApplied ? (
                 <Badge className="w-fit">Applied</Badge>
               ) : null}
@@ -513,7 +546,7 @@ export default function JobDetailPage({ params }) {
             </Card>
           )}
 
-          {isAuthenticated && !isJobPoster && (
+          {isAuthenticated && !isJobPoster && canApply && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -544,7 +577,7 @@ export default function JobDetailPage({ params }) {
             </Card>
           )}
 
-          {isAuthenticated && !isJobPoster && !hasApplied && (
+          {isAuthenticated && !isJobPoster && !hasApplied && canApply && (
             <Card id="apply-section">
               <CardHeader>
                 <CardTitle>Apply for this Position</CardTitle>
