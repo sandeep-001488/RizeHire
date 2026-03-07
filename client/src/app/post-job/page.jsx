@@ -47,12 +47,7 @@ export default function PostJobPage() {
     experienceLevel: "mid",
     hardConstraints: {
       gender: null,
-      minYears: "",
-      maxYears: "",
-      location: {
-        city: "",
-        country: "",
-      },
+      minYears: 0,
     },
     applicationUrl: "",
     applicationEmail: "",
@@ -117,8 +112,9 @@ export default function PostJobPage() {
         location: formData.location.city ? formData.location : undefined,
         hardConstraints: {
           gender: formData.hardConstraints.gender || null,
-          minYears: formData.hardConstraints.minYears || null,
-          maxYears: formData.hardConstraints.maxYears || null,
+          minYears: formData.hardConstraints.minYears && formData.hardConstraints.minYears !== ""
+            ? Number(formData.hardConstraints.minYears)
+            : 0,
           location:
             formData.hardConstraints.location.city ||
             formData.hardConstraints.location.country

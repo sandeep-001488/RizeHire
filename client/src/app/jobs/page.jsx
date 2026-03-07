@@ -49,7 +49,7 @@ export default function JobsPage() {
     setLoading,
   } = useJobStore();
 
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isHydrated } = useAuthStore();
   const [showFilters, setShowFilters] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
@@ -63,7 +63,10 @@ export default function JobsPage() {
   const [loadingLIME, setLoadingLIME] = useState({});
   const [explainabilityMode, setExplainabilityMode] = useState({}); // jobId -> 'shap' or 'lime'
 
+  // Fetch jobs after hydration is complete
   useEffect(() => {
+    if (!isHydrated || !user) return;
+
     fetchJobs();
     // Fetch recommendations if user is a seeker
     if (user?.role === "seeker") {
@@ -73,8 +76,7 @@ export default function JobsPage() {
       }
       fetchRecommendations();
     }
-    // console.log(user);
-  }, [filters, pagination.current, user]);
+  }, [filters, pagination.current, user, isHydrated]);
 
   const fetchJobs = async () => {
     setLoading(true);

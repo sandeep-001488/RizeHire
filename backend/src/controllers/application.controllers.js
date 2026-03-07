@@ -31,6 +31,22 @@ const applyToJob = async (req, res) => {
       });
     }
 
+    // Check if application deadline has passed (priority 1)
+    if (job.applicationDeadline && new Date(job.applicationDeadline) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "The application deadline for this job has passed",
+      });
+    }
+
+    // Check if job is accepting applications (priority 2 - only checked if deadline not passed)
+    if (!job.acceptingApplications) {
+      return res.status(400).json({
+        success: false,
+        message: "This job is currently not accepting applications",
+      });
+    }
+
     if (job.postedBy.toString() === applicant._id.toString()) {
       return res.status(400).json({
         success: false,

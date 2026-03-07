@@ -5,9 +5,8 @@ import { calculateJobMatch, rankJobsByRelevance } from "../utils/jobMatching.js"
 import { predictAcceptance } from "../utils/mlModel.js";
 
 const hardConstraintsSchema = Joi.object({
-  gender: Joi.string().valid("male", "female", null).optional(),
-  minYears: Joi.number().min(0).optional(),
-  maxYears: Joi.number().min(0).optional(),
+  gender: Joi.string().valid("male", "female").allow(null).optional(),
+  minYears: Joi.number().min(0).allow(null).optional(),
 });
 
 const createJobSchema = Joi.object({
@@ -240,6 +239,12 @@ const getJobs = async (req, res) => {
           // Check if user has applied to this job
           const isApplied = appliedJobIdsArray.includes(job._id.toString());
 
+          // Check deadline and acceptingApplications status
+          // Priority: deadline > acceptingApplications
+          const now = new Date();
+          const isDeadlinePassed = job.applicationDeadline && new Date(job.applicationDeadline) < now;
+          const canApply = !isDeadlinePassed && job.acceptingApplications;
+
           return {
             ...job,
             matchScore: match.overallScore,
@@ -249,6 +254,8 @@ const getJobs = async (req, res) => {
             whyThisJob: match.whyThisJob,
             recommendation: match.recommendation,
             isApplied, // NEW: Flag to show if user has applied
+            isDeadlinePassed,
+            canApply,
             mlPrediction: {
               acceptanceProbability: mlPrediction.acceptanceProbability,
               confidence: mlPrediction.confidence,
@@ -330,6 +337,12 @@ const getJob = async (req, res) => {
       }
     }
 
+    // Check deadline and acceptingApplications status
+    // Priority: deadline > acceptingApplications
+    const now = new Date();
+    const isDeadlinePassed = job.applicationDeadline && new Date(job.applicationDeadline) < now;
+    const canApply = !isDeadlinePassed && job.acceptingApplications;
+
     res.json({
       success: true,
       data: {
@@ -337,6 +350,8 @@ const getJob = async (req, res) => {
           ...job.toObject(),
           hasApplied,
           applicationCount,
+          isDeadlinePassed,
+          canApply,
         },
       },
     });
@@ -437,6 +452,7 @@ const updateJob = async (req, res) => {
       applicationUrl: Joi.string().uri().allow("").optional(),
       applicationEmail: Joi.string().email().allow("").optional(),
       applicationDeadline: Joi.date().greater("now").allow(null, "").optional(),
+      acceptingApplications: Joi.boolean().optional(),
       isActive: Joi.boolean().optional(),
       tags: Joi.array().items(Joi.string().max(30)).max(10).optional(),
     });
