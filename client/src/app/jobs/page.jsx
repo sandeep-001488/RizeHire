@@ -11,6 +11,7 @@ import useJobStore from "@/stores/jobStore";
 import useAuthStore from "@/stores/authStore";
 import { jobsAPI } from "@/lib/api";
 import { formatDate, formatSalary } from "@/lib/utils";
+import AuthGuard from "@/components/auth-guard/authGuard";
 import {
   Search,
   Filter,
@@ -224,7 +225,8 @@ export default function JobsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <AuthGuard>
+      <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Find Your Next Opportunity</h1>
@@ -699,270 +701,8 @@ export default function JobsPage() {
                                   </div>
                                 </div>
 
-                                {/* ML Prediction */}
-                                {job.mlPrediction && (
-                                  <div className="p-4 bg-linear-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border-2 border-purple-300 dark:border-purple-700">
-                                    <div className="flex items-center gap-2 mb-3">
-                                      <Sparkles className="h-5 w-5 text-purple-600" />
-                                      <h3 className="font-semibold text-purple-900 dark:text-purple-100">AI Acceptance Prediction</h3>
-                                      <Badge className="ml-auto bg-purple-600 text-white">
-                                        {job.mlPrediction.confidence} confidence
-                                      </Badge>
-                                    </div>
 
-                                    <div className="mb-3">
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-4xl font-bold text-purple-600">
-                                          {job.mlPrediction.acceptanceProbability}%
-                                        </span>
-                                        <div className="flex-1">
-                                          <p className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-1">
-                                            Success Probability
-                                          </p>
-                                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-                                            <div
-                                              className="h-full rounded-full bg-linear-to-r from-purple-500 to-pink-500"
-                                              style={{ width: `${job.mlPrediction.acceptanceProbability}%` }}
-                                            />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="bg-white/50 dark:bg-gray-800/50 p-3 rounded-md">
-                                      <p className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-1">
-                                        {job.mlPrediction.recommendation}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {job.mlPrediction.insight}
-                                      </p>
-                                    </div>
-
-                                    <p className="text-xs text-muted-foreground mt-2 italic">
-                                      🤖 Based on machine learning analysis of historical application patterns
-                                    </p>
-                                  </div>
-                                )}
-
-                                {/* SHAP/LIME Explainability - Feature Importance */}
-                                <div className="p-4 bg-linear-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg border-2 border-orange-300 dark:border-orange-700">
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
-                                      <Brain className="h-5 w-5 text-orange-600" />
-                                      <h3 className="font-semibold text-orange-900 dark:text-orange-100">
-                                        AI Explainability
-                                      </h3>
-                                    </div>
-                                    <div className="flex gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => fetchSHAPExplanation(job._id)}
-                                        disabled={loadingSHAP[job._id]}
-                                        className={explainabilityMode[job._id] === 'shap' ? 'bg-orange-100' : ''}
-                                      >
-                                        {loadingSHAP[job._id] ? (
-                                          <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Loading...
-                                          </>
-                                        ) : (
-                                          "SHAP"
-                                        )}
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => fetchLIMEExplanation(job._id)}
-                                        disabled={loadingLIME[job._id]}
-                                        className={explainabilityMode[job._id] === 'lime' ? 'bg-orange-100' : ''}
-                                      >
-                                        {loadingLIME[job._id] ? (
-                                          <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Loading...
-                                          </>
-                                        ) : (
-                                          "LIME"
-                                        )}
-                                      </Button>
-                                    </div>
-                                  </div>
-
-                                  {/* SHAP Visualization */}
-                                  {explainabilityMode[job._id] === 'shap' && shapData[job._id] && (
-                                    <div className="space-y-4">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <Badge className="bg-orange-200 text-orange-900">SHAP Analysis</Badge>
-                                      </div>
-                                      {/* Feature Importance Bars */}
-                                      <div className="space-y-2">
-                                        {shapData[job._id].features?.map((feature, idx) => (
-                                          <div key={idx} className="space-y-1">
-                                            <div className="flex items-center justify-between text-sm">
-                                              <span className="font-medium">{feature.name}</span>
-                                              <span className={`font-bold ${
-                                                feature.contribution > 0
-                                                  ? "text-green-600"
-                                                  : feature.contribution < 0
-                                                  ? "text-red-600"
-                                                  : "text-gray-600"
-                                              }`}>
-                                                {feature.contribution > 0 ? "+" : ""}
-                                                {feature.contribution.toFixed(1)}%
-                                              </span>
-                                            </div>
-
-                                            {/* Contribution Bar */}
-                                            <div className="relative h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                              <div
-                                                className={`absolute h-full transition-all ${
-                                                  feature.contribution > 0
-                                                    ? "bg-linear-to-r from-green-400 to-green-600"
-                                                    : "bg-linear-to-r from-red-400 to-red-600"
-                                                }`}
-                                                style={{
-                                                  width: `${Math.abs(feature.contribution) * 2}%`,
-                                                  left: feature.contribution > 0 ? "50%" : `${50 - Math.abs(feature.contribution) * 2}%`,
-                                                }}
-                                              />
-                                              {/* Center line */}
-                                              <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400" />
-                                            </div>
-
-                                            <p className="text-xs text-muted-foreground pl-1">
-                                              Current value: {feature.value.toFixed(1)}%
-                                            </p>
-                                          </div>
-                                        ))}
-                                      </div>
-
-                                      {/* SHAP Explanation Text */}
-                                      <div className="bg-white/50 dark:bg-gray-800/50 p-3 rounded-md mt-4">
-                                        <p className="text-sm font-medium mb-1">
-                                          📊 What This Means:
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {shapData[job._id].explanation}
-                                        </p>
-                                      </div>
-
-                                      {/* Base Value Info */}
-                                      <div className="text-xs text-muted-foreground p-3 bg-orange-100 dark:bg-orange-900/30 rounded-md">
-                                        <p className="font-medium mb-1">🧮 SHAP Calculation:</p>
-                                        <p>
-                                          Base prediction: {shapData[job._id].baseValue?.toFixed(1)}%
-                                          {shapData[job._id].features && shapData[job._id].features.length > 0 && (
-                                            <>
-                                              {" "}+ Contributions ({shapData[job._id].features.map(f =>
-                                                f.contribution > 0 ? `+${f.contribution.toFixed(1)}` : f.contribution.toFixed(1)
-                                              ).join(", ")})
-                                              {" "}= Final: {shapData[job._id].prediction?.toFixed(1)}%
-                                            </>
-                                          )}
-                                        </p>
-                                        <p className="mt-2 italic">
-                                          💡 SHAP (SHapley Additive exPlanations) shows how each factor
-                                          contributed to your predicted acceptance rate using game theory principles.
-                                        </p>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* LIME Visualization */}
-                                  {explainabilityMode[job._id] === 'lime' && limeData[job._id] && (
-                                    <div className="space-y-4">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <Badge className="bg-yellow-200 text-yellow-900">LIME Analysis</Badge>
-                                      </div>
-                                      {/* Feature Importance Bars */}
-                                      <div className="space-y-2">
-                                        {limeData[job._id].features?.map((feature, idx) => (
-                                          <div key={idx} className="space-y-1">
-                                            <div className="flex items-center justify-between text-sm">
-                                              <span className="font-medium">{feature.name}</span>
-                                              <span className={`font-bold ${
-                                                feature.weight > 0
-                                                  ? "text-green-600"
-                                                  : feature.weight < 0
-                                                  ? "text-red-600"
-                                                  : "text-gray-600"
-                                              }`}>
-                                                {feature.weight > 0 ? "+" : ""}
-                                                {feature.weight.toFixed(3)}
-                                              </span>
-                                            </div>
-
-                                            {/* Weight Bar (different from SHAP - shows coefficient strength) */}
-                                            <div className="relative h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                              <div
-                                                className={`absolute h-full transition-all ${
-                                                  feature.weight > 0
-                                                    ? "bg-linear-to-r from-blue-400 to-blue-600"
-                                                    : "bg-linear-to-r from-purple-400 to-purple-600"
-                                                }`}
-                                                style={{
-                                                  width: `${Math.min(Math.abs(feature.weight) * 100, 100)}%`,
-                                                  left: feature.weight > 0 ? "50%" : `${Math.max(50 - Math.abs(feature.weight) * 100, 0)}%`,
-                                                }}
-                                              />
-                                              {/* Center line */}
-                                              <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400" />
-                                            </div>
-
-                                            <p className="text-xs text-muted-foreground pl-1">
-                                              Feature value: {feature.value.toFixed(1)}%
-                                            </p>
-                                          </div>
-                                        ))}
-                                      </div>
-
-                                      {/* LIME Explanation Text */}
-                                      <div className="bg-white/50 dark:bg-gray-800/50 p-3 rounded-md mt-4">
-                                        <p className="text-sm font-medium mb-1">
-                                          📊 What This Means:
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {limeData[job._id].explanation}
-                                        </p>
-                                      </div>
-
-                                      {/* LIME Model Info */}
-                                      <div className="text-xs text-muted-foreground p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-md">
-                                        <p className="font-medium mb-1">🔍 LIME Model:</p>
-                                        <p>
-                                          Intercept: {limeData[job._id].intercept?.toFixed(3)}
-                                          {limeData[job._id].features && limeData[job._id].features.length > 0 && (
-                                            <>
-                                              {" "}+ Weighted features = Prediction: {limeData[job._id].prediction?.toFixed(1)}%
-                                            </>
-                                          )}
-                                        </p>
-                                        <p className="mt-1">
-                                          Model R²: {limeData[job._id].score?.toFixed(3)} (local approximation quality)
-                                        </p>
-                                        <p className="mt-2 italic">
-                                          💡 LIME (Local Interpretable Model-agnostic Explanations) trains a simple
-                                          linear model around your specific case to explain the prediction locally.
-                                        </p>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Empty State - No Explanation Yet */}
-                                  {!shapData[job._id] && !limeData[job._id] && (
-                                    <div className="text-center py-6">
-                                      <Brain className="h-12 w-12 mx-auto text-orange-300 mb-3" />
-                                      <p className="text-sm text-muted-foreground mb-2">
-                                        Choose an explainability method to understand your match score
-                                      </p>
-                                      <div className="text-xs text-muted-foreground space-y-1">
-                                        <p><strong>SHAP:</strong> Global feature importance using game theory</p>
-                                        <p><strong>LIME:</strong> Local linear approximation around your specific case</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
+                               
 
                                 {/* Skills Breakdown */}
                                 <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border">
@@ -1160,6 +900,7 @@ export default function JobsPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </AuthGuard>
   );
 }
