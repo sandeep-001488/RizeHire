@@ -57,31 +57,46 @@ export default function MessagesPage() {
     if (user?._id) {
       const socket = initializeSocket(user._id);
 
-      // Listen for new messages
-      socket.on("newMessage", ({ message }) => {
-        setMessages((prev) => [...prev, message]);
-        scrollToBottom();
-      });
+      const handleNewMessage = ({ message }) => {
+        setMessages((prev) => {
+          const hasOptimistic = prev.some((m) => typeof m._id === 'string' && m._id.length > 20);
 
-      // Listen for typing indicators
-      socket.on("userTyping", ({ userId, userName }) => {
+          if (hasOptimistic && prev[prev.length - 1].message === message.message) {
+            return [...prev.slice(0, -1), message];
+          }
+
+          const messageExists = prev.some((m) => m._id === message._id);
+          return messageExists ? prev : [...prev, message];
+        });
+        scrollToBottom();
+      };
+
+      const handleUserTyping = ({ userId, userName }) => {
         if (userId !== user._id) {
           setIsTyping(true);
           setTypingUser(userName);
         }
-      });
+      };
 
-      socket.on("userStoppedTyping", ({ userId }) => {
+      const handleUserStoppedTyping = ({ userId }) => {
         if (userId !== user._id) {
           setIsTyping(false);
           setTypingUser(null);
         }
-      });
+      };
+
+      socket.off("newMessage");
+      socket.off("userTyping");
+      socket.off("userStoppedTyping");
+
+      socket.on("newMessage", handleNewMessage);
+      socket.on("userTyping", handleUserTyping);
+      socket.on("userStoppedTyping", handleUserStoppedTyping);
 
       return () => {
-        socket.off("newMessage");
-        socket.off("userTyping");
-        socket.off("userStoppedTyping");
+        socket.off("newMessage", handleNewMessage);
+        socket.off("userTyping", handleUserTyping);
+        socket.off("userStoppedTyping", handleUserStoppedTyping);
       };
     }
   }, [user]);
@@ -259,9 +274,9 @@ export default function MessagesPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
 
-              <Avatar className="h-10 w-10">
+              <Avatar className="h-10 w-10 bg-white dark:bg-gray-600">
                 <AvatarImage src={otherUser?.profileImage} />
-                <AvatarFallback>{getInitials(otherUser?.name)}</AvatarFallback>
+                <AvatarFallback className="text-[#25D366] dark:text-white font-semibold">{getInitials(otherUser?.name)}</AvatarFallback>
               </Avatar>
 
               <div className="flex-1">
