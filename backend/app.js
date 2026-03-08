@@ -33,11 +33,20 @@ app.use(
 );
 app.options(allowedOrigin, cors());
 
-// Rate limiter specifically for AI routes only
+// Rate limiter for AI routes
 const aiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 50, // 50 AI requests per 15 minutes
   message: { error: "Too many AI requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiter for notification routes
+const notificationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests per minute
+  message: { error: "Too many notification requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -64,8 +73,8 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api", jobSeedRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/messages", messageRoutes); // Real-time messaging
-app.use("/api/notifications", notificationRoutes); // Notifications
-app.use("/api/ai", aiLimiter, aiRoutes); // Apply rate limiter only to AI routes
+app.use("/api/notifications", notificationLimiter, notificationRoutes); // Apply rate limiter to notifications
+app.use("/api/ai", aiLimiter, aiRoutes); // Apply rate limiter to AI routes
 app.use("/api/resume", resumeRoutes);
 
 
