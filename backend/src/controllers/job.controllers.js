@@ -85,7 +85,16 @@ const createJobSchema = Joi.object({
 
 const createJob = async (req, res) => {
   try {
-    const { error, value } = createJobSchema.validate(req.body);
+    // Clean up empty strings before validation
+    const cleanedBody = { ...req.body };
+    if (cleanedBody.applicationEmail === "") {
+      delete cleanedBody.applicationEmail;
+    }
+    if (cleanedBody.applicationUrl === "") {
+      delete cleanedBody.applicationUrl;
+    }
+
+    const { error, value } = createJobSchema.validate(cleanedBody);
     if (error) {
       return res.status(400).json({
         success: false,
@@ -449,15 +458,24 @@ const updateJob = async (req, res) => {
           .optional(),
       }).optional(),
       hardConstraints: hardConstraintsSchema.optional(), // Allow editing hard constraints
-      applicationUrl: Joi.string().uri().allow("").optional(),
-      applicationEmail: Joi.string().email().allow("").optional(),
+      applicationUrl: Joi.string().uri().optional(),
+      applicationEmail: Joi.string().email().optional(),
       applicationDeadline: Joi.date().greater("now").allow(null, "").optional(),
       acceptingApplications: Joi.boolean().optional(),
       isActive: Joi.boolean().optional(),
       tags: Joi.array().items(Joi.string().max(30)).max(10).optional(),
     });
 
-    const { error, value } = updateSchema.validate(req.body);
+    // Clean up empty strings before validation
+    const cleanedBody = { ...req.body };
+    if (cleanedBody.applicationEmail === "") {
+      delete cleanedBody.applicationEmail;
+    }
+    if (cleanedBody.applicationUrl === "") {
+      delete cleanedBody.applicationUrl;
+    }
+
+    const { error, value } = updateSchema.validate(cleanedBody);
     if (error) {
       return res.status(400).json({
         success: false,

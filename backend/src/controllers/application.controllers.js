@@ -3,6 +3,8 @@ import axios from "axios";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
 import Message from "../models/message.model.js";
+import Notification from "../models/notification.model.js";
+import { io } from "../../app.js";
 import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
 import { uploadToCloudinary, generateSignedUrl } from "../middleware/upload.middleware.js";
 import { generateRejectionFeedback } from "../utils/rejectionFeedback.js";
@@ -187,6 +189,35 @@ const applyToJob = async (req, res) => {
       screeningResult: screeningResult,
       willingToRelocate: willingToRelocate !== undefined ? willingToRelocate : null, // Store relocation choice
     });
+
+    // Create notification for recruiter about new application
+    try {
+      const notification = await Notification.createNotification(
+        job.postedBy,
+        'new_application',
+        {
+          title: 'New Application',
+          description: `New application from ${applicant.name} for ${job.title}`,
+          icon: 'mail',
+          actionUrl: `/jobs/${jobId}/applicants`,
+          relatedIds: {
+            applicationId: application._id,
+            jobId: jobId,
+            fromUserId: applicant._id,
+          },
+        }
+      );
+
+      // Emit Socket.IO event to recruiter
+      io.to(`user:${job.postedBy}`).emit('applicationReceived', {
+        notificationId: notification._id,
+        applicationId: application._id,
+        applicantName: applicant.name,
+        jobTitle: job.title,
+      });
+    } catch (error) {
+      console.error('Error creating notification for new application:', error);
+    }
 
     const applicationCount = await Application.countDocuments({ jobId: jobId });
 
@@ -631,6 +662,44 @@ const updateApplicationStatus = async (req, res) => {
     }
 
     await application.save();
+
+    // Create notification for applicant about status change (only for non-pending statuses)
+    if (status !== "pending") {
+      try {
+        const statusLabels = {
+          'viewed': 'Application Viewed',
+          'moving-forward': 'Moving Forward',
+          'accepted': 'Application Accepted',
+          'rejected': 'Application Rejected',
+        };
+
+        const notification = await Notification.createNotification(
+          application.applicantId._id,
+          'status_change',
+          {
+            title: statusLabels[status] || 'Status Changed',
+            description: `Your application for ${application.jobId.title} has been ${status}`,
+            icon: status === 'accepted' ? 'check-circle' : status === 'rejected' ? 'alert-circle' : 'mail',
+            actionUrl: `/applications?id=${application._id}`,
+            relatedIds: {
+              applicationId: application._id,
+              jobId: application.jobId._id,
+              fromUserId: req.user._id,
+            },
+          }
+        );
+
+        // Emit Socket.IO event to applicant
+        io.to(`user:${application.applicantId._id}`).emit('applicationStatusChanged', {
+          notificationId: notification._id,
+          applicationId: application._id,
+          jobTitle: application.jobId.title,
+          newStatus: status,
+        });
+      } catch (error) {
+        console.error('Error creating notification for status change:', error);
+      }
+    }
 
     res.json({
       success: true,

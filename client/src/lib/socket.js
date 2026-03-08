@@ -72,3 +72,15 @@ export const emitStopTyping = (conversationId, userId) => {
     socket.emit('stopTyping', { conversationId, userId });
   }
 };
+
+export const emitNotificationMarkAsRead = (notificationId) => {
+  if (socket && notificationId) {
+    socket.emit('notification:markAsRead', { notificationId });
+  }
+};
+
+export const emitNotificationDelete = (notificationId) => {
+  if (socket && notificationId) {
+    socket.emit('notification:delete', { notificationId });
+  }
+};

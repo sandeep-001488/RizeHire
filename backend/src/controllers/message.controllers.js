@@ -2,6 +2,7 @@ import Message from '../models/message.model.js';
 import Application from '../models/application.model.js';
 import User from '../models/user.model.js';
 import Job from '../models/job.model.js';
+import Notification from '../models/notification.model.js';
 import { sendMessageNotificationEmail } from '../services/email.service.js';
 import { io } from '../../app.js';
 
@@ -101,6 +102,28 @@ export const sendMessage = async (req, res) => {
       });
 
       console.log(`📨 Real-time message emitted to conversation: ${conversationId}`);
+    }
+
+    // Create notification for receiver about new message
+    try {
+      const notification = await Notification.createNotification(
+        receiverId,
+        'new_message',
+        {
+          title: 'New Message',
+          description: `Message from ${req.user.name}: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`,
+          icon: 'message-square',
+          actionUrl: `/messages?application=${application._id}`,
+          relatedIds: {
+            conversationId,
+            applicationId: application._id,
+            jobId: application.jobId._id,
+            fromUserId: req.user._id,
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error creating notification for new message:', error);
     }
 
     // Send email notification (async, don't wait)

@@ -300,7 +300,7 @@ export default function PostJobPage() {
           </Card>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <h1 className="text-3xl font-bold">Post a New Job</h1>
             <p className="text-muted-foreground mt-2">

@@ -15,6 +15,7 @@ import applicationRoutes from "./src/routes/application.routes.js";
 import aiRoutes from "./src/routes/ai.routes.js";
 import resumeRoutes from "./src/routes/resume.routes.js";
 import messageRoutes from "./src/routes/message.routes.js";
+import notificationRoutes from "./src/routes/notification.routes.js";
 import jobSeedRoutes from "./src/seeds/job.seeds.js";
 
 dotenv.config();
@@ -63,6 +64,7 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api", jobSeedRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/messages", messageRoutes); // Real-time messaging
+app.use("/api/notifications", notificationRoutes); // Notifications
 app.use("/api/ai", aiLimiter, aiRoutes); // Apply rate limiter only to AI routes
 app.use("/api/resume", resumeRoutes);
 
@@ -119,6 +121,28 @@ io.on("connection", (socket) => {
       userId,
       conversationId,
     });
+  });
+
+  // Notification: Mark as read
+  socket.on("notification:markAsRead", async (data) => {
+    try {
+      const Notification = (await import("./src/models/notification.model.js")).default;
+      await Notification.markAsRead(data.notificationId);
+      socket.emit("notification:markAsReadSuccess", { notificationId: data.notificationId });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  });
+
+  // Notification: Delete
+  socket.on("notification:delete", async (data) => {
+    try {
+      const Notification = (await import("./src/models/notification.model.js")).default;
+      await Notification.deleteNotification(data.notificationId);
+      socket.emit("notification:deleteSuccess", { notificationId: data.notificationId });
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+    }
   });
 
   // Handle disconnection

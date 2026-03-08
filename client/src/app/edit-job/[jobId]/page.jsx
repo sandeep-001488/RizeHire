@@ -281,7 +281,7 @@ export default function EditJobPage({ params }) {
           Back
         </Button>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Edit Job Posting</h1>
