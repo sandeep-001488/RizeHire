@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import useAuthStore from "@/stores/authStore";
 import useThemeStore from "@/stores/themeStore";
+import { useNotifications } from "@/hooks/useNotifications";
+import NotificationBadge from "@/components/notifications/NotificationBadge";
+import NotificationDrawer from "@/components/notifications/NotificationDrawer";
+import { handleNotificationClick } from "@/utils/notificationRouter";
 import {
   Moon,
   Sun,
@@ -21,10 +25,19 @@ import {
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
   const router = useRouter();
   const { user, isAuthenticated, logout, isInitialized, isHydrated } =
     useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
+  const {
+    unreadCount,
+    notifications,
+    markAsRead,
+    deleteNotification,
+    markAllAsRead,
+    isFetching,
+  } = useNotifications();
 
   const handleLogout = async () => {
     await logout();
@@ -94,6 +107,11 @@ export default function Header() {
 
             {isAuthenticated ? (
               <>
+                <NotificationBadge
+                  count={unreadCount}
+                  onClick={() => setIsNotificationDrawerOpen(true)}
+                  isLoading={isFetching}
+                />
                 <div className="hidden md:flex items-center space-x-2">
                   <Link href="/profile">
                     <Button variant="ghost" size="sm">
@@ -166,6 +184,22 @@ export default function Header() {
           </div>
         )}
       </div>
+
+      {/* Notification Drawer */}
+      <NotificationDrawer
+        isOpen={isNotificationDrawerOpen}
+        onClose={() => setIsNotificationDrawerOpen(false)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onMarkAsRead={markAsRead}
+        onDelete={deleteNotification}
+        onMarkAllAsRead={markAllAsRead}
+        onNotificationClick={(notification) => {
+          handleNotificationClick(notification, router);
+          setIsNotificationDrawerOpen(false);
+        }}
+        isLoading={isFetching}
+      />
     </header>
   );
 }

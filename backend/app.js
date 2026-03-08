@@ -15,6 +15,7 @@ import applicationRoutes from "./src/routes/application.routes.js";
 import aiRoutes from "./src/routes/ai.routes.js";
 import resumeRoutes from "./src/routes/resume.routes.js";
 import messageRoutes from "./src/routes/message.routes.js";
+import notificationRoutes from "./src/routes/notification.routes.js";
 import jobSeedRoutes from "./src/seeds/job.seeds.js";
 
 dotenv.config();
@@ -32,11 +33,20 @@ app.use(
 );
 app.options(allowedOrigin, cors());
 
-// Rate limiter specifically for AI routes only
+// Rate limiter for AI routes
 const aiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 50, // 50 AI requests per 15 minutes
   message: { error: "Too many AI requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiter for notification routes
+const notificationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests per minute
+  message: { error: "Too many notification requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -63,7 +73,8 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api", jobSeedRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/messages", messageRoutes); // Real-time messaging
-app.use("/api/ai", aiLimiter, aiRoutes); // Apply rate limiter only to AI routes
+app.use("/api/notifications", notificationLimiter, notificationRoutes); // Apply rate limiter to notifications
+app.use("/api/ai", aiLimiter, aiRoutes); // Apply rate limiter to AI routes
 app.use("/api/resume", resumeRoutes);
 
 
@@ -119,6 +130,28 @@ io.on("connection", (socket) => {
       userId,
       conversationId,
     });
+  });
+
+  // Notification: Mark as read
+  socket.on("notification:markAsRead", async (data) => {
+    try {
+      const Notification = (await import("./src/models/notification.model.js")).default;
+      await Notification.markAsRead(data.notificationId);
+      socket.emit("notification:markAsReadSuccess", { notificationId: data.notificationId });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  });
+
+  // Notification: Delete
+  socket.on("notification:delete", async (data) => {
+    try {
+      const Notification = (await import("./src/models/notification.model.js")).default;
+      await Notification.deleteNotification(data.notificationId);
+      socket.emit("notification:deleteSuccess", { notificationId: data.notificationId });
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+    }
   });
 
   // Handle disconnection
