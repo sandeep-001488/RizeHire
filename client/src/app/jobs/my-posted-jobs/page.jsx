@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import useJobStore from "@/stores/jobStore";
 import { formatDate } from "@/lib/utils";
@@ -17,6 +18,8 @@ import {
   PlusCircle,
   Briefcase,
   MapPin,
+  Filter,
+  X,
 } from "lucide-react";
 
 export default function MyJobsPage() {
@@ -29,9 +32,50 @@ export default function MyJobsPage() {
     deleteJob,
   } = useJobStore();
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    jobType: "",
+    workMode: "",
+    category: "",
+    industry: "",
+    experienceLevel: "",
+    location: "",
+  });
+  const [showFilters, setShowFilters] = useState(false);
+
+  const hasActiveFilters =
+    searchTerm ||
+    Object.values(filters).some((value) => value !== "");
+
   useEffect(() => {
-    fetchMyJobs();
-  }, [myJobsPagination.current]);
+    // When filters are active, fetch all jobs without pagination
+    if (hasActiveFilters) {
+      fetchMyJobs({ limit: 1000 }); // Fetch up to 1000 jobs to show all matches
+    } else {
+      // Otherwise use normal pagination
+      fetchMyJobs();
+    }
+  }, [hasActiveFilters]);
+
+  // Filter jobs based on search and filters
+  const filteredJobs = useMemo(() => {
+    return myJobs.filter((job) => {
+      const matchSearch =
+        !searchTerm ||
+        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        job.company?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        job.description.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchJobType = !filters.jobType || job.jobType === filters.jobType;
+      const matchWorkMode = !filters.workMode || job.workMode === filters.workMode;
+      const matchCategory = !filters.category || job.category === filters.category;
+      const matchIndustry = !filters.industry || job.industry === filters.industry;
+      const matchExperienceLevel = !filters.experienceLevel || job.experienceLevel === filters.experienceLevel;
+      const matchLocation = !filters.location || (job.location?.city?.toLowerCase() === filters.location.toLowerCase() || job.location?.country?.toLowerCase() === filters.location.toLowerCase());
+
+      return matchSearch && matchJobType && matchWorkMode && matchCategory && matchIndustry && matchExperienceLevel && matchLocation;
+    });
+  }, [myJobs, searchTerm, filters]);
 
   const handleDeleteJob = async (jobId) => {
     if (confirm("Are you sure you want to delete this job?")) {
@@ -41,6 +85,11 @@ export default function MyJobsPage() {
         alert("Failed to delete job");
       }
     }
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilters({ jobType: "", workMode: "", category: "", industry: "", experienceLevel: "", location: "" });
   };
 
   return (
@@ -60,6 +109,138 @@ export default function MyJobsPage() {
             </Button>
           </Link>
         </div>
+
+        {/* Search and Filter Section */}
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search by job title, company, or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1"
+              />
+              <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+              </Button>
+              {hasActiveFilters && (
+                <Button variant="ghost" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-2" />
+                  Clear
+                </Button>
+              )}
+            </div>
+
+            {showFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Job Type</label>
+                  <select
+                    value={filters.jobType}
+                    onChange={(e) => setFilters({ ...filters, jobType: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  >
+                    <option value="">All Types</option>
+                    <option value="full-time">Full-time</option>
+                    <option value="part-time">Part-time</option>
+                    <option value="contract">Contract</option>
+                    <option value="freelance">Freelance</option>
+                    <option value="internship">Internship</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Work Mode</label>
+                  <select
+                    value={filters.workMode}
+                    onChange={(e) => setFilters({ ...filters, workMode: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  >
+                    <option value="">All Modes</option>
+                    <option value="remote">Remote</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="onsite">Onsite</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Experience Level</label>
+                  <select
+                    value={filters.experienceLevel}
+                    onChange={(e) => setFilters({ ...filters, experienceLevel: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  >
+                    <option value="">All Levels</option>
+                    <option value="entry">Entry</option>
+                    <option value="junior">Junior</option>
+                    <option value="mid">Mid</option>
+                    <option value="senior">Senior</option>
+                    <option value="expert">Expert</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Category</label>
+                  <select
+                    value={filters.category}
+                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  >
+                    <option value="">All Categories</option>
+                    <option value="technology">Technology</option>
+                    <option value="business">Business</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="finance">Finance</option>
+                    <option value="healthcare">Healthcare</option>
+                    <option value="education">Education</option>
+                    <option value="creative">Creative</option>
+                    <option value="operations">Operations</option>
+                    <option value="sales">Sales</option>
+                    <option value="engineering">Engineering</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Industry</label>
+                  <select
+                    value={filters.industry}
+                    onChange={(e) => setFilters({ ...filters, industry: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  >
+                    <option value="">All Industries</option>
+                    <option value="IT & Software">IT & Software</option>
+                    <option value="Banking & Finance">Banking & Finance</option>
+                    <option value="Healthcare & Medical">Healthcare & Medical</option>
+                    <option value="Education & Training">Education & Training</option>
+                    <option value="Retail & E-commerce">Retail & E-commerce</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                    <option value="Consulting">Consulting</option>
+                    <option value="Media & Entertainment">Media & Entertainment</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Location</label>
+                  <Input
+                    placeholder="Search city or country..."
+                    value={filters.location}
+                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+                    className="w-full px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Results info */}
+        {hasActiveFilters && (
+          <div className="text-sm text-muted-foreground">
+            Found {filteredJobs.length} matching {filteredJobs.length === 1 ? "job" : "jobs"}
+          </div>
+        )}
 
         {isLoadingMyJobs ? (
           <div className="space-y-4">
@@ -81,8 +262,20 @@ export default function MyJobsPage() {
           </div>
         ) : myJobs.length > 0 ? (
           <div className="space-y-4">
-            {myJobs.map((job) => (
-              <Card key={job._id} className="hover:shadow-lg transition-shadow">
+            {filteredJobs.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    {hasActiveFilters
+                      ? "No jobs match your filters"
+                      : "No jobs posted yet"}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredJobs.map((job) => (
+                <Card key={job._id} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between">
                     <div className="flex-1">
@@ -189,9 +382,10 @@ export default function MyJobsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              ))
+            )}
 
-            {myJobsPagination.pages > 1 && (
+            {myJobsPagination.pages > 1 && !hasActiveFilters && (
               <div className="flex justify-center space-x-2 mt-8">
                 <Button
                   variant="outline"

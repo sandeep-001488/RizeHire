@@ -25,9 +25,9 @@ import {
   Eye,
   Star,
   TrendingUp,
-  Sparkles,
   CheckCircle2,
   Brain,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -163,6 +163,23 @@ export default function JobsPage() {
     fetchJobs();
   };
 
+  const clearFilters = () => {
+    setFilters({
+      search: "",
+      category: "",
+      industry: "",
+      jobType: "",
+      workMode: "",
+      experienceLevel: "",
+      location: "",
+      skills: [],
+    });
+    setPagination({ ...pagination, current: 1 });
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = filters.search || filters.category || filters.industry || filters.jobType || filters.workMode || filters.experienceLevel || filters.location;
+
   const isJobOwner = (job) => {
     return isAuthenticated && user && job?.postedBy?._id === user?._id;
   };
@@ -272,6 +289,16 @@ export default function JobsPage() {
                   <Filter className="mr-2 h-4 w-4" />
                   Filters
                 </Button>
+                {hasActiveFilters && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={clearFilters}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                )}
                 <Button type="submit">Search</Button>
               </div>
             </div>
@@ -420,12 +447,11 @@ export default function JobsPage() {
       )}
 
       {/* Personalized Recommendations Section (for seekers only) */}
-      {user?.role === "seeker" && recommendations.length > 0 && (
+      {user?.role === "seeker" && recommendations.length > 0 && !hasActiveFilters && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="h-5 w-5 text-blue-600" />
             <h2 className="text-2xl font-bold">Recommended For You</h2>
-            <Badge variant="secondary" className="ml-2">Top Matches</Badge>
+            <Badge variant="secondary" className="ml-2">{recommendations.length} {recommendations.length === 1 ? "Match" : "Matches"}</Badge>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -434,7 +460,6 @@ export default function JobsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2 gap-2">
                     <Badge className="bg-green-100 text-green-800 border-green-300">
-                      <Sparkles className="h-3 w-3 mr-1" />
                       {job.matchScore}% Match
                     </Badge>
                   </div>
@@ -454,7 +479,6 @@ export default function JobsPage() {
                   {job.mlPrediction && (
                     <div className="mb-3 p-2 bg-linear-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-md border border-purple-200 dark:border-purple-800 flex items-center justify-between">
                       <p className="text-sm font-bold text-purple-900 dark:text-purple-100 flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" />
                         {job.mlPrediction.acceptanceProbability}% Success Rate
                       </p>
                       <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-300">
@@ -491,7 +515,6 @@ export default function JobsPage() {
                   <>Show Less</>
                 ) : (
                   <>
-                    <Sparkles className="mr-2 h-4 w-4" />
                     Show {recommendations.length - 3} More Recommendations
                   </>
                 )}
@@ -541,7 +564,6 @@ export default function JobsPage() {
                             variant="outline"
                             className={`${getMatchBadgeStyle(job.matchScore)} flex items-center gap-1 font-semibold shrink-0`}
                           >
-                            {job.matchScore >= 80 && <Sparkles className="h-3 w-3" />}
                             {job.matchScore}% Match
                           </Badge>
                         )}
@@ -589,7 +611,6 @@ export default function JobsPage() {
                               ? "text-yellow-700 dark:text-yellow-300"
                               : "text-orange-700 dark:text-orange-300"
                           }`}>
-                            <Sparkles className="h-3 w-3" />
                             {job.mlPrediction.acceptanceProbability}% Success Rate
                           </p>
                           <Badge variant="outline" className="text-xs">
@@ -673,7 +694,6 @@ export default function JobsPage() {
                             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
-                                  <Sparkles className="h-5 w-5 text-blue-600" />
                                   Why This Job Matches You
                                 </DialogTitle>
                                 <DialogDescription>
