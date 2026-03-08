@@ -12,6 +12,10 @@ from sklearn.neural_network import MLPRegressor
 import pickle
 import os
 import json
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Node.js communication
@@ -392,8 +396,11 @@ if __name__ == '__main__':
 
     print("="*50)
     print("✅ Service ready!")
-    print("📡 Listening on http://localhost:5001")
+
+    # Get port from environment or default to 5001
+    port = int(os.environ.get('PORT', 5001))
+    print(f"📡 Listening on http://localhost:{port}")
     print("="*50)
 
     # Run Flask app
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True)
