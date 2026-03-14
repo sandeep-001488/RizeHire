@@ -265,6 +265,24 @@ const getMyApplications = async (req, res) => {
     // Get message information for each application
     const formattedApplications = await Promise.all(
       applications.map(async (app) => {
+        // Skip if job or recruiter has been deleted
+        if (!app.jobId || !app.jobId.postedBy) {
+          return {
+            _id: app._id,
+            job: app.jobId,
+            coverLetter: app.coverLetter,
+            status: app.status,
+            appliedAt: app.appliedAt,
+            feedback: app.feedback.filter((f) => f.visibleToApplicant),
+            viewedByRecruiter: app.viewedByRecruiter,
+            matchScore: app.matchScore,
+            rejectionReason: app.rejectionReason,
+            hasMessages: false,
+            unreadMessageCount: 0,
+            conversationId: null,
+          };
+        }
+
         // Create conversation ID
         const conversationId = Message.createConversationId(
           app.jobId._id,
