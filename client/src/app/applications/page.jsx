@@ -253,7 +253,7 @@ export default function ApplicationsPage() {
                               </h4>
 
                               {/* Match Score */}
-                              {application.matchScore !== undefined && (
+                              {application.matchScore !== undefined && application.matchScore > 0 && (
                                 <div className="mb-3">
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="text-sm font-medium text-red-800 dark:text-red-200">
@@ -352,6 +352,7 @@ export default function ApplicationsPage() {
 
                                     <div className="mt-6 space-y-4">
                                       {/* Match Score Section */}
+                                      {application.matchScore > 0 && (
                                       <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                         <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
                                           <AlertCircle className="h-5 w-5" />
@@ -380,6 +381,7 @@ export default function ApplicationsPage() {
                                           </div>
                                         </div>
                                       </div>
+                                      )}
 
                                       {/* Feedback Messages */}
                                       {application.feedback.map((feedback, index) => (
