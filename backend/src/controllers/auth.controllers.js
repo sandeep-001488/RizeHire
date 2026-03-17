@@ -5,6 +5,7 @@ import { parseResumeWithAI } from "../utils/aiScreening.js";
 import { sendEmail } from "../utils/email.js";
 import Joi from "joi";
 import crypto from "crypto";
+import fs from "fs";
 import { uploadToCloudinary } from "../middleware/upload.middleware.js";
 
 const registerSchema = Joi.object({
