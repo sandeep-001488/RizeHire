@@ -225,7 +225,7 @@ export default function ProfilePage() {
                         onChange={handleChange}
                         disabled={!isEditing}
                       />
-                      {user?.parsedResume?.location && formData.location !== `${user.parsedResume.location.city}${user.parsedResume.location.country ? `, ${user.parsedResume.location.country}` : ''}` && (
+                      {user?.parsedResume?.location && !user.location && (
                         <p className="text-xs text-blue-600 mt-1">
                           📝 Resume has: {user.parsedResume.location.city}{user.parsedResume.location.country && `, ${user.parsedResume.location.country}`}
                         </p>
