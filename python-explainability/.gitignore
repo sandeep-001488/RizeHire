@@ -9,9 +9,12 @@ env/
 ENV/
 .env
 
-# Model files
+# Model files (too large for GitHub — 100MB limit)
 *.pkl
+*.pt
 trained_model.pkl
+rizehire_cross_encoder_final/
+dataset.csv
 
 # IDE
 .vscode/

@@ -938,7 +938,36 @@ const checkExplainabilityService = async (req, res) => {
 };
 
 /**
+ * Extract text data from user and job for BERT semantic matching
+ * @param {Object} user - User object with parsedResume
+ * @param {Object} job - Job object with description
+ * @returns {Object} Text data for BERT service
+ */
+function extractTextData(user, job) {
+  // Build resume text from parsed resume data
+  const parsedResume = user.parsedResume || {};
+  const skills = [
+    ...(parsedResume.skills || []),
+    ...(parsedResume.technicalSkills || []),
+  ].join(', ');
+
+  const resumeParts = [
+    parsedResume.parsed_summary || '',
+    skills ? `Skills: ${skills}` : '',
+    parsedResume.yearsOfExperience ? `Experience: ${parsedResume.yearsOfExperience} years` : '',
+    parsedResume.education?.length ? `Education: ${parsedResume.education.join(', ')}` : '',
+    user.bio || '',
+  ].filter(Boolean);
+
+  return {
+    resumeText: resumeParts.join('. ') || '',
+    jobDescription: job.description || '',
+  };
+}
+
+/**
  * Get SHAP explanation for a job match
+ * Uses BERT semantic matching + SHAP explainability
  */
 const getSHAPForJob = async (req, res) => {
   try {
@@ -956,8 +985,11 @@ const getSHAPForJob = async (req, res) => {
     // Calculate match
     const match = calculateMatch(req.user, job);
 
-    // Get SHAP explanation
-    const explanation = await getSHAPExplanation(match.breakdown);
+    // Extract text data for BERT semantic matching
+    const textData = extractTextData(req.user, job);
+
+    // Get SHAP explanation (with BERT text data)
+    const explanation = await getSHAPExplanation(match.breakdown, textData);
 
     res.json({
       success: true,
@@ -978,6 +1010,7 @@ const getSHAPForJob = async (req, res) => {
 
 /**
  * Get LIME explanation for a job match
+ * Uses BERT semantic matching + LIME explainability
  */
 const getLIMEForJob = async (req, res) => {
   try {
@@ -995,8 +1028,11 @@ const getLIMEForJob = async (req, res) => {
     // Calculate match
     const match = calculateMatch(req.user, job);
 
-    // Get LIME explanation
-    const explanation = await getLIMEExplanation(match.breakdown);
+    // Extract text data for BERT semantic matching
+    const textData = extractTextData(req.user, job);
+
+    // Get LIME explanation (with BERT text data)
+    const explanation = await getLIMEExplanation(match.breakdown, textData);
 
     res.json({
       success: true,
@@ -1017,7 +1053,7 @@ const getLIMEForJob = async (req, res) => {
 
 /**
  * Get combined SHAP + LIME explanation
- * Provides comprehensive explainability
+ * Uses BERT semantic matching with comprehensive explainability
  */
 const getCombinedExplanationForJob = async (req, res) => {
   try {
@@ -1035,8 +1071,11 @@ const getCombinedExplanationForJob = async (req, res) => {
     // Calculate match
     const match = calculateMatch(req.user, job);
 
-    // Get combined explanation
-    const explanation = await getCombinedExplanation(match.breakdown);
+    // Extract text data for BERT semantic matching
+    const textData = extractTextData(req.user, job);
+
+    // Get combined explanation (with BERT text data)
+    const explanation = await getCombinedExplanation(match.breakdown, textData);
 
     res.json({
       success: true,

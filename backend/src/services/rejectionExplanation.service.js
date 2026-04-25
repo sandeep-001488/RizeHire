@@ -1,51 +1,16 @@
 /**
  * Service to generate rejection explanations with SHAP/LIME analysis
+ * Reuses explainability service for BERT-based SHAP/LIME calls
  */
 
-import axios from "axios";
-
-const SHAP_LIME_API = process.env.SHAP_LIME_API || "http://localhost:5001";
-
-/**
- * Get SHAP explanation from Python service
- */
-export async function getSHAPExplanation(matchBreakdown) {
-  try {
-    const response = await axios.post(`${SHAP_LIME_API}/explain/shap`, {
-      skills: matchBreakdown?.skills?.score || 0,
-      experience: matchBreakdown?.experience?.score || 0,
-      location: matchBreakdown?.location?.score || 0,
-      salary: matchBreakdown?.salary?.score || 0,
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error("SHAP explanation failed:", error.message);
-    return null;
-  }
-}
-
-/**
- * Get LIME explanation from Python service
- */
-export async function getLIMEExplanation(matchBreakdown) {
-  try {
-    const response = await axios.post(`${SHAP_LIME_API}/explain/lime`, {
-      skills: matchBreakdown?.skills?.score || 0,
-      experience: matchBreakdown?.experience?.score || 0,
-      location: matchBreakdown?.location?.score || 0,
-      salary: matchBreakdown?.salary?.score || 0,
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error("LIME explanation failed:", error.message);
-    return null;
-  }
-}
+import {
+  getSHAPExplanation,
+  getLIMEExplanation,
+} from "./explainability.service.js";
 
 /**
  * Generate rejection explanation with recommendations
+ * Now supports BERT semantic matching via text data
  */
 export async function generateRejectionExplanation({
   hardRuleFailed,
@@ -54,11 +19,17 @@ export async function generateRejectionExplanation({
   candidate,
 }) {
   try {
-    // Get SHAP explanation (global feature importance)
-    const shapExplanation = await getSHAPExplanation(matchBreakdown);
+    // Build text data for BERT semantic matching (if candidate/job text available)
+    const textData = {
+      resumeText: candidate?.parsedResume?.parsed_summary || candidate?.bio || '',
+      jobDescription: job?.description || '',
+    };
 
-    // Get LIME explanation (local feature importance)
-    const limeExplanation = await getLIMEExplanation(matchBreakdown);
+    // Get SHAP explanation (global feature importance) with BERT
+    const shapExplanation = await getSHAPExplanation(matchBreakdown, textData);
+
+    // Get LIME explanation (local feature importance) with BERT
+    const limeExplanation = await getLIMEExplanation(matchBreakdown, textData);
 
     // Generate recommendations based on weak areas
     const recommendations = generateRecommendations(matchBreakdown, hardRuleFailed);

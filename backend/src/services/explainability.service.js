@@ -1,6 +1,9 @@
 /**
  * Explainability Service
- * Communicates with Python SHAP/LIME microservice
+ * Communicates with Python BERT + SHAP/LIME microservice
+ *
+ * Uses Sentence-BERT (all-MiniLM-L6-v2) for semantic matching
+ * with SHAP and LIME for model explainability
  */
 
 import axios from 'axios';
@@ -10,11 +13,40 @@ const PYTHON_SERVICE_URL = process.env.PYTHON_EXPLAINABILITY_URL || 'http://loca
 // Axios instance for Python service
 const pythonAPI = axios.create({
   baseURL: PYTHON_SERVICE_URL,
-  timeout: 30000, // 30 seconds (ML explanations can be slow)
+  timeout: 60000, // 60 seconds (BERT embeddings + SHAP/LIME can be slow)
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+/**
+ * Build the payload for Python BERT service
+ * Includes both text data (for BERT semantic matching) and scores (for hybrid prediction)
+ *
+ * @param {Object} matchBreakdown - Match scores from jobMatching.js
+ * @param {Object} textData - Optional text data for BERT mode
+ * @param {string} textData.resumeText - Candidate resume text/summary
+ * @param {string} textData.jobDescription - Job description text
+ * @returns {Object} Payload for Python service
+ */
+function buildPayload(matchBreakdown, textData = {}) {
+  const payload = {
+    skills: matchBreakdown.skills?.score || 0,
+    experience: matchBreakdown.experience?.score || 0,
+    location: matchBreakdown.location?.score || 0,
+    salary: matchBreakdown.salary?.score || 0,
+  };
+
+  // Include text data for full BERT semantic matching mode
+  if (textData.resumeText) {
+    payload.resume_text = textData.resumeText;
+  }
+  if (textData.jobDescription) {
+    payload.job_description = textData.jobDescription;
+  }
+
+  return payload;
+}
 
 /**
  * Check if Python service is healthy
@@ -25,7 +57,7 @@ export async function isPythonServiceHealthy() {
     const response = await pythonAPI.get('/health');
     return response.data.status === 'healthy';
   } catch (error) {
-    console.error('❌ Python service is not reachable:', error.message);
+    console.error('❌ Python BERT service is not reachable:', error.message);
     return false;
   }
 }
@@ -34,20 +66,15 @@ export async function isPythonServiceHealthy() {
  * Get SHAP explanation for a prediction
  *
  * @param {Object} matchBreakdown - Match scores from jobMatching.js
- * @param {Object} matchBreakdown.skills - Skills match data
- * @param {Object} matchBreakdown.experience - Experience match data
- * @param {Object} matchBreakdown.location - Location match data
- * @param {Object} matchBreakdown.salary - Salary match data
+ * @param {Object} textData - Optional text data for BERT semantic matching
+ * @param {string} textData.resumeText - Candidate resume text
+ * @param {string} textData.jobDescription - Job description text
  * @returns {Promise<Object>} SHAP explanation
  */
-export async function getSHAPExplanation(matchBreakdown) {
+export async function getSHAPExplanation(matchBreakdown, textData = {}) {
   try {
-    const response = await pythonAPI.post('/explain/shap', {
-      skills: matchBreakdown.skills?.score || 0,
-      experience: matchBreakdown.experience?.score || 0,
-      location: matchBreakdown.location?.score || 0,
-      salary: matchBreakdown.salary?.score || 0,
-    });
+    const payload = buildPayload(matchBreakdown, textData);
+    const response = await pythonAPI.post('/explain/shap', payload);
 
     if (!response.data.success) {
       throw new Error(response.data.error || 'SHAP explanation failed');
@@ -75,16 +102,13 @@ export async function getSHAPExplanation(matchBreakdown) {
  * Get LIME explanation for a prediction
  *
  * @param {Object} matchBreakdown - Match scores
+ * @param {Object} textData - Optional text data for BERT semantic matching
  * @returns {Promise<Object>} LIME explanation
  */
-export async function getLIMEExplanation(matchBreakdown) {
+export async function getLIMEExplanation(matchBreakdown, textData = {}) {
   try {
-    const response = await pythonAPI.post('/explain/lime', {
-      skills: matchBreakdown.skills?.score || 0,
-      experience: matchBreakdown.experience?.score || 0,
-      location: matchBreakdown.location?.score || 0,
-      salary: matchBreakdown.salary?.score || 0,
-    });
+    const payload = buildPayload(matchBreakdown, textData);
+    const response = await pythonAPI.post('/explain/lime', payload);
 
     if (!response.data.success) {
       throw new Error(response.data.error || 'LIME explanation failed');
@@ -109,16 +133,13 @@ export async function getLIMEExplanation(matchBreakdown) {
  * More comprehensive but slower
  *
  * @param {Object} matchBreakdown - Match scores
+ * @param {Object} textData - Optional text data for BERT semantic matching
  * @returns {Promise<Object>} Combined explanation
  */
-export async function getCombinedExplanation(matchBreakdown) {
+export async function getCombinedExplanation(matchBreakdown, textData = {}) {
   try {
-    const response = await pythonAPI.post('/explain/combined', {
-      skills: matchBreakdown.skills?.score || 0,
-      experience: matchBreakdown.experience?.score || 0,
-      location: matchBreakdown.location?.score || 0,
-      salary: matchBreakdown.salary?.score || 0,
-    });
+    const payload = buildPayload(matchBreakdown, textData);
+    const response = await pythonAPI.post('/explain/combined', payload);
 
     if (!response.data.success) {
       throw new Error(response.data.error || 'Combined explanation failed');
@@ -154,12 +175,14 @@ function getFallbackExplanation(matchBreakdown) {
     salary: matchBreakdown.salary?.score || 0,
   };
 
-  // Calculate weighted contributions (same as ML model weights)
+  // Calculate weighted contributions (aligned with jobMatching.js weights)
+  // Note: When BERT service is available, it uses BERT 40% + Skills 30% + Exp 15% + Loc 10% + Sal 5%
+  // Fallback uses traditional-only weights from jobMatching.js
   const contributions = {
-    skills: (scores.skills - 50) * 0.50,  // 50% weight
-    experience: (scores.experience - 50) * 0.30,  // 30% weight
-    location: (scores.location - 50) * 0.15,  // 15% weight
-    salary: (scores.salary - 50) * 0.05,  // 5% weight
+    skills: (scores.skills - 50) * 0.50,      // 50% weight (matches jobMatching.js)
+    experience: (scores.experience - 50) * 0.35, // 35% weight (matches jobMatching.js)
+    location: (scores.location - 50) * 0.10,   // 10% weight (matches jobMatching.js)
+    salary: (scores.salary - 50) * 0.05,       // 5% weight (matches jobMatching.js)
   };
 
   // Sort by absolute importance

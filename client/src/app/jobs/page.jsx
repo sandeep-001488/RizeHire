@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import useJobStore from "@/stores/jobStore";
 import useAuthStore from "@/stores/authStore";
-import { jobsAPI } from "@/lib/api";
+import { jobsAPI, aiAPI } from "@/lib/api";
 import { formatDate, formatSalary } from "@/lib/utils";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import {
