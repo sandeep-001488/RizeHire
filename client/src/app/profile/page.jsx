@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import ParseResume from "@/components/profile/ParseResume";
 import useAuthStore from "@/stores/authStore";
-import { authAPI, aiAPI } from "@/lib/api";
+import { authAPI, aiAPI, jobsAPI } from "@/lib/api";
 import {
   Edit,
   Save,
@@ -51,11 +51,22 @@ export default function ProfilePage() {
     },
   });
   const [skillInput, setSkillInput] = useState("");
+  const [skillSuggestions, setSkillSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     if (user) {
       
-      const userLocation = user.location || user.parsedResume?.location || "";
+      // parsedResume.location is an object {city, country} — convert to string
+      let userLocation = user.location || "";
+      if (!userLocation && user.parsedResume?.location) {
+        const loc = user.parsedResume.location;
+        if (typeof loc === "string") {
+          userLocation = loc;
+        } else if (loc.city || loc.country) {
+          userLocation = [loc.city, loc.country].filter(Boolean).join(", ");
+        }
+      }
 
       setFormData({
         name: user.name || "",
@@ -102,13 +113,39 @@ export default function ProfilePage() {
     }));
   };
 
-  const addSkill = () => {
-    if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
+  const addSkill = (skillName) => {
+    const skill = (skillName || skillInput).trim();
+    if (skill && !formData.skills.includes(skill)) {
       setFormData((prev) => ({
         ...prev,
-        skills: [...prev.skills, skillInput.trim()],
+        skills: [...prev.skills, skill],
       }));
       setSkillInput("");
+      setSkillSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Fetch skill suggestions as user types
+  const handleSkillInputChange = async (e) => {
+    const value = e.target.value;
+    setSkillInput(value);
+
+    if (value.trim().length >= 1) {
+      try {
+        const res = await jobsAPI.searchSkills(value.trim());
+        const suggestions = (res.data?.skills || []).filter(
+          (s) => !formData.skills.includes(s)
+        );
+        setSkillSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } catch {
+        setSkillSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } else {
+      setSkillSuggestions([]);
+      setShowSuggestions(false);
     }
   };
 
@@ -225,9 +262,9 @@ export default function ProfilePage() {
                         onChange={handleChange}
                         disabled={!isEditing}
                       />
-                      {user?.parsedResume?.location && !user.location && (
+                      {user?.parsedResume?.location && !user.location && (user.parsedResume.location.city || user.parsedResume.location.country) && (
                         <p className="text-xs text-blue-600 mt-1">
-                          📝 Resume has: {user.parsedResume.location.city}{user.parsedResume.location.country && `, ${user.parsedResume.location.country}`}
+                          📝 Resume has: {[user.parsedResume.location.city, user.parsedResume.location.country].filter(Boolean).join(", ")}
                         </p>
                       )}
                     </div>
@@ -325,7 +362,7 @@ export default function ProfilePage() {
                     <input
                       type="checkbox"
                       id="willingToRelocate"
-                      checked={formData.preferences.willingToRelocate}
+                      checked={formData.preferences?.willingToRelocate ?? true}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -342,7 +379,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Relocation Type */}
-                {formData.preferences.willingToRelocate && (
+                {formData.preferences?.willingToRelocate && (
                   <div className="space-y-3">
                     <Label>Where are you willing to relocate?</Label>
                     <div className="space-y-2">
@@ -352,7 +389,7 @@ export default function ProfilePage() {
                           id="same-city-only"
                           name="relocationType"
                           value="same-city-only"
-                          checked={formData.preferences.relocationType === "same-city-only"}
+                          checked={formData.preferences?.relocationType === "same-city-only"}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
@@ -382,7 +419,7 @@ export default function ProfilePage() {
                           id="within-country"
                           name="relocationType"
                           value="within-country"
-                          checked={formData.preferences.relocationType === "within-country"}
+                          checked={formData.preferences?.relocationType === "within-country"}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
@@ -412,7 +449,7 @@ export default function ProfilePage() {
                           id="international"
                           name="relocationType"
                           value="international"
-                          checked={formData.preferences.relocationType === "international"}
+                          checked={formData.preferences?.relocationType === "international"}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
@@ -482,18 +519,39 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {isEditing && (
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add a skill"
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                    onKeyPress={(e) =>
-                      e.key === "Enter" && (e.preventDefault(), addSkill())
-                    }
-                  />
-                  <Button type="button" onClick={addSkill}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Type to search skills (e.g., React, Python, AWS)"
+                      value={skillInput}
+                      onChange={handleSkillInputChange}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && (e.preventDefault(), addSkill())
+                      }
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                      onFocus={() => skillSuggestions.length > 0 && setShowSuggestions(true)}
+                    />
+                    <Button type="button" onClick={() => addSkill()}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {showSuggestions && skillSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {skillSuggestions.map((skill, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b last:border-b-0"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            addSkill(skill);
+                          }}
+                        >
+                          {skill}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

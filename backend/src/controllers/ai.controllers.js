@@ -1,6 +1,7 @@
 import { generateContent } from "../config/gemini.js";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
+import axios from "axios";
 import { getSmartSkillSuggestions } from "../utils/skillSuggestions.js";
 import { trainModel, getModelPerformance, predictAcceptance } from "../utils/mlModel.js";
 import { calculateJobMatch as calculateMatch } from "../utils/jobMatching.js";
@@ -472,6 +473,37 @@ const testAI = async (req, res) => {
   }
 };
 
+/**
+ * Tiered AI Recommendation System:
+ * Tier 1: Gemini API (AI-powered batch ranking & scoring)
+ * Tier 2: BERT Python Service (semantic matching via cross-encoder)
+ * Tier 3: Traditional keyword matching (fallback)
+ */
+const PYTHON_SERVICE_URL = process.env.PYTHON_EXPLAINABILITY_URL || 'http://localhost:5001';
+
+// Helper: extract text data for BERT
+function extractTextForBERT(user, job) {
+  const parsedResume = user.parsedResume || {};
+  const skills = [
+    ...(parsedResume.skills || []),
+    ...(parsedResume.technicalSkills || []),
+    ...(user.skills || []),
+  ].join(', ');
+
+  const resumeParts = [
+    parsedResume.parsed_summary || '',
+    skills ? `Skills: ${skills}` : '',
+    parsedResume.yearsOfExperience ? `Experience: ${parsedResume.yearsOfExperience} years` : '',
+    parsedResume.education?.length ? `Education: ${parsedResume.education.join(', ')}` : '',
+    user.bio || '',
+  ].filter(Boolean);
+
+  return {
+    resumeText: resumeParts.join('. ') || '',
+    jobDescription: job.description || '',
+  };
+}
+
 const getJobRecommendations = async (req, res) => {
   try {
     const user = req.user;
@@ -482,12 +514,14 @@ const getJobRecommendations = async (req, res) => {
         success: true,
         data: {
           recommendations: [],
+          source: 'none',
           message:
             "Add skills or upload a resume to get personalized recommendations",
         },
       });
     }
 
+    // Get applied job IDs to exclude
     const appliedJobIds = await Application.find({
       applicantId: user._id,
     })
@@ -496,63 +530,199 @@ const getJobRecommendations = async (req, res) => {
 
     const appliedJobIdsArray = appliedJobIds.map((app) => app.jobId.toString());
 
+    // Get all active jobs (not just skill-filtered, so Gemini/BERT can find broader matches)
     const jobs = await Job.find({
       isActive: true,
-      skills: { $in: userSkills },
       postedBy: { $ne: user._id },
       _id: { $nin: appliedJobIdsArray },
     })
       .populate("postedBy", "name email profileImage")
-      .limit(10)
+      .limit(20)
       .sort({ createdAt: -1 });
 
-    // Use the parsedResume if available for better recommendations
-    const profileText = user.parsedResume
-      ? JSON.stringify(user.parsedResume)
-      : `Skills: ${JSON.stringify(userSkills)}, Bio: ${user.bio}`;
+    if (jobs.length === 0) {
+      return res.json({
+        success: true,
+        data: { recommendations: [], source: 'none' },
+      });
+    }
 
-    const recommendations = await Promise.all(
-      jobs.map(async (job) => {
-        try {
-          const prompt = `Rate job match (0-100): Job "${
-            job.title
-          }" with skills ${JSON.stringify(
-            job.skills
-          )} for candidate profile: ${profileText}. Return only number.`;
-          const response = await generateContent(prompt);
-          const matchScore = parseInt(response.match(/\d+/)?.[0] || "50");
+    let recommendations = [];
+    let source = 'traditional';
 
+    // ============================================
+    // TIER 1: Try Gemini API (batch ranking)
+    // ============================================
+    try {
+      console.log("🤖 Tier 1: Attempting Gemini AI recommendations...");
+
+      const parsedResume = user.parsedResume || {};
+      const candidateProfile = {
+        skills: userSkills,
+        experience: parsedResume.yearsOfExperience || 0,
+        education: parsedResume.education || [],
+        summary: parsedResume.parsed_summary || user.bio || '',
+        location: typeof (user.location || parsedResume.location || '') === 'object'
+          ? `${(user.location || parsedResume.location)?.city || ''}, ${(user.location || parsedResume.location)?.country || ''}`
+          : (user.location || parsedResume.location || ''),
+      };
+
+      const jobSummaries = jobs.map((job, index) => ({
+        index,
+        title: job.title,
+        skills: (job.skills || []).join(', '),
+        experienceLevel: job.experienceLevel || 'mid',
+        workMode: job.workMode || '',
+        location: job.location ? `${job.location.city || ''}, ${job.location.country || ''}` : '',
+        description: (job.description || '').substring(0, 200),
+      }));
+
+      const prompt = `You are an AI recruitment expert. Analyze the candidate profile and rank the jobs by relevance.
+
+CANDIDATE PROFILE:
+- Skills: ${candidateProfile.skills.join(', ') || 'Not specified'}
+- Experience: ${candidateProfile.experience} years
+- Education: ${Array.isArray(candidateProfile.education) ? candidateProfile.education.join(', ') : candidateProfile.education || 'Not specified'}
+- Summary: ${candidateProfile.summary || 'Not provided'}
+- Location: ${candidateProfile.location || 'Not specified'}
+
+AVAILABLE JOBS:
+${jobSummaries.map(j => `[${j.index}] ${j.title} | Skills: ${j.skills} | Level: ${j.experienceLevel} | Mode: ${j.workMode} | Location: ${j.location}`).join('\n')}
+
+INSTRUCTIONS:
+For each job, provide a match score (0-100) and a brief reason. Consider:
+1. Skill overlap (most important - 50% weight)
+2. Experience level fit (35% weight)
+3. Location/work mode compatibility (15% weight)
+
+Respond ONLY with a valid JSON array, no markdown, no code blocks, no extra text. Format:
+[{"index": 0, "score": 85, "reason": "Strong skill match in React, Node.js"}, ...]
+
+Sort by score descending. Only include jobs with score > 10.`;
+
+      const responseText = await generateContent(prompt);
+
+      // Parse JSON response
+      let cleanText = responseText.trim();
+      if (cleanText.startsWith('```')) {
+        cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      }
+      const geminiResults = JSON.parse(cleanText);
+
+      if (Array.isArray(geminiResults) && geminiResults.length > 0) {
+        recommendations = geminiResults
+          .filter(r => r.index !== undefined && r.index < jobs.length)
+          .map(result => ({
+            job: jobs[result.index],
+            matchScore: Math.min(Math.max(Math.round(result.score || 0), 0), 100),
+            reason: result.reason || '',
+          }))
+          .sort((a, b) => b.matchScore - a.matchScore)
+          .slice(0, 10);
+
+        source = 'gemini';
+        console.log(`✅ Gemini returned ${recommendations.length} recommendations`);
+      } else {
+        throw new Error("Gemini returned empty results");
+      }
+    } catch (geminiError) {
+      console.warn("⚠️ Tier 1 Gemini failed:", geminiError.message);
+
+      // ============================================
+      // TIER 2: Try BERT Python Service
+      // ============================================
+      try {
+        console.log("🧠 Tier 2: Attempting BERT recommendations...");
+
+        const bertResults = await Promise.all(
+          jobs.map(async (job) => {
+            try {
+              const traditionalMatch = calculateMatch(user, job);
+              const textData = extractTextForBERT(user, job);
+
+              if (!textData.resumeText || !textData.jobDescription) {
+                return {
+                  job,
+                  matchScore: traditionalMatch.overallScore,
+                  source: 'traditional',
+                };
+              }
+
+              const response = await axios.post(`${PYTHON_SERVICE_URL}/predict`, {
+                resume_text: textData.resumeText,
+                job_description: textData.jobDescription,
+                skills: traditionalMatch.breakdown?.skills?.score || 50,
+                experience: traditionalMatch.breakdown?.experience?.score || 50,
+                location: traditionalMatch.breakdown?.location?.score || 50,
+                salary: traditionalMatch.breakdown?.salary?.score || 50,
+              }, { timeout: 10000 });
+
+              if (response.data?.success) {
+                const bertScore = Math.round(response.data.prediction);
+                const skillsScore = traditionalMatch.breakdown?.skills?.score || 0;
+                const experienceScore = traditionalMatch.breakdown?.experience?.score || 0;
+                const locationScore = traditionalMatch.breakdown?.location?.score || 0;
+                const salaryScore = traditionalMatch.breakdown?.salary?.score || 0;
+
+                // Hybrid: BERT 40% + Skills 30% + Experience 15% + Location 10% + Salary 5%
+                let finalScore = Math.round(
+                  (bertScore * 0.40) +
+                  (skillsScore * 0.30) +
+                  (experienceScore * 0.15) +
+                  (locationScore * 0.10) +
+                  (salaryScore * 0.05)
+                );
+
+                // Skills penalty
+                if (skillsScore === 0) finalScore = Math.min(finalScore, 20);
+                else if (skillsScore < 20) finalScore = Math.min(finalScore, 30);
+                else if (skillsScore < 40) finalScore = Math.min(finalScore, 40);
+
+                return { job, matchScore: finalScore };
+              }
+              return { job, matchScore: traditionalMatch.overallScore };
+            } catch {
+              const traditionalMatch = calculateMatch(user, job);
+              return { job, matchScore: traditionalMatch.overallScore };
+            }
+          })
+        );
+
+        recommendations = bertResults
+          .sort((a, b) => b.matchScore - a.matchScore)
+          .slice(0, 10);
+
+        source = 'bert';
+        console.log(`✅ BERT returned ${recommendations.length} recommendations`);
+      } catch (bertError) {
+        console.warn("⚠️ Tier 2 BERT failed:", bertError.message);
+
+        // ============================================
+        // TIER 3: Traditional keyword matching
+        // ============================================
+        console.log("📊 Tier 3: Using traditional keyword matching...");
+
+        recommendations = jobs.map((job) => {
+          const match = calculateMatch(user, job);
           return {
             job,
-            matchScore: Math.min(Math.max(matchScore, 0), 100),
+            matchScore: match.overallScore,
           };
-        } catch (error) {
-          // Fallback logic
-          const jobSkills = job.skills || [];
-          const matchingSkills = userSkills.filter((skill) =>
-            jobSkills.some((jobSkill) =>
-              jobSkill.toLowerCase().includes(skill.toLowerCase())
-            )
-          );
-          const fallbackScore =
-            jobSkills.length > 0
-              ? Math.round((matchingSkills.length / jobSkills.length) * 80) + 20
-              : 50;
-          return {
-            job,
-            matchScore: Math.min(fallbackScore, 100),
-          };
-        }
-      })
-    );
+        })
+          .sort((a, b) => b.matchScore - a.matchScore)
+          .slice(0, 10);
 
-    const sortedRecommendations = recommendations
-      .sort((a, b) => b.matchScore - a.matchScore)
-      .slice(0, 5);
+        source = 'traditional';
+        console.log(`✅ Traditional matching returned ${recommendations.length} recommendations`);
+      }
+    }
 
     res.json({
       success: true,
-      data: { recommendations: sortedRecommendations },
+      data: {
+        recommendations,
+        source,
+      },
     });
   } catch (error) {
     console.error("Get recommendations error:", error);
