@@ -54,9 +54,11 @@ function calculateSkillMatch(candidateSkills, jobSkills) {
   // Calculate match percentage
   const matchPercentage = Math.round((matchingSkills.length / normalizedJobSkills.length) * 100);
 
-  // Skill score with bonus for having extra relevant skills
+  // Skill score — only give bonus if at least 1 skill matches
   const baseScore = matchPercentage;
-  const extraSkillsBonus = Math.min(candidateSkills.length - matchingSkills.length, 5) * 2; // Max +10
+  const extraSkillsBonus = matchingSkills.length > 0
+    ? Math.min(candidateSkills.length - matchingSkills.length, 5) * 2 // Max +10
+    : 0; // No bonus if zero skills match
   const score = Math.min(baseScore + extraSkillsBonus, 100);
 
   return {
@@ -296,20 +298,28 @@ export function calculateJobMatch(candidate, job, willingToRelocate = null) {
 
   // Weighted scoring (skills are most important)
   const weights = {
-    skills: 0.50,      // 50% - Most important
-    experience: 0.35,  // 35% - Very important (increased from 30%)
-    location: 0.10,    // 10% - Less important (reduced from 15%, since within-country relocation is common)
-    salary: 0.05,      // 5% - Less weight (often negotiable)
+    skills: 0.50,      
+    experience: 0.35, 
+    location: 0.10,    
+    salary: 0.05,      
   };
 
-  const overallScore = Math.round(
+  let overallScore = Math.round(
     (skillMatch.score * weights.skills) +
     (experienceMatch.score * weights.experience) +
     (locationMatch.score * weights.location) +
     (salaryMatch.score * weights.salary)
   );
 
-  // Generate match category
+  
+  if (skillMatch.score === 0) {
+    overallScore = Math.min(overallScore, 20);
+  } else if (skillMatch.score < 20) {
+    overallScore = Math.min(overallScore, 30);
+  } else if (skillMatch.score < 40) {
+    overallScore = Math.min(overallScore, 40);
+  }
+
   let matchCategory = '';
   let matchBadge = '';
   if (overallScore >= 80) {
@@ -326,10 +336,8 @@ export function calculateJobMatch(candidate, job, willingToRelocate = null) {
     matchBadge = 'low-match';
   }
 
-  // Generate "Why This Job" explanation
   const whyThisJob = [];
 
-  // Skills explanation
   if (skillMatch.matchPercentage >= 70) {
     const topSkills = skillMatch.matchingSkills.slice(0, 3).join(', ');
     whyThisJob.push(`Strong match: ${topSkills}${skillMatch.matchingSkills.length > 3 ? ` +${skillMatch.matchingSkills.length - 3} more` : ''}`);
@@ -343,14 +351,12 @@ export function calculateJobMatch(candidate, job, willingToRelocate = null) {
     whyThisJob.push(`Growth opportunity: Learn ${skillsNeeded}`);
   }
 
-  // Experience explanation - only add if score is notable
   if (experienceMatch.score >= 80) {
     whyThisJob.push(`Excellent experience fit`);
   } else if (experienceMatch.score >= 60 && experienceMatch.score < 80) {
     whyThisJob.push(`Good experience level`);
   }
 
-  // Location - only mention if perfect or remote
   if (locationMatch.score === 100) {
     if (job.workMode === 'remote') {
       whyThisJob.push(`Remote work`);
@@ -394,12 +400,7 @@ export function calculateJobMatch(candidate, job, willingToRelocate = null) {
   };
 }
 
-/**
- * Rank jobs by relevance to candidate
- * @param {Array} jobs - Array of job objects
- * @param {Object} candidate - Candidate profile
- * @returns {Array} Sorted jobs with match scores
- */
+
 export function rankJobsByRelevance(jobs, candidate) {
   if (!jobs || jobs.length === 0) return [];
 

@@ -7,6 +7,7 @@ import {
   deleteJob,
   getMyJobs,
   getRecommendations,
+  searchSkills,
 } from "../controllers/job.controllers.js";
 import { protect, optionalAuth } from "../middleware/auth.middleware.js";
 import { isPoster, hasWallet } from "../middleware/role.middleware.js";
@@ -14,6 +15,7 @@ import { isPoster, hasWallet } from "../middleware/role.middleware.js";
 const router = express.Router();
 
 router.get("/", optionalAuth, getJobs);
+router.get("/skills/search", searchSkills); // Public endpoint for skill autocomplete
 
 router.use(protect);
 

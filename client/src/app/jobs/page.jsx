@@ -765,7 +765,7 @@ export default function JobsPage() {
                                 {/* Experience */}
                                 <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border">
                                   <h3 className="font-semibold mb-2">
-                                    Experience Match ({job.matchBreakdown?.experience?.score}%)
+                                    Experience Match
                                   </h3>
                                   <p className="text-sm text-muted-foreground">
                                     {job.matchBreakdown?.experience?.explanation}
@@ -776,7 +776,7 @@ export default function JobsPage() {
                                 <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border">
                                   <h3 className="font-semibold mb-2 flex items-center gap-2">
                                     <MapPin className="h-4 w-4" />
-                                    Location Match ({job.matchBreakdown?.location?.score}%)
+                                    Location Match
                                   </h3>
                                   <p className="text-sm text-muted-foreground">
                                     {job.matchBreakdown?.location?.explanation}

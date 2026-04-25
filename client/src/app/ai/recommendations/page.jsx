@@ -22,6 +22,9 @@ import {
   Lightbulb,
   Target,
   BookOpen,
+  Sparkles,
+  Cpu,
+  Search,
 } from "lucide-react";
 import AuthGuard from "@/components/auth-guard/authGuard";
 
@@ -29,6 +32,7 @@ export default function AIRecommendationsPage() {
   const [recommendations, setRecommendations] = useState([]);
   const [careerSuggestions, setCareerSuggestions] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [recommendationSource, setRecommendationSource] = useState("");
 
   useEffect(() => {
     fetchRecommendations();
@@ -39,6 +43,7 @@ export default function AIRecommendationsPage() {
     try {
       const response = await aiAPI.getRecommendations();
       setRecommendations(response.data.data.recommendations || []);
+      setRecommendationSource(response.data.data.source || "traditional");
     } catch (error) {
       console.error("Error fetching recommendations:", error);
     }
@@ -98,9 +103,30 @@ export default function AIRecommendationsPage() {
             <div className="lg:col-span-2 space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <TrendingUp className="mr-2 h-5 w-5" />
-                    Recommended Jobs
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center">
+                      <TrendingUp className="mr-2 h-5 w-5" />
+                      Recommended Jobs
+                    </span>
+                    {recommendationSource && (
+                      <span
+                        title={
+                          recommendationSource === "gemini"
+                            ? "Gemini AI"
+                            : recommendationSource === "bert"
+                            ? "BERT"
+                            : "Keyword Matching"
+                        }
+                      >
+                        {recommendationSource === "gemini" ? (
+                          <Sparkles className="h-5 w-5 text-purple-500" />
+                        ) : recommendationSource === "bert" ? (
+                          <Cpu className="h-5 w-5 text-blue-500" />
+                        ) : (
+                          <Search className="h-5 w-5 text-gray-500" />
+                        )}
+                      </span>
+                    )}
                   </CardTitle>
                   <CardDescription>
                     Jobs that match your skills and profile
@@ -129,7 +155,7 @@ export default function AIRecommendationsPage() {
                           </div>
 
                           <p className="text-muted-foreground mb-3">
-                            {rec.job.postedBy.name}
+                            {rec.job.postedBy?.name || "RizeHire"}
                           </p>
 
                           <p className="text-sm text-muted-foreground mb-4 line-clamp-2">

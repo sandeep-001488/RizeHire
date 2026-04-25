@@ -89,6 +89,7 @@ export const jobsAPI = {
   updateJob: (id, data) => api.put(`/jobs/${id}`, data),
   deleteJob: (id) => api.delete(`/jobs/${id}`),
   getMyJobs: (params) => api.get("/jobs/my-posted-jobs", { params }),
+  searchSkills: (query) => api.get("/jobs/skills/search", { params: { q: query } }),
 };
 
 export const applicationsAPI = {
