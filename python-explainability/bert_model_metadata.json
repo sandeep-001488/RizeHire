@@ -1,0 +1,22 @@
+{
+  "trained_at": "2026-04-24T14:56:07.744949",
+  "dataset": "dataset.csv",
+  "total_samples": 10174,
+  "train_samples": 8139,
+  "val_samples": 2035,
+  "accuracy": 0.5975429975429976,
+  "f1_score": 0.5594405594405595,
+  "sbert_model": "all-MiniLM-L6-v2",
+  "cross_encoder_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+  "embedding_dim": 384,
+  "architecture": "Cross-Encoder (MiniLM-L6 fine-tuned)",
+  "model_type": "cross-encoder-finetuned",
+  "training": {
+    "epochs": 4,
+    "batch_size": 32,
+    "learning_rate": 2e-05,
+    "warmup_ratio": 0.1,
+    "platform": "Google Colab (T4 GPU)"
+  },
+  "total_parameters": 22713601
+}

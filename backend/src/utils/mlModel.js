@@ -23,10 +23,11 @@ function generateTrainingData() {
     const locationMatch = Math.random() * 100;
     const salaryMatch = Math.random() * 100;
 
+    // Weights aligned with jobMatching.js: Skills 50%, Experience 35%, Location 10%, Salary 5%
     const overallScore =
       (skillsMatch * 0.50) +
-      (experienceMatch * 0.30) +
-      (locationMatch * 0.15) +
+      (experienceMatch * 0.35) +
+      (locationMatch * 0.10) +
       (salaryMatch * 0.05);
 
     let acceptanceProbability;
