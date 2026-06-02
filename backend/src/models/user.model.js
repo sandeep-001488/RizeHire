@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
-// --- PARSED RESUME SCHEMA ---
 const parsedResumeSchema = new mongoose.Schema(
   {
     name: String,
@@ -50,7 +49,6 @@ const userSchema = new mongoose.Schema(
       enum: ["seeker", "poster"],
       required: [true, "User role is required ('seeker' or 'poster')"],
     },
-    // --- MANDATORY GENDER FIELD ---
     gender: {
       type: String,
       enum: ["male", "female", "other"],
@@ -89,7 +87,7 @@ const userSchema = new mongoose.Schema(
     ],
     walletAddress: {
       type: String,
-      required: false, // Optional for all users
+      required: false,
       validate: {
         validator: function (v) {
           if (!v) return true;
@@ -102,7 +100,6 @@ const userSchema = new mongoose.Schema(
       type: parsedResumeSchema,
       default: null,
     },
-    // --- RELOCATION PREFERENCES (for location matching) ---
     preferences: {
       willingToRelocate: {
         type: Boolean,

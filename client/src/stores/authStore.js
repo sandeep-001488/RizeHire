@@ -23,8 +23,7 @@ export const useAuthStore = create(
         try {
           const response = await authAPI.login(credentials);
           const { user, tokens } = response.data.data;
-          
-          // Set all state synchronously
+
           set({
             user,
             tokens,
@@ -33,10 +32,10 @@ export const useAuthStore = create(
             error: null,
             isInitialized: true,
           });
-          
+
           // Force a storage sync
           await new Promise(resolve => setTimeout(resolve, 50));
-          
+
           return { success: true, user, tokens };
         } catch (error) {
           const errorMessage = error.response?.data?.message || "Login failed";

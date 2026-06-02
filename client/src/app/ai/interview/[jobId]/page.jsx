@@ -95,7 +95,6 @@ export default function InterviewQuestionsPage({ params }) {
   return (
     <AuthGuard>
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -116,7 +115,6 @@ export default function InterviewQuestionsPage({ params }) {
           </Button>
         </div>
 
-        {/* Job Info */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -141,7 +139,6 @@ export default function InterviewQuestionsPage({ params }) {
           </CardContent>
         </Card>
 
-        {/* Interview Questions */}
         {questions.length > 0 ? (
           <div className="space-y-4">
             <Card>
@@ -174,7 +171,6 @@ export default function InterviewQuestionsPage({ params }) {
               </Card>
             ))}
 
-            {/* Tips Card */}
             <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
               <CardHeader>
                 <CardTitle className="flex items-center text-blue-800 dark:text-blue-200">
@@ -226,7 +222,6 @@ export default function InterviewQuestionsPage({ params }) {
           </Card>
         )}
 
-        {/* Action Buttons */}
         <div className="flex gap-4">
           <Link href={`/jobs/${jobId}`}>
             <Button variant="outline">View Job Details</Button>

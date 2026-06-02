@@ -6,12 +6,8 @@ import { calculateJobMatch, rankJobsByRelevance } from "../utils/jobMatching.js"
 import { predictAcceptance } from "../utils/mlModel.js";
 import { generateContent } from "../config/gemini.js";
 
-// Python BERT service for semantic matching
 const PYTHON_SERVICE_URL = process.env.PYTHON_EXPLAINABILITY_URL || 'http://localhost:5001';
 
-/**
- * Extract text data from user and job for BERT matching
- */
 function extractTextData(user, job) {
   const parsedResume = user.parsedResume || {};
   const skills = [
@@ -42,7 +38,6 @@ async function getBERTMatchScore(user, job, traditionalMatch) {
   try {
     const textData = extractTextData(user, job);
 
-    // Skip BERT if no text data available
     if (!textData.resumeText || !textData.jobDescription) {
       return null;
     }
@@ -54,7 +49,7 @@ async function getBERTMatchScore(user, job, traditionalMatch) {
       experience: traditionalMatch.breakdown?.experience?.score || 50,
       location: traditionalMatch.breakdown?.location?.score || 50,
       salary: traditionalMatch.breakdown?.salary?.score || 50,
-    }, { timeout: 10000 }); // 10 second timeout
+    }, { timeout: 10000 });
 
     if (response.data?.success) {
       return {
@@ -77,7 +72,6 @@ const hardConstraintsSchema = Joi.object({
 
 const createJobSchema = Joi.object({
   title: Joi.string().min(5).max(200).required(),
-  // NEW: Category and Industry fields
   category: Joi.string()
     .valid(
       "technology",
@@ -151,7 +145,6 @@ const createJobSchema = Joi.object({
 
 const createJob = async (req, res) => {
   try {
-    // Clean up empty strings before validation
     const cleanedBody = { ...req.body };
     if (cleanedBody.applicationEmail === "") {
       delete cleanedBody.applicationEmail;
@@ -198,8 +191,8 @@ const getJobs = async (req, res) => {
       workMode,
       location,
       experienceLevel,
-      category, // NEW: Category filter
-      industry, // NEW: Industry filter
+      category,
+      industry,
       search,
       sortBy = "createdAt",
       sortOrder = "desc",
@@ -207,7 +200,7 @@ const getJobs = async (req, res) => {
 
     const filter = { isActive: true };
 
-    // Get applied job IDs to mark them (but don't exclude them)
+    // Collect applied job IDs to mark (not exclude) them in the results
     let appliedJobIdsArray = [];
     if (req.user) {
       const appliedJobIds = await Application.find({
@@ -244,12 +237,10 @@ const getJobs = async (req, res) => {
       filter.experienceLevel = experienceLevel;
     }
 
-    // NEW: Category filter
     if (category) {
       filter.category = category;
     }
 
-    // NEW: Industry filter
     if (industry) {
       filter.industry = industry;
     }
@@ -262,16 +253,14 @@ const getJobs = async (req, res) => {
       ];
     }
 
-    // For seekers: Get ALL jobs first, then sort by match score, then paginate
-    // For employers/guests: Use database sorting and pagination
+    // Seekers fetch ALL jobs so we can sort by match score before paginating;
+    // employers/guests use cheaper DB-level sorting + pagination
     let allJobs;
     if (req.user && req.user.role === "seeker") {
-      // Get ALL jobs without pagination (for seekers to sort by match score)
       allJobs = await Job.find(filter)
         .populate("postedBy", "name email profileImage")
         .lean();
     } else {
-      // For non-seekers, use traditional database sorting and pagination
       const sortOptions = {};
       sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
 
@@ -292,27 +281,20 @@ const getJobs = async (req, res) => {
       })
     );
 
-    // Calculate match scores if user is logged in (seeker)
     let jobsWithMatchScores = jobsWithApplicationCount;
     console.log("🔍 DEBUG /jobs - User:", req.user?.name, "Role:", req.user?.role, "Jobs count:", jobsWithApplicationCount.length);
     if (req.user && req.user.role === "seeker") {
       console.log("🎯 Calculating match scores for seeker:", req.user.name);
 
-      // ⚠️ Check if user has location - if not, show warning in recommendations
       if (!req.user.location) {
         console.log("⚠️ User has no location - recommendations will show remote jobs only");
       }
 
-      // Calculate match scores using BERT + traditional matching for ALL jobs
       jobsWithMatchScores = await Promise.all(
         jobsWithApplicationCount.map(async (job) => {
-          // Step 1: Get traditional match (used as fallback and for breakdown details)
           const match = calculateJobMatch(req.user, job);
-
-          // Step 2: Try BERT-based matching (uses Python service)
           const bertResult = await getBERTMatchScore(req.user, job, match);
 
-          // Step 3: Use BERT score if available, otherwise fall back to traditional
           let finalScore = match.overallScore;
           let matchSource = 'traditional';
           let bertSemanticScore = null;
@@ -333,7 +315,6 @@ const getJobs = async (req, res) => {
             }
           }
 
-          // Determine match category based on final score
           let matchCategory, matchBadge;
           if (finalScore >= 80) {
             matchCategory = 'Excellent Match';
@@ -349,13 +330,9 @@ const getJobs = async (req, res) => {
             matchBadge = 'low-match';
           }
 
-          // Get ML prediction based on match breakdown
           const mlPrediction = await predictAcceptance(match.breakdown);
-
-          // Check if user has applied to this job
           const isApplied = appliedJobIdsArray.includes(job._id.toString());
 
-          // Check deadline and acceptingApplications status
           const now = new Date();
           const isDeadlinePassed = job.applicationDeadline && new Date(job.applicationDeadline) < now;
           const canApply = !isDeadlinePassed && job.acceptingApplications;
@@ -368,8 +345,8 @@ const getJobs = async (req, res) => {
             matchBreakdown: match.breakdown,
             whyThisJob: match.whyThisJob,
             recommendation: match.recommendation,
-            matchSource, // 'bert' or 'traditional'
-            bertSemanticScore, // BERT semantic similarity (if available)
+            matchSource,
+            bertSemanticScore,
             isApplied,
             isDeadlinePassed,
             canApply,
@@ -383,19 +360,17 @@ const getJobs = async (req, res) => {
         })
       );
 
-      // Sort ALL jobs by match score (highest first), then by acceptance rate (highest first)
+      // Sort by match score, tie-break on ML acceptance probability (both descending)
       jobsWithMatchScores.sort((a, b) => {
-        // Primary sort: Match score (descending)
         const matchScoreDiff = b.matchScore - a.matchScore;
         if (matchScoreDiff !== 0) return matchScoreDiff;
 
-        // Secondary sort: Acceptance rate (descending) if match scores are equal
         const aAcceptance = a.mlPrediction?.acceptanceProbability || 0;
         const bAcceptance = b.mlPrediction?.acceptanceProbability || 0;
         return bAcceptance - aAcceptance;
       });
 
-      // NOW apply pagination AFTER sorting all jobs
+      // Paginate only after the full set is sorted
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + parseInt(limit);
       jobsWithMatchScores = jobsWithMatchScores.slice(startIndex, endIndex);
@@ -454,8 +429,7 @@ const getJob = async (req, res) => {
       }
     }
 
-    // Check deadline and acceptingApplications status
-    // Priority: deadline > acceptingApplications
+    // Deadline takes priority over the acceptingApplications flag
     const now = new Date();
     const isDeadlinePassed = job.applicationDeadline && new Date(job.applicationDeadline) < now;
     const canApply = !isDeadlinePassed && job.acceptingApplications;
@@ -500,7 +474,6 @@ const updateJob = async (req, res) => {
 
     const updateSchema = Joi.object({
       title: Joi.string().min(5).max(200).optional(),
-      // NEW: Allow updating category and industry
       category: Joi.string()
         .valid(
           "technology",
@@ -565,7 +538,7 @@ const updateJob = async (req, res) => {
           .valid("hourly", "daily", "monthly", "yearly", "project")
           .optional(),
       }).optional(),
-      hardConstraints: hardConstraintsSchema.optional(), // Allow editing hard constraints
+      hardConstraints: hardConstraintsSchema.optional(),
       applicationUrl: Joi.string().uri().optional(),
       applicationEmail: Joi.string().email().optional(),
       applicationDeadline: Joi.date().greater("now").allow(null, "").optional(),
@@ -574,7 +547,6 @@ const updateJob = async (req, res) => {
       tags: Joi.array().items(Joi.string().max(30)).max(10).optional(),
     });
 
-    // Clean up empty strings before validation
     const cleanedBody = { ...req.body };
     if (cleanedBody.applicationEmail === "") {
       delete cleanedBody.applicationEmail;
@@ -591,7 +563,6 @@ const updateJob = async (req, res) => {
       });
     }
 
-    // Clean up empty/null values
     Object.keys(value).forEach((key) => {
       if (value[key] === undefined || value[key] === null) {
         delete value[key];
@@ -668,14 +639,12 @@ const getMyJobs = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Get application data for each job including latest application date
     const jobsWithApplicationData = await Promise.all(
       jobs.map(async (job) => {
         const applicationCount = await Application.countDocuments({
           jobId: job._id,
         });
-        
-        // Get the most recent application for this job
+
         const latestApplication = await Application.findOne({
           jobId: job._id,
         })
@@ -691,22 +660,18 @@ const getMyJobs = async (req, res) => {
       })
     );
 
-    // Sort jobs by latest application date (jobs with recent applications first)
+    // Jobs with recent applications first; fall back to creation date when none
     jobsWithApplicationData.sort((a, b) => {
-      // Jobs with applications come before jobs without applications
       if (a.latestApplicationDate && !b.latestApplicationDate) return -1;
       if (!a.latestApplicationDate && b.latestApplicationDate) return 1;
-      
-      // If both have applications, sort by most recent
+
       if (a.latestApplicationDate && b.latestApplicationDate) {
         return new Date(b.latestApplicationDate) - new Date(a.latestApplicationDate);
       }
-      
-      // If neither has applications, sort by job creation date
+
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
-    // Apply pagination after sorting
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + parseInt(limit);
     const paginatedJobs = jobsWithApplicationData.slice(startIndex, endIndex);
@@ -740,10 +705,6 @@ const getMyJobs = async (req, res) => {
  * Tier 3: Traditional keyword matching (fallback)
  */
 
-/**
- * Tier 1: Get Gemini-powered recommendations
- * Sends candidate profile + jobs to Gemini for intelligent ranking
- */
 async function getGeminiRecommendations(user, jobs) {
   const parsedResume = user.parsedResume || {};
   const candidateSkills = [
@@ -797,10 +758,9 @@ Sort by score descending. Only include jobs with score > 10.`;
 
   const responseText = await generateContent(prompt);
 
-  // Parse the JSON response from Gemini
   let geminiResults;
   try {
-    // Clean response - remove markdown code blocks if present
+    // Strip markdown code fences Gemini sometimes wraps the JSON in
     let cleanText = responseText.trim();
     if (cleanText.startsWith('```')) {
       cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
@@ -815,14 +775,12 @@ Sort by score descending. Only include jobs with score > 10.`;
     throw new Error("Gemini returned empty results");
   }
 
-  // Map Gemini results back to job objects
   const scoredJobs = geminiResults
     .filter(r => r.index !== undefined && r.index < jobs.length)
     .map(result => {
       const job = jobs[result.index];
       const score = Math.min(Math.max(Math.round(result.score || 0), 0), 100);
 
-      // Determine match badge
       let matchBadge = 'low-match';
       let matchCategory = result.matchCategory || 'Needs Development';
       if (score >= 80) { matchBadge = 'best-match'; matchCategory = 'Excellent Match'; }
@@ -853,22 +811,14 @@ Sort by score descending. Only include jobs with score > 10.`;
   return scoredJobs.sort((a, b) => b.matchScore - a.matchScore);
 }
 
-/**
- * Tier 2: Get BERT-powered recommendations
- * Uses Python BERT service for semantic matching on each job
- */
 async function getBERTRecommendations(user, jobs) {
   const results = [];
 
   for (const job of jobs.slice(0, 20)) {
-    // First get traditional match for feature inputs
     const traditionalMatch = calculateJobMatch(user, job);
-
-    // Get BERT score
     const bertResult = await getBERTMatchScore(user, job, traditionalMatch);
 
     if (bertResult) {
-      // Use BERT hybrid scoring (same as getJobs)
       const bertScore = bertResult.score;
       const skillsScore = traditionalMatch.breakdown?.skills?.score || 0;
       const experienceScore = traditionalMatch.breakdown?.experience?.score || 0;
@@ -911,7 +861,6 @@ async function getBERTRecommendations(user, jobs) {
         recommendationSource: 'bert',
       });
     } else {
-      // BERT failed for this job, use traditional score
       results.push({
         ...job,
         matchScore: traditionalMatch.overallScore,
@@ -925,16 +874,13 @@ async function getBERTRecommendations(user, jobs) {
     }
   }
 
-  // Sort by score
   return results.sort((a, b) => b.matchScore - a.matchScore);
 }
 
-// Get personalized job recommendations for seeker
 const getRecommendations = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    // Must be a seeker
     if (!req.user || req.user.role !== "seeker") {
       return res.status(403).json({
         success: false,
@@ -944,12 +890,10 @@ const getRecommendations = async (req, res) => {
 
     console.log("🎯 Generating personalized recommendations for:", req.user.name);
 
-    // Get all active jobs
     const allJobs = await Job.find({ isActive: true })
       .populate("postedBy", "name email profileImage")
       .lean();
 
-    // Get jobs already applied to
     const appliedJobIds = await Application.find({
       applicantId: req.user._id,
     })
@@ -957,16 +901,12 @@ const getRecommendations = async (req, res) => {
       .lean();
 
     const appliedJobIdsArray = appliedJobIds.map(app => app.jobId.toString());
-
-    // Filter out jobs user has already applied to
     const unappliedJobs = allJobs.filter(job => !appliedJobIdsArray.includes(job._id.toString()));
 
     let rankedJobs = [];
     let recommendationSource = 'traditional';
 
-    // ============================================
-    // TIER 1: Try Gemini API first
-    // ============================================
+    // TIER 1: Gemini API
     try {
       console.log("🤖 Tier 1: Attempting Gemini API recommendations...");
       rankedJobs = await getGeminiRecommendations(req.user, unappliedJobs);
@@ -975,9 +915,7 @@ const getRecommendations = async (req, res) => {
     } catch (geminiError) {
       console.warn("⚠️ Gemini API failed:", geminiError.message);
 
-      // ============================================
-      // TIER 2: Fall back to BERT Python service
-      // ============================================
+      // TIER 2: BERT Python service
       try {
         console.log("🧠 Tier 2: Attempting BERT recommendations...");
         rankedJobs = await getBERTRecommendations(req.user, unappliedJobs);
@@ -986,9 +924,7 @@ const getRecommendations = async (req, res) => {
       } catch (bertError) {
         console.warn("⚠️ BERT service failed:", bertError.message);
 
-        // ============================================
-        // TIER 3: Fall back to traditional matching
-        // ============================================
+        // TIER 3: Traditional keyword matching
         console.log("📊 Tier 3: Using traditional keyword matching...");
         rankedJobs = rankJobsByRelevance(unappliedJobs, req.user);
         recommendationSource = 'traditional';
@@ -996,17 +932,14 @@ const getRecommendations = async (req, res) => {
       }
     }
 
-    // Get top recommendations
     const recommendations = rankedJobs.slice(0, parseInt(limit));
 
-    // Add application count, ML predictions, and source info
     const recommendationsWithCount = await Promise.all(
       recommendations.map(async (job) => {
         const applicationCount = await Application.countDocuments({
           jobId: job._id,
         });
 
-        // Get ML prediction for this job
         const mlPrediction = await predictAcceptance(job.matchBreakdown);
 
         return {
@@ -1023,7 +956,6 @@ const getRecommendations = async (req, res) => {
       })
     );
 
-    // Sort by match score first, then by acceptance rate
     recommendationsWithCount.sort((a, b) => {
       const matchScoreDiff = b.matchScore - a.matchScore;
       if (matchScoreDiff !== 0) return matchScoreDiff;
@@ -1050,10 +982,6 @@ const getRecommendations = async (req, res) => {
   }
 };
 
-/**
- * Search skills from all job postings in the database
- * Returns distinct skills matching the query string
- */
 const searchSkills = async (req, res) => {
   try {
     const { q = "" } = req.query;
@@ -1062,10 +990,9 @@ const searchSkills = async (req, res) => {
       return res.json({ success: true, skills: [] });
     }
 
-    // Get all distinct skills from jobs
     const allSkills = await Job.distinct("skills");
 
-    // Filter and deduplicate (case-insensitive matching)
+    // Filter + dedupe case-insensitively
     const query = q.toLowerCase();
     const seen = new Set();
     const matchingSkills = allSkills
@@ -1083,7 +1010,7 @@ const searchSkills = async (req, res) => {
         if (aStarts !== bStarts) return aStarts - bStarts;
         return a.localeCompare(b);
       })
-      .slice(0, 10); // Max 10 suggestions
+      .slice(0, 10);
 
     res.json({ success: true, skills: matchingSkills });
   } catch (error) {

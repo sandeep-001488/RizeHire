@@ -6,16 +6,11 @@ import Notification from '../models/notification.model.js';
 import { sendMessageNotificationEmail } from '../services/email.service.js';
 import { io } from '../../app.js';
 
-/**
- * Send a new message
- * POST /api/messages/send
- */
 export const sendMessage = async (req, res) => {
   try {
     const { receiverId, message, applicationId } = req.body;
     const senderId = req.user._id;
 
-    // Validation
     if (!receiverId || !message || !applicationId) {
       return res.status(400).json({
         success: false,
@@ -23,7 +18,6 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Get application details
     const application = await Application.findById(applicationId)
       .populate('jobId')
       .populate('applicantId')
@@ -36,7 +30,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Verify user is part of this conversation (either applicant or recruiter)
+    // Sender must be a participant (applicant or recruiter) on this application
     const isApplicant = application.applicantId._id.toString() === senderId.toString();
     const isRecruiter = application.recruiterId._id.toString() === senderId.toString();
 
@@ -47,7 +41,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Verify receiver is the other participant
+    // Receiver must be the other participant
     const expectedReceiverId = isApplicant
       ? application.recruiterId._id.toString()
       : application.applicantId._id.toString();
@@ -59,14 +53,12 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Create conversation ID
     const conversationId = Message.createConversationId(
       application.jobId._id,
       application.applicantId._id,
       application.recruiterId._id
     );
 
-    // Create message
     const newMessage = await Message.create({
       conversationId,
       applicationId: application._id,
@@ -76,25 +68,20 @@ export const sendMessage = async (req, res) => {
       message: message.trim(),
     });
 
-    // Populate sender and receiver details
     await newMessage.populate([
       { path: 'senderId', select: 'name email profileImage role' },
       { path: 'receiverId', select: 'name email profileImage role' },
       { path: 'jobId', select: 'title company' },
     ]);
 
-    // Get receiver details for email
     const receiver = await User.findById(receiverId);
 
-    // Emit Socket.IO event for real-time message delivery
     if (io) {
-      // Emit to conversation room
       io.to(`conversation:${conversationId}`).emit('newMessage', {
         message: newMessage,
         conversationId,
       });
 
-      // Emit to receiver's personal room for notification
       io.to(`user:${receiverId}`).emit('messageNotification', {
         message: newMessage,
         conversationId,
@@ -104,7 +91,6 @@ export const sendMessage = async (req, res) => {
       console.log(`📨 Real-time message emitted to conversation: ${conversationId}`);
     }
 
-    // Create notification for receiver about new message
     try {
       const notification = await Notification.createNotification(
         receiverId,
@@ -126,10 +112,8 @@ export const sendMessage = async (req, res) => {
       console.error('Error creating notification for new message:', error);
     }
 
-    // Send email notification (async, don't wait)
     sendMessageNotificationEmail(receiver, req.user, application.jobId, message, application._id)
       .then(() => {
-        // Update message to mark email as sent
         newMessage.emailSent = true;
         newMessage.emailSentAt = new Date();
         newMessage.save();
@@ -152,23 +136,18 @@ export const sendMessage = async (req, res) => {
   }
 };
 
-/**
- * Get conversation history
- * GET /api/messages/conversation/:conversationId
- */
 export const getConversation = async (req, res) => {
   try {
     const { conversationId } = req.params;
     const { limit = 50, skip = 0 } = req.query;
 
-    // Get messages
     const messages = await Message.getConversation(
       conversationId,
       parseInt(limit),
       parseInt(skip)
     );
 
-    // Verify user is part of conversation
+    // Only participants may read the conversation
     if (messages.length > 0) {
       const firstMessage = messages[0];
       const isParticipant =
@@ -186,7 +165,7 @@ export const getConversation = async (req, res) => {
     res.json({
       success: true,
       data: {
-        messages: messages.reverse(), // Reverse to show oldest first
+        messages: messages.reverse(),
         total: messages.length,
       },
     });
@@ -199,10 +178,6 @@ export const getConversation = async (req, res) => {
   }
 };
 
-/**
- * Get all conversations for current user
- * GET /api/messages/conversations
- */
 export const getUserConversations = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -225,16 +200,11 @@ export const getUserConversations = async (req, res) => {
   }
 };
 
-/**
- * Mark messages as read
- * PUT /api/messages/read/:conversationId
- */
 export const markMessagesAsRead = async (req, res) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user._id;
 
-    // Update all unread messages in this conversation where user is receiver
     const result = await Message.updateMany(
       {
         conversationId,
@@ -265,10 +235,6 @@ export const markMessagesAsRead = async (req, res) => {
   }
 };
 
-/**
- * Get unread message count
- * GET /api/messages/unread/count
- */
 export const getUnreadCount = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -287,10 +253,6 @@ export const getUnreadCount = async (req, res) => {
   }
 };
 
-/**
- * Get conversation ID for an application
- * GET /api/messages/conversation-id/:applicationId
- */
 export const getConversationId = async (req, res) => {
   try {
     const { applicationId } = req.params;
@@ -304,7 +266,6 @@ export const getConversationId = async (req, res) => {
       });
     }
 
-    // Verify user is part of this application
     const isApplicant = application.applicantId.toString() === req.user._id.toString();
     const isRecruiter = application.recruiterId.toString() === req.user._id.toString();
 

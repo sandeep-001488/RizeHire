@@ -22,7 +22,6 @@ export default function MessagesPage() {
 
   const { user } = useAuthStore();
 
-  // Detect dark mode
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     setIsDark(darkModeMediaQuery.matches);
@@ -32,7 +31,6 @@ export default function MessagesPage() {
     return () => darkModeMediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  // Get application ID from URL params
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -52,7 +50,6 @@ export default function MessagesPage() {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Initialize Socket.IO
   useEffect(() => {
     if (user?._id) {
       const socket = initializeSocket(user._id);
@@ -101,7 +98,6 @@ export default function MessagesPage() {
     }
   }, [user]);
 
-  // Load conversation based on applicationId
   useEffect(() => {
     if (applicationId && user) {
       loadConversation();
@@ -112,25 +108,20 @@ export default function MessagesPage() {
     try {
       setIsLoading(true);
 
-      // Get conversation ID from application
       const convResponse = await messagesAPI.getConversationId(applicationId);
       const { conversationId, applicantId, recruiterId, jobId } = convResponse.data.data;
 
       setConversationData({ conversationId, applicantId, recruiterId, jobId });
 
-      // Get application details for job info
       const appResponse = await applicationsAPI.getApplication(applicationId);
       const application = appResponse.data.data;
 
       setJobInfo(application.jobId);
 
-      // Determine other user
       const isApplicant = user._id === applicantId.toString();
       const otherUserId = isApplicant ? recruiterId : applicantId;
 
-      // Get other user's details from application
-      // Note: application = appResponse.data.data (already unwrapped)
-      const applicationData = application.application; // The actual application object from backend
+      const applicationData = application.application;
       const otherUserData = isApplicant
         ? applicationData.job?.postedBy
         : applicationData.applicant;
@@ -138,14 +129,11 @@ export default function MessagesPage() {
       console.log("Other User Data:", otherUserData, "Is Applicant:", isApplicant);
       setOtherUser(otherUserData);
 
-      // Join conversation room
       joinConversation(conversationId);
 
-      // Fetch messages
       const messagesResponse = await messagesAPI.getConversation(conversationId);
       setMessages(messagesResponse.data.data.messages);
 
-      // Mark as read
       await messagesAPI.markAsRead(conversationId);
 
       scrollToBottom();
@@ -157,7 +145,6 @@ export default function MessagesPage() {
     }
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (conversationData?.conversationId) {
@@ -180,9 +167,9 @@ export default function MessagesPage() {
     try {
       setIsSending(true);
 
-      // Optimistic update - add message to state immediately
+      // Optimistic update so the message appears before the API confirms
       const optimisticMessage = {
-        _id: Date.now().toString(), // Temporary ID
+        _id: Date.now().toString(),
         senderId: { _id: user._id, name: user.name, profileImage: user.profileImage },
         receiverId: receiverId,
         message: messageText,
@@ -202,7 +189,6 @@ export default function MessagesPage() {
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
-      // Remove optimistic message on error
       setMessages((prev) => prev.filter((msg) => msg._id !== (Date.now().toString())));
     } finally {
       setIsSending(false);
@@ -215,7 +201,6 @@ export default function MessagesPage() {
     if (conversationData?.conversationId) {
       emitTyping(conversationData.conversationId, user._id, user.name);
 
-      // Clear existing timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
@@ -264,7 +249,6 @@ export default function MessagesPage() {
           </div>
         ) : (
           <>
-            {/* Chat Header - WhatsApp Green */}
             <div className="p-4 border-b bg-linear-to-r from-[#25D366] to-[#20BA5A] text-white flex items-center gap-3 shadow-sm">
               <Button
                 variant="ghost"
@@ -292,7 +276,6 @@ export default function MessagesPage() {
               </div>
             </div>
 
-            {/* Messages - Light Green Background */}
             <ScrollArea className="flex-1" style={{                                                  
                   backgroundColor: '#F0F0F0' 
             }}>
@@ -305,7 +288,6 @@ export default function MessagesPage() {
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    // Handle case where sender was deleted or user not loaded
                     if (!msg.senderId || !user?._id) return null;
 
                     const isSender = msg.senderId._id === user._id;
@@ -350,7 +332,6 @@ export default function MessagesPage() {
               </div>
             </ScrollArea>
 
-            {/* Message Input */}
             <form onSubmit={sendMessage} className="px-4 py-3 border-t bg-white">
               <div className="flex gap-2">
                 <Input

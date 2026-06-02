@@ -46,12 +46,10 @@ export default function NotificationItem({
           : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
       }`}
     >
-      {/* Icon */}
       <div className="mt-1 flex-shrink-0">
         <Icon className={`w-5 h-5 ${iconColorMap[notification.icon] || 'text-gray-400'}`} />
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
@@ -63,13 +61,11 @@ export default function NotificationItem({
             </p>
           </div>
 
-          {/* Read indicator dot */}
           {!notification.read && (
             <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1" />
           )}
         </div>
 
-        {/* Time */}
         <p className="text-xs text-muted-foreground mt-1">
           {formatDistanceToNow(new Date(notification.createdAt), {
             addSuffix: true,
@@ -77,7 +73,6 @@ export default function NotificationItem({
         </p>
       </div>
 
-      {/* Actions */}
       <div className="flex gap-1 flex-shrink-0">
         {!notification.read && (
           <button

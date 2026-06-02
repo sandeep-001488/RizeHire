@@ -9,35 +9,30 @@ const messageSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Related application for context
     applicationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Application',
       required: true,
     },
 
-    // Job related to this conversation
     jobId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Job',
       required: true,
     },
 
-    // Message sender
     senderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
 
-    // Message receiver
     receiverId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
 
-    // Message content (text only for now)
     message: {
       type: String,
       required: true,
@@ -45,44 +40,37 @@ const messageSchema = new mongoose.Schema(
       maxlength: 5000,
     },
 
-    // Read status
     read: {
       type: Boolean,
       default: false,
     },
 
-    // When the message was read
     readAt: {
       type: Date,
     },
 
-    // Email notification sent
     emailSent: {
       type: Boolean,
       default: false,
     },
 
-    // Email sent timestamp
     emailSentAt: {
       type: Date,
     },
   },
   {
-    timestamps: true, // adds createdAt and updatedAt
+    timestamps: true,
   }
 );
 
-// Index for efficient queries
 messageSchema.index({ conversationId: 1, createdAt: -1 });
 messageSchema.index({ senderId: 1, receiverId: 1 });
 messageSchema.index({ receiverId: 1, read: 1 }); // For unread count
 
-// Virtual to get conversation participants
 messageSchema.virtual('participants', function() {
   return [this.senderId, this.receiverId];
 });
 
-// Instance method to mark as read
 messageSchema.methods.markAsRead = async function() {
   if (!this.read) {
     this.read = true;
@@ -92,7 +80,6 @@ messageSchema.methods.markAsRead = async function() {
   return this;
 };
 
-// Static method to get conversation history
 messageSchema.statics.getConversation = async function(conversationId, limit = 50, skip = 0) {
   return this.find({ conversationId })
     .sort({ createdAt: -1 })
@@ -103,7 +90,6 @@ messageSchema.statics.getConversation = async function(conversationId, limit = 5
     .lean();
 };
 
-// Static method to get unread count for a user
 messageSchema.statics.getUnreadCount = async function(userId) {
   return this.countDocuments({
     receiverId: userId,
@@ -111,7 +97,6 @@ messageSchema.statics.getUnreadCount = async function(userId) {
   });
 };
 
-// Static method to get all conversations for a user
 messageSchema.statics.getUserConversations = async function(userId) {
   const conversations = await this.aggregate([
     {
@@ -150,7 +135,6 @@ messageSchema.statics.getUserConversations = async function(userId) {
     },
   ]);
 
-  // Populate user and job details
   await this.populate(conversations, [
     {
       path: 'lastMessage.senderId',
@@ -173,7 +157,6 @@ messageSchema.statics.getUserConversations = async function(userId) {
   return conversations;
 };
 
-// Static method to create conversation ID from participants
 messageSchema.statics.createConversationId = function(jobId, applicantId, recruiterId) {
   // Sort IDs to ensure consistent conversationId regardless of who sends first
   const ids = [applicantId.toString(), recruiterId.toString()].sort();

@@ -22,7 +22,6 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# ─── Global State ───
 sbert_model = None
 matching_model = None       # BERTMatchingModel (bi-encoder) OR None
 cross_encoder_model = None  # CrossEncoder (fine-tuned) OR None
@@ -32,7 +31,6 @@ background_data = None
 config = {}
 model_type = 'fallback'     # 'cross-encoder', 'bi-encoder', or 'fallback'
 
-# Feature names for explainability (what SHAP/LIME will explain)
 FEATURE_NAMES = [
     'Resume-Job Semantic Similarity',
     'Skills Match',
@@ -41,14 +39,13 @@ FEATURE_NAMES = [
     'Salary Match'
 ]
 
-# Paths
 MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
 BERT_MODEL_PATH = os.path.join(MODEL_DIR, 'bert_matching_model.pt')
 CROSS_ENCODER_PATH = os.path.join(MODEL_DIR, 'rizehire_cross_encoder_final')
 BACKGROUND_PATH = os.path.join(MODEL_DIR, 'background_data.pkl')
 
 
-# ─── BERT Matching Model (must match training script architecture) ───
+# Must match training script architecture
 class BERTMatchingModel(nn.Module):
     """
     Multi-interaction dual-stream NN for resume-job matching.
@@ -65,6 +62,7 @@ class BERTMatchingModel(nn.Module):
     def __init__(self, embedding_dim=384, hidden_dim=256, dropout=0.4):
         super(BERTMatchingModel, self).__init__()
 
+        # cosine_sim(1) + diff(384) + product(384) + concat(768) = 1537
         interaction_dim = 1 + embedding_dim + embedding_dim + embedding_dim * 2
 
         self.network = nn.Sequential(
@@ -105,14 +103,11 @@ def predict_match(resume_text, job_text, skills_score=50, experience_score=50,
     2. Bi-encoder: Frozen S-BERT embeddings + matching network
     3. Fallback: Cosine similarity only
     """
-    # 1. Get BERT semantic similarity score
     if cross_encoder_model is not None:
-        # Cross-encoder: processes both texts together (most accurate)
         bert_score = float(cross_encoder_model.predict([(resume_text, job_text)])[0])
-        # Clip to 0-1 range (cross-encoder outputs can be unconstrained)
+        # Cross-encoder outputs can be unconstrained
         bert_score = max(0.0, min(1.0, bert_score))
     elif matching_model is not None:
-        # Bi-encoder: encode separately, predict with matching network
         resume_emb = sbert_model.encode([resume_text], normalize_embeddings=True)
         job_emb = sbert_model.encode([job_text], normalize_embeddings=True)
         with torch.no_grad():
@@ -120,22 +115,18 @@ def predict_match(resume_text, job_text, skills_score=50, experience_score=50,
             j_tensor = torch.FloatTensor(job_emb)
             bert_score = matching_model(r_tensor, j_tensor).item()
     else:
-        # Fallback: cosine similarity
         resume_emb = sbert_model.encode([resume_text], normalize_embeddings=True)
         job_emb = sbert_model.encode([job_text], normalize_embeddings=True)
         bert_score = float(np.dot(resume_emb[0], job_emb[0]))
         bert_score = max(0.0, min(1.0, bert_score))
 
-    # 2. Normalize factor scores to 0-1
     skills_norm = skills_score / 100.0
     exp_norm = experience_score / 100.0
     loc_norm = location_score / 100.0
     sal_norm = salary_score / 100.0
 
-    # 3. Feature vector for SHAP/LIME (5 features)
     feature_vector = np.array([bert_score, skills_norm, exp_norm, loc_norm, sal_norm])
 
-    # 4. Final weighted prediction
     # BERT semantic score gets 40% weight, traditional factors get 60%
     final_score = (
         bert_score * 0.40 +
@@ -172,26 +163,23 @@ def predict_from_features(feature_matrix):
     return np.array(results)
 
 
-# ─── Model Loading ───
 def load_models():
     """Load S-BERT and trained matching model (cross-encoder or bi-encoder)"""
     global sbert_model, matching_model, cross_encoder_model, model_type
     global shap_explainer, lime_explainer, background_data, config
 
-    # Load Sentence-BERT (always needed for embeddings + SHAP/LIME background)
     sbert_name = 'all-MiniLM-L6-v2'
     print(f"📥 Loading Sentence-BERT ({sbert_name})...")
     sbert_model = SentenceTransformer(sbert_name)
     print("   ✅ S-BERT loaded")
 
-    # Try loading cross-encoder first (fine-tuned, best accuracy)
+    # Prefer cross-encoder (fine-tuned, best accuracy)
     if os.path.exists(CROSS_ENCODER_PATH) and os.path.isdir(CROSS_ENCODER_PATH):
         print("📥 Loading fine-tuned Cross-Encoder model...")
         try:
             cross_encoder_model = CrossEncoder(CROSS_ENCODER_PATH, max_length=512)
             model_type = 'cross-encoder'
 
-            # Load metadata for metrics display
             meta_path = os.path.join(MODEL_DIR, 'bert_model_metadata.json')
             if os.path.exists(meta_path):
                 with open(meta_path) as f:
@@ -205,14 +193,12 @@ def load_models():
             print(f"   ⚠️ Failed to load Cross-Encoder: {e}")
             cross_encoder_model = None
 
-    # Fallback: try loading bi-encoder model
     if cross_encoder_model is None and os.path.exists(BERT_MODEL_PATH):
         print("📥 Loading bi-encoder BERT matching model...")
         try:
             checkpoint = torch.load(BERT_MODEL_PATH, map_location='cpu', weights_only=False)
             ckpt_config = checkpoint.get('config', {})
 
-            # Check if it's a cross-encoder checkpoint (not a BERTMatchingModel)
             if ckpt_config.get('model_type') == 'cross-encoder-finetuned':
                 print("   ℹ️ Checkpoint is cross-encoder format but directory missing.")
                 print("   ⚠️ Please unzip rizehire_cross_encoder_final.zip into python-explainability/")
@@ -236,19 +222,16 @@ def load_models():
             print(f"   ⚠️ Failed to load bi-encoder: {e}")
             matching_model = None
 
-    # Final fallback
     if cross_encoder_model is None and matching_model is None:
         model_type = 'fallback'
         print("⚠️  No trained model found. Using cosine similarity fallback.")
         print("   Run the Colab notebook or train_bert_model.py to train a model.")
 
-    # Initialize SHAP explainer
     print("🔧 Initializing SHAP explainer...")
     bg_data = generate_background_data()
     shap_explainer = shap.Explainer(predict_from_features, bg_data, feature_names=FEATURE_NAMES)
     print("   ✅ SHAP ready")
 
-    # Initialize LIME explainer
     print("🔧 Initializing LIME explainer...")
     lime_explainer = lime_tabular.LimeTabularExplainer(
         bg_data,
@@ -276,7 +259,6 @@ def generate_background_data(n_samples=200):
             job_embs = np.array(bg.get('job_embeddings', []))
 
             for i in range(n):
-                # Compute real BERT cosine similarity from stored embeddings
                 if resume_embs is not None and job_embs is not None:
                     cos_sim = np.dot(resume_embs[i], job_embs[i]) / (
                         np.linalg.norm(resume_embs[i]) * np.linalg.norm(job_embs[i]) + 1e-8
@@ -285,7 +267,6 @@ def generate_background_data(n_samples=200):
                 else:
                     bert_sim = np.random.uniform(0.2, 0.9)
 
-                # Realistic score distributions (centered around 0.5 with spread)
                 skills = np.clip(np.random.normal(0.55, 0.25), 0, 1)
                 exp = np.clip(np.random.normal(0.50, 0.25), 0, 1)
                 loc = np.clip(np.random.normal(0.60, 0.30), 0, 1)
@@ -297,7 +278,6 @@ def generate_background_data(n_samples=200):
         except Exception as e:
             print(f"   ⚠️ Error loading background data: {e}")
 
-    # Fallback: synthetic background with realistic distributions
     print("   ⚠️ Using synthetic background data (no training data found)")
     bg = np.random.uniform(0, 1, size=(n_samples, 5))
     return bg
@@ -323,8 +303,6 @@ def generate_text_explanation(features_list, contributions, importance_order):
 
     return " • ".join(explanations)
 
-
-# ─── API Endpoints ───
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -415,15 +393,13 @@ def shap_explanation():
         location = data.get('location', 50)
         salary = data.get('salary', 50)
 
-        # Build feature vector
         if resume_text and job_text and sbert_model and (matching_model or cross_encoder_model):
-            # Full BERT mode (cross-encoder or bi-encoder)
             final_score, feature_vector, bert_score = predict_match(
                 resume_text, job_text, skills, experience, location, salary
             )
         else:
-            # Backward-compatible mode (no text, just scores)
-            bert_sim = 0.5  # Default neutral BERT score
+            # Backward-compatible: no text, neutral BERT score
+            bert_sim = 0.5
             feature_vector = np.array([
                 bert_sim, skills / 100.0, experience / 100.0,
                 location / 100.0, salary / 100.0
@@ -433,7 +409,6 @@ def shap_explanation():
 
         prediction = final_score
 
-        # Calculate SHAP values
         shap_values = shap_explainer(feature_vector.reshape(1, -1))
         base_value = float(shap_values.base_values[0]) if hasattr(shap_values.base_values, '__iter__') else float(shap_values.base_values)
         feature_shaps = shap_values.values[0].tolist()
@@ -481,7 +456,6 @@ def lime_explanation():
         salary = data.get('salary', 50)
 
         if resume_text and job_text and sbert_model and (matching_model or cross_encoder_model):
-            # Full BERT mode (cross-encoder or bi-encoder)
             final_score, feature_vector, bert_score = predict_match(
                 resume_text, job_text, skills, experience, location, salary
             )
@@ -496,7 +470,6 @@ def lime_explanation():
 
         prediction = final_score
 
-        # Generate LIME explanation
         exp = lime_explainer.explain_instance(
             feature_vector,
             predict_from_features,
@@ -549,7 +522,6 @@ def combined_explanation():
         lime_result = lime_explanation()
         lime_data = json.loads(lime_result.get_data())
 
-        # Calculate agreement
         shap_c = shap_data.get('contributions', [])
         lime_c = lime_data.get('contributions', [])
         agreement = 0.0

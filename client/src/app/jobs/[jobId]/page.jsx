@@ -47,7 +47,6 @@ export default function JobDetailPage({ params }) {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
 
-  // Job and application state
   const [job, setJob] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isApplying, setIsApplying] = useState(false);
@@ -57,15 +56,12 @@ export default function JobDetailPage({ params }) {
   const [showQuestions, setShowQuestions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Relocation confirmation
   const [showRelocationDialog, setShowRelocationDialog] = useState(false);
   const [willingToRelocateForJob, setWillingToRelocateForJob] = useState(true);
   const [pendingApplication, setPendingApplication] = useState(null);
-  
-  // Resume parse validation state
-  // These states control the alert shown when a seeker hasn't parsed their resume
+
   const [showResumeAlert, setShowResumeAlert] = useState(false);
-  const [redirectCountdown, setRedirectCountdown] = useState(10); // 10-second countdown before auto-redirect
+  const [redirectCountdown, setRedirectCountdown] = useState(10);
 
   useEffect(() => {
     fetchJobDetails();
@@ -73,42 +69,26 @@ export default function JobDetailPage({ params }) {
 
   useEffect(() => {
     if (job && isAuthenticated) {
-      // console.log(" job:", job);
       fetchMatchScore();
     }
   }, [job, isAuthenticated]);
 
-  /**
-   * Resume Parse Validation Effect
-   * Checks if the authenticated seeker has parsed their resume
-   * If not, shows an alert and prevents job application
-   * Only applies to seekers, not posters
-   */
   useEffect(() => {
     if (isAuthenticated && user && user.role === "seeker") {
-      // Check if parsedResume exists and has data
       const hasParsedResume = user.parsedResume && Object.keys(user.parsedResume).length > 0;
       if (!hasParsedResume) {
-        setShowResumeAlert(true); // Show warning alert
+        setShowResumeAlert(true);
       }
     }
   }, [isAuthenticated, user]);
 
-  /**
-   * Auto-Redirect Countdown Timer
-   * Counts down from 10 seconds and automatically redirects to profile page
-   * User can manually redirect or dismiss the alert
-   * Timer cleans up on component unmount
-   */
   useEffect(() => {
     if (showResumeAlert && redirectCountdown > 0) {
       const timer = setTimeout(() => {
         setRedirectCountdown(redirectCountdown - 1);
       }, 1000);
-      // Cleanup timer on unmount or when dependencies change
       return () => clearTimeout(timer);
     } else if (showResumeAlert && redirectCountdown === 0) {
-      // Redirect when countdown reaches 0
       router.push("/profile");
     }
   }, [showResumeAlert, redirectCountdown, router]);
@@ -178,29 +158,22 @@ export default function JobDetailPage({ params }) {
     }
   };
 
-  // Check if relocation question should be asked (Hybrid or Onsite with different city)
   const requiresRelocation = () => {
     if (!user || !job) return false;
-    if (job.workMode === 'remote') return false; // Remote jobs don't need relocation
+    if (job.workMode === 'remote') return false;
 
     const userCity = String(user.location || '').toLowerCase();
     const jobCity = String(job.location?.city || '').toLowerCase();
 
-    // Check if different city
     const isDifferentCity = jobCity && userCity && !userCity.includes(jobCity);
+    if (!isDifferentCity) return false;
 
-    // Ask relocation question for Hybrid or Onsite with different city
-    if (!isDifferentCity) return false; // Same city, no question needed
-
-    // Different city: ask for both Hybrid and Onsite
     return job.workMode === 'hybrid' || job.workMode === 'onsite';
   };
 
-  // Handle apply with relocation check
   const handleApply = async (e) => {
     e.preventDefault();
 
-    // Validation
     if (!coverLetter.trim()) {
       alert("Cover letter is required");
       return;
@@ -216,25 +189,19 @@ export default function JobDetailPage({ params }) {
       return;
     }
 
-    // Check if relocation required
     if (requiresRelocation()) {
-      // Store form data for later submission
       setPendingApplication({
         coverLetter: coverLetter.trim(),
         resume: selectedResume,
       });
-      // Pre-check based on user preference
       setWillingToRelocateForJob(user.preferences?.willingToRelocate ?? true);
-      // Show relocation confirmation dialog
       setShowRelocationDialog(true);
       return;
     }
 
-    // If no relocation needed, submit directly
     await submitApplication(coverLetter.trim(), selectedResume, null);
   };
 
-  // Submit application (called after confirmation)
   const submitApplication = async (coverLetterText, resume, willingToRelocate) => {
     setIsApplying(true);
 
@@ -243,7 +210,6 @@ export default function JobDetailPage({ params }) {
       formData.append("coverLetter", coverLetterText);
       formData.append("resume", resume);
 
-      // Add relocation preference if applicable
       if (willingToRelocate !== null) {
         formData.append("willingToRelocate", willingToRelocate.toString());
       }
@@ -288,7 +254,6 @@ export default function JobDetailPage({ params }) {
     }
   };
 
-  // Handle relocation confirmation
   const handleConfirmRelocation = async () => {
     if (!pendingApplication) return;
 
@@ -332,16 +297,6 @@ export default function JobDetailPage({ params }) {
         Back
       </Button>
 
-      {/*
-        Resume Parse Alert Component
-        Displays when a seeker hasn't parsed their resume yet
-        Features:
-        - Orange warning alert with clear message
-        - 10-second countdown timer with auto-redirect
-        - Manual "Go to Profile Now" button for immediate action
-        - "Dismiss" button to close alert and continue browsing
-        - Form fields below are disabled when this alert is shown
-      */}
       {showResumeAlert && (
         <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950">
           <AlertCircle className="h-4 w-4 text-orange-600" />
@@ -354,7 +309,6 @@ export default function JobDetailPage({ params }) {
               Redirecting to your profile in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}...
             </p>
             <div className="mt-3 flex gap-2">
-              {/* Immediate redirect button */}
               <Button
                 size="sm"
                 onClick={() => router.push("/profile")}
@@ -362,13 +316,12 @@ export default function JobDetailPage({ params }) {
               >
                 Go to Profile Now
               </Button>
-              {/* Dismiss alert and reset countdown */}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
                   setShowResumeAlert(false);
-                  setRedirectCountdown(10); // Reset countdown for next time
+                  setRedirectCountdown(10);
                 }}
                 className="border-orange-600 text-orange-600 hover:bg-orange-100"
               >
@@ -379,7 +332,6 @@ export default function JobDetailPage({ params }) {
         </Alert>
       )}
 
-      {/* Status Alert - Show only one based on priority */}
       {isDeadlinePassed ? (
         <Alert variant="destructive" className="border-red-500 bg-red-50 dark:bg-red-950">
           <AlertCircle className="h-4 w-4 text-red-600" />
@@ -591,7 +543,6 @@ export default function JobDetailPage({ params }) {
              <form onSubmit={handleApply} className="space-y-4">
   <div>
     <Label htmlFor="coverLetter">Cover Letter</Label>
-    {/* Disabled when resume not parsed to prevent application submission */}
     <Textarea
       id="coverLetter"
       placeholder="Write a compelling cover letter..."
@@ -599,7 +550,7 @@ export default function JobDetailPage({ params }) {
       onChange={(e) => setCoverLetter(e.target.value)}
       rows={6}
       required
-      disabled={showResumeAlert} // Prevents editing when resume not parsed
+      disabled={showResumeAlert}
     />
   </div>
   
@@ -860,7 +811,6 @@ export default function JobDetailPage({ params }) {
         </div>
       </div>
 
-      {/* Relocation Confirmation Dialog */}
       <Dialog open={showRelocationDialog} onOpenChange={setShowRelocationDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -876,7 +826,6 @@ export default function JobDetailPage({ params }) {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Location Info */}
             <div className="space-y-2">
               <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                 <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
@@ -899,7 +848,6 @@ export default function JobDetailPage({ params }) {
               </div>
             </div>
 
-            {/* Confirmation Checkbox */}
             <div className="flex items-start space-x-3 p-4 border rounded-lg bg-orange-50 dark:bg-orange-900/10">
               <input
                 type="checkbox"
@@ -922,7 +870,6 @@ export default function JobDetailPage({ params }) {
               </label>
             </div>
 
-            {/* Info */}
             <div className="text-xs text-muted-foreground p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-md">
               💡 <strong>Note:</strong> This preference will be included in your application.
               The employer may discuss relocation support during the interview process.

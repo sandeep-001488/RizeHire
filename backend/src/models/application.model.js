@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-// --- NEW SCHEMA FOR SCREENING RESULTS ---
 const screeningResultSchema = new mongoose.Schema(
   {
     hardFail: {
@@ -36,16 +35,15 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       maxlength: 5000,
     },
-    resume: { // Store the resume file path
+    resume: {
       type: String,
-      required: false, // Resume is optional
+      required: false,
     },
     status: {
       type: String,
       enum: ["pending", "viewed", "moving-forward", "accepted", "rejected"],
       default: "pending",
     },
-    // --- FIELDS FOR AI SCREENING ---
     matchScore: {
       type: Number,
       default: 0,
@@ -56,51 +54,48 @@ const applicationSchema = new mongoose.Schema(
       type: screeningResultSchema,
       default: () => ({}),
     },
-    // --- NEW: ML MODEL FIELDS FOR TRAINING & PREDICTION ---
     mlPrediction: {
       score: {
         type: Number,
         min: 0,
         max: 1,
-        default: null, // ML model's prediction score (0-1)
+        default: null,
       },
       prediction: {
         type: String,
         enum: ["accept", "reject", "review", null],
-        default: null, // ML model's recommendation
+        default: null,
       },
       confidence: {
         type: Number,
         min: 0,
         max: 1,
-        default: null, // How confident the model is
+        default: null,
       },
       modelVersion: {
         type: String,
-        default: null, // Track which model version made prediction
+        default: null,
       },
       predictedAt: {
         type: Date,
         default: null,
       },
     },
-    // --- NEW: EXPLAINABILITY (SHAP/LIME) ---
     explanation: {
       topFactors: [
         {
-          feature: String, // e.g., "skills_match", "experience"
-          impact: Number, // Positive or negative impact on score
-          value: mongoose.Schema.Types.Mixed, // Actual value of the feature
+          feature: String,
+          impact: Number,
+          value: mongoose.Schema.Types.Mixed,
         },
       ],
-      visualizationUrl: String, // URL to SHAP plot if stored
+      visualizationUrl: String,
     },
-    // --- NEW: RECRUITER DECISION (FOR TRAINING) ---
     recruiterDecision: {
       finalDecision: {
         type: String,
         enum: ["accepted", "rejected", null],
-        default: null, // Actual decision by recruiter
+        default: null,
       },
       decidedAt: {
         type: Date,
@@ -114,21 +109,18 @@ const applicationSchema = new mongoose.Schema(
       notes: {
         type: String,
         maxlength: 1000,
-        default: null, // Why recruiter made this decision
+        default: null,
       },
     },
-    // --- NEW: FEATURE VECTOR (FOR ML TRAINING) ---
     features: {
-      skillsMatch: { type: Number, default: null }, // 0-1 score
-      experienceMatch: { type: Number, default: null }, // 0-1 score
-      educationMatch: { type: Number, default: null }, // 0-1 score
-      locationMatch: { type: Number, default: null }, // 0-1 score
+      skillsMatch: { type: Number, default: null },
+      experienceMatch: { type: Number, default: null },
+      educationMatch: { type: Number, default: null },
+      locationMatch: { type: Number, default: null },
       yearsOfExperience: { type: Number, default: null },
       careerGrowthRate: { type: Number, default: null },
       jobStability: { type: Number, default: null },
-      // Add more features as needed
     },
-    // --- NEW: BIAS DETECTION METADATA ---
     biasMetadata: {
       gender: {
         type: String,
@@ -142,10 +134,9 @@ const applicationSchema = new mongoose.Schema(
       },
       // Used only for bias detection, not for ML predictions
     },
-    // --- NEW: FEEDBACK LOOP FLAG ---
     usedForTraining: {
       type: Boolean,
-      default: false, // Mark if this data was used to retrain model
+      default: false,
     },
     // AI-generated improvement feedback (not manual recruiter communication)
     feedback: [
@@ -173,7 +164,6 @@ const applicationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // --- NEW: RELOCATION PREFERENCE (for location matching) ---
     willingToRelocate: {
       type: Boolean,
       default: null, // null = not answered, true = yes, false = no
@@ -190,20 +180,19 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       maxlength: 2000,
     },
-    // --- NEW: Rejection explanation with SHAP/LIME ---
     rejectionExplanation: {
       type: {
-        reason: String,                    // Why rejected (hard rule or soft scoring)
-        hardRuleFailed: [String],          // Which hard rules failed
-        matchBreakdown: {                  // Match score breakdown
+        reason: String,
+        hardRuleFailed: [String],
+        matchBreakdown: {
           skills: Number,
           experience: Number,
           location: Number,
           salary: Number,
         },
-        shapExplanation: mongoose.Schema.Types.Mixed,  // SHAP analysis
-        limeExplanation: mongoose.Schema.Types.Mixed,  // LIME analysis
-        recommendations: [String],         // What to improve
+        shapExplanation: mongoose.Schema.Types.Mixed,
+        limeExplanation: mongoose.Schema.Types.Mixed,
+        recommendations: [String],
       },
       default: null,
     },
@@ -221,11 +210,10 @@ applicationSchema.index({ jobId: 1, applicantId: 1 }, { unique: true });
 applicationSchema.index({ status: 1 });
 applicationSchema.index({ appliedAt: -1 });
 applicationSchema.index({ recruiterId: 1 });
-// NEW: Indexes for ML-related queries
-applicationSchema.index({ "mlPrediction.score": -1 }); // Sort by ML score
-applicationSchema.index({ "recruiterDecision.finalDecision": 1 }); // Filter by decision
-applicationSchema.index({ usedForTraining: 1 }); // Find training data
-applicationSchema.index({ "mlPrediction.modelVersion": 1 }); // Track model versions
+applicationSchema.index({ "mlPrediction.score": -1 });
+applicationSchema.index({ "recruiterDecision.finalDecision": 1 });
+applicationSchema.index({ usedForTraining: 1 });
+applicationSchema.index({ "mlPrediction.modelVersion": 1 });
 
 const Application = mongoose.model("Application", applicationSchema);
 export default Application;

@@ -30,7 +30,6 @@ import json
 from datetime import datetime
 
 
-# ─── Configuration ───
 class Config:
     SBERT_MODEL = 'all-MiniLM-L6-v2'  # Lightweight S-BERT (384-dim, 80MB)
     EMBEDDING_DIM = 384
@@ -47,7 +46,6 @@ class Config:
     PATIENCE = 7  # Early stopping patience
 
 
-# ─── Dataset Class ───
 class ResumeJobDataset(Dataset):
     """Dataset for resume-job matching pairs"""
 
@@ -63,7 +61,6 @@ class ResumeJobDataset(Dataset):
         return self.resume_emb[idx], self.job_emb[idx], self.labels[idx]
 
 
-# ─── BERT Matching Model (Multi-Interaction Architecture) ───
 class BERTMatchingModel(nn.Module):
     """
     Multi-interaction dual-stream neural network for resume-job matching.
@@ -85,7 +82,7 @@ class BERTMatchingModel(nn.Module):
     def __init__(self, embedding_dim=384, hidden_dim=256, dropout=0.4):
         super(BERTMatchingModel, self).__init__()
 
-        # Input: cosine_sim(1) + diff(384) + product(384) + concat(768) = 1537
+        # cosine_sim(1) + diff(384) + product(384) + concat(768) = 1537
         interaction_dim = 1 + embedding_dim + embedding_dim + embedding_dim * 2
 
         self.network = nn.Sequential(
@@ -106,24 +103,14 @@ class BERTMatchingModel(nn.Module):
         )
 
     def forward(self, resume_emb, job_emb):
-        # 1. Cosine similarity (captures global semantic alignment)
         cos_sim = F.cosine_similarity(resume_emb, job_emb, dim=1).unsqueeze(1)  # (batch, 1)
-
-        # 2. Element-wise absolute difference (captures gaps)
         diff = torch.abs(resume_emb - job_emb)  # (batch, 384)
-
-        # 3. Element-wise product (captures shared concepts)
         product = resume_emb * job_emb  # (batch, 384)
-
-        # 4. Concatenation (full context)
         concat = torch.cat([resume_emb, job_emb], dim=1)  # (batch, 768)
-
-        # Combine all interactions
         combined = torch.cat([cos_sim, diff, product, concat], dim=1)  # (batch, 1537)
         return self.network(combined).squeeze()
 
 
-# ─── Data Loading & Preprocessing ───
 def load_dataset(csv_path):
     """Load and preprocess the dataset"""
     print(f"📂 Loading dataset from {csv_path}...")
@@ -132,7 +119,7 @@ def load_dataset(csv_path):
     print(f"   Total rows: {len(df)}")
     print(f"   Columns: {list(df.columns)}")
 
-    # Handle different column names
+    # Tolerate varying column-name conventions across datasets
     resume_col = None
     jd_col = None
     label_col = None
@@ -150,7 +137,7 @@ def load_dataset(csv_path):
 
     print(f"   Using columns: Resume='{resume_col}', JD='{jd_col}', Label='{label_col}'")
 
-    # Check for transcript column (decisions often depend on interview performance)
+    # Hire decisions often hinge on interview performance, so fold transcript into the candidate text
     transcript_col = None
     for col in df.columns:
         if col.lower() in ['transcript', 'interview', 'interview_transcript']:
@@ -160,7 +147,6 @@ def load_dataset(csv_path):
     if transcript_col:
         print(f"   📋 Found transcript column: '{transcript_col}' — will combine with resume")
 
-    # Clean data
     df = df.dropna(subset=[resume_col, jd_col, label_col])
 
     # Convert labels to binary (1 = hire/select, 0 = reject)
@@ -175,8 +161,6 @@ def load_dataset(csv_path):
     print(f"   After cleaning: {len(df)} samples")
     print(f"   Label distribution: {dict(df['label'].value_counts())}")
 
-    # Build candidate text: Resume + Interview Transcript (if available)
-    # The transcript captures interview performance which strongly influences decisions
     if transcript_col and transcript_col in df.columns:
         df['resume_text'] = (
             df[resume_col].astype(str).str[:Config.MAX_TEXT_LENGTH] +
@@ -199,7 +183,7 @@ def load_supplementary_data(csv_path):
 
     if 'raw_text' in df.columns and 'label' in df.columns:
         df = df.dropna(subset=['raw_text', 'label'])
-        # Create a synthetic JD from skills
+        # No real JD in this dataset, so synthesize one from the skills column
         if 'skills' in df.columns:
             df['jd_text'] = df['skills'].apply(
                 lambda x: f"Looking for a candidate with skills in {x}. "
@@ -231,7 +215,6 @@ def generate_embeddings(texts, sbert_model, batch_size=64):
     return embeddings
 
 
-# ─── Training ───
 def train_model(train_loader, val_loader, model, config):
     """Train the BERT matching model with early stopping and cosine annealing"""
     optimizer = torch.optim.AdamW(
@@ -250,7 +233,6 @@ def train_model(train_loader, val_loader, model, config):
     history = {'train_loss': [], 'val_loss': [], 'val_acc': [], 'val_f1': []}
 
     for epoch in range(config.EPOCHS):
-        # Training phase
         model.train()
         train_loss = 0
         for resume_emb, job_emb, labels in train_loader:
@@ -269,7 +251,6 @@ def train_model(train_loader, val_loader, model, config):
         scheduler.step()
         avg_train_loss = train_loss / len(train_loader)
 
-        # Validation phase
         model.eval()
         val_loss = 0
         all_preds = []
@@ -306,7 +287,6 @@ def train_model(train_loader, val_loader, model, config):
               f"Acc: {val_acc:.4f} | F1: {val_f1:.4f} | Prec: {val_prec:.4f} | Rec: {val_rec:.4f} | "
               f"LR: {lr_now:.6f}")
 
-        # Save best model
         if val_f1 > best_val_f1:
             best_val_f1 = val_f1
             best_model_state = model.state_dict().copy()
@@ -318,14 +298,12 @@ def train_model(train_loader, val_loader, model, config):
                 print(f"   ⏹️ Early stopping at epoch {epoch+1} (no improvement for {config.PATIENCE} epochs)")
                 break
 
-    # Load best model
     if best_model_state:
         model.load_state_dict(best_model_state)
 
     return model, history
 
 
-# ─── Main Training Pipeline ───
 def main(args):
     config = Config()
 
@@ -338,16 +316,13 @@ def main(args):
     print(f"   Batch Size: {config.BATCH_SIZE}")
     print()
 
-    # Step 1: Load S-BERT model
     print("📥 Loading Sentence-BERT model...")
     sbert = SentenceTransformer(config.SBERT_MODEL)
     print(f"   ✅ Loaded {config.SBERT_MODEL} ({config.EMBEDDING_DIM}-dim embeddings)")
     print()
 
-    # Step 2: Load dataset
     df = load_dataset(args.dataset)
 
-    # Load supplementary data if provided
     if args.supplementary:
         supp_df = load_supplementary_data(args.supplementary)
         if len(supp_df) > 0:
@@ -359,7 +334,6 @@ def main(args):
 
     print()
 
-    # Step 3: Generate embeddings
     print("🧠 Generating S-BERT embeddings...")
     resume_embeddings = generate_embeddings(df['resume_text'].tolist(), sbert)
     job_embeddings = generate_embeddings(df['jd_text'].tolist(), sbert)
@@ -368,7 +342,6 @@ def main(args):
     print(f"   ✅ Job embeddings: {job_embeddings.shape}")
     print()
 
-    # Step 4: Train/test split
     print("📊 Splitting data...")
     (resume_train, resume_val, job_train, job_val,
      labels_train, labels_val) = train_test_split(
@@ -380,14 +353,12 @@ def main(args):
     print(f"   Train: {len(labels_train)} samples | Val: {len(labels_val)} samples")
     print()
 
-    # Step 5: Create data loaders
     train_dataset = ResumeJobDataset(resume_train, job_train, labels_train)
     val_dataset = ResumeJobDataset(resume_val, job_val, labels_val)
 
     train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=config.BATCH_SIZE, shuffle=False)
 
-    # Step 6: Initialize model
     print("🏗️ Initializing BERT Multi-Interaction Matching Model...")
     model = BERTMatchingModel(
         embedding_dim=config.EMBEDDING_DIM,
@@ -402,12 +373,10 @@ def main(args):
     print(f"   Total parameters: {total_params:,}")
     print()
 
-    # Step 7: Train
     print("🔄 Training...")
     model, history = train_model(train_loader, val_loader, model, config)
     print()
 
-    # Step 8: Final evaluation
     print("📈 Final Evaluation on Validation Set...")
     model.eval()
     all_preds = []
@@ -432,11 +401,9 @@ def main(args):
     print(f"   Final F1 Score: {final_f1:.4f}")
     print()
 
-    # Step 9: Save everything
     save_dir = args.output_dir or os.path.dirname(os.path.abspath(__file__))
     os.makedirs(save_dir, exist_ok=True)
 
-    # Save PyTorch model
     model_path = os.path.join(save_dir, 'bert_matching_model.pt')
     torch.save({
         'model_state_dict': model.state_dict(),
@@ -456,7 +423,7 @@ def main(args):
     }, model_path)
     print(f"💾 Model saved to {model_path}")
 
-    # Save background embeddings for SHAP (random sample of 100)
+    # Background embeddings for SHAP (random sample of 100)
     bg_indices = np.random.choice(len(resume_train), min(100, len(resume_train)), replace=False)
     background_data = {
         'resume_embeddings': resume_train[bg_indices].tolist(),
@@ -468,7 +435,6 @@ def main(args):
         pickle.dump(background_data, f)
     print(f"💾 Background data saved to {bg_path}")
 
-    # Save training metadata
     metadata = {
         'trained_at': datetime.now().isoformat(),
         'dataset': args.dataset,

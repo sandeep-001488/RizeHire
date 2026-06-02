@@ -15,7 +15,7 @@ import { isPoster, hasWallet } from "../middleware/role.middleware.js";
 const router = express.Router();
 
 router.get("/", optionalAuth, getJobs);
-router.get("/skills/search", searchSkills); // Public endpoint for skill autocomplete
+router.get("/skills/search", searchSkills); // Public: registered above protect
 
 router.use(protect);
 
@@ -23,7 +23,7 @@ router.post("/", isPoster, hasWallet, createJob);
 
 router.get("/my-posted-jobs", isPoster, getMyJobs);
 
-// Personalized recommendations (must be before /:id route)
+// Must be before /:id route
 router.get("/recommendations/for-me", getRecommendations);
 
 router.get("/:id", getJob);

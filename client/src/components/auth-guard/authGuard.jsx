@@ -37,8 +37,7 @@ export default function AuthGuard({ children }) {
   useEffect(() => {
     if (isHydrated && isInitialized && !isLoading) {
       if (!isAuthenticated) {
-        // Build redirect URL with current path and query params
-        // Use window.location.search to get query params (client-side only)
+        // window.location.search is only available client-side
         const search = typeof window !== 'undefined' ? window.location.search : '';
         const redirectPath = pathname + search;
         const loginUrl = `/auth/login?redirect=${encodeURIComponent(redirectPath)}`;

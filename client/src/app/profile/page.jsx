@@ -56,8 +56,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) {
-      
-      // parsedResume.location is an object {city, country} — convert to string
+      // parsedResume.location is an object {city, country} 
       let userLocation = user.location || "";
       if (!userLocation && user.parsedResume?.location) {
         const loc = user.parsedResume.location;
@@ -126,7 +125,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Fetch skill suggestions as user types
   const handleSkillInputChange = async (e) => {
     const value = e.target.value;
     setSkillInput(value);
@@ -201,10 +199,8 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Resume Parser Section - Only for Seekers */}
         {user?.role === "seeker" && <ParseResume />}
 
-        {/* Wallet Address Warning for Posters */}
         {user?.role === "poster" && !user?.walletAddress && (
           <Card className="bg-yellow-50 dark:bg-yellow-950 border-yellow-300 dark:border-yellow-800">
             <CardHeader>
@@ -315,7 +311,6 @@ export default function ProfilePage() {
                     disabled={!isEditing}
                   />
                 </div>
-                {/* Wallet Address - Only for Posters */}
                 {user?.role === "poster" && (
                   <div>
                     <Label htmlFor="walletAddress">
@@ -335,7 +330,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Relocation Preferences - Only for Seekers */}
           {user?.role === "seeker" && (
             <Card>
               <CardHeader>
@@ -348,7 +342,6 @@ export default function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Willing to Relocate Toggle */}
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="space-y-0.5">
                     <Label htmlFor="willingToRelocate" className="text-base font-medium">
@@ -378,7 +371,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Relocation Type */}
                 {formData.preferences?.willingToRelocate && (
                   <div className="space-y-3">
                     <Label>Where are you willing to relocate?</Label>
@@ -474,7 +466,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Info Box */}
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
                       <p className="text-sm text-blue-800 dark:text-blue-300">
                         💡 <strong>Note:</strong> This preference will be used to calculate your job match scores. You can always override this when applying to specific jobs.
@@ -486,7 +477,6 @@ export default function ProfilePage() {
             </Card>
           )}
 
-          {/* Skills Section */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -578,7 +568,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Parsed Resume Info - Only for Seekers */}
           {user?.role === "seeker" && user?.parsedResume && (
             <Card className="bg-green-50 dark:bg-green-950 border-green-300 dark:border-green-800">
               <CardHeader>

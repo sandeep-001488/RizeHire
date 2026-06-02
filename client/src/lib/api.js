@@ -24,10 +24,9 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
 api.interceptors.response.use(
   (response) => {
-    // Check for new tokens in response headers
+    // Server rotates tokens by returning fresh ones in response headers
     const newAccessToken = response.headers["x-new-access-token"];
     const newRefreshToken = response.headers["x-new-refresh-token"];
     
@@ -58,7 +57,6 @@ export const authAPI = {
   getProfile: () => api.get("/auth/profile"),
   updateProfile: (data) => api.put("/auth/profile", data),
    updateSkills: (data) => api.put("/auth/profile/skills", data),
-  // --- NEW ---
   forgotPassword: (data) => api.post("/auth/forgot-password", data),
   resetPassword: (token, data) =>
     api.patch(`/auth/reset-password/${token}`, data),
@@ -123,11 +121,9 @@ export const aiAPI = {
   optimizeDescription: (data) => api.post("/ai/optimize-description", data),
   getInterviewQuestions: (jobId) => api.get(`/ai/interview-questions/${jobId}`),
   suggestSkills: (data) => api.post("/ai/suggest-skills", data),
-  // ML Model APIs
   trainMLModel: () => api.post("/ai/ml/train"),
   getMLPerformance: () => api.get("/ai/ml/performance"),
   getMLPrediction: (jobId) => api.get(`/ai/ml/predict/${jobId}`),
-  // Explainability APIs (SHAP & LIME)
   checkExplainabilityHealth: () => api.get("/ai/explainability/health"),
   getSHAPExplanation: (jobId) => api.get(`/ai/explainability/shap/${jobId}`),
   getLIMEExplanation: (jobId) => api.get(`/ai/explainability/lime/${jobId}`),
@@ -135,24 +131,13 @@ export const aiAPI = {
 };
 
 export const messagesAPI = {
-  // Send a message
   sendMessage: (data) => api.post("/messages/send", data),
-
-  // Get all conversations for current user
   getUserConversations: () => api.get("/messages/conversations"),
-
-  // Get conversation history
   getConversation: (conversationId, params) =>
     api.get(`/messages/conversation/${conversationId}`, { params }),
-
-  // Mark messages as read
   markAsRead: (conversationId) =>
     api.put(`/messages/read/${conversationId}`),
-
-  // Get unread count
   getUnreadCount: () => api.get("/messages/unread/count"),
-
-  // Get conversation ID for an application
   getConversationId: (applicationId) =>
     api.get(`/messages/conversation-id/${applicationId}`),
 };

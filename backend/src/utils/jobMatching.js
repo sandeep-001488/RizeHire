@@ -1,14 +1,3 @@
-/**
- * Enhanced Job Matching Algorithm with ML-inspired scoring
- * Calculates sophisticated match scores based on multiple factors
- */
-
-/**
- * Calculate TF-IDF inspired skill similarity
- * @param {Array} candidateSkills - Candidate's skills
- * @param {Array} jobSkills - Job's required skills
- * @returns {Object} Skill match details
- */
 function calculateSkillMatch(candidateSkills, jobSkills) {
   if (!jobSkills || jobSkills.length === 0) {
     return { score: 50, matchingSkills: [], missingSkills: [], matchPercentage: 0 };
@@ -18,27 +7,20 @@ function calculateSkillMatch(candidateSkills, jobSkills) {
     return { score: 0, matchingSkills: [], missingSkills: jobSkills, matchPercentage: 0 };
   }
 
-  // Normalize skills to lowercase for comparison
   const normalizedCandidateSkills = candidateSkills.map(s => s.toLowerCase().trim());
   const normalizedJobSkills = jobSkills.map(s => s.toLowerCase().trim());
 
-  // Find exact matches only (no substring matching to avoid false positives)
   const matchingSkills = [];
   const missingSkills = [];
 
   normalizedJobSkills.forEach(jobSkill => {
-    // Check for exact match
     const hasExactMatch = normalizedCandidateSkills.some(cs => cs === jobSkill);
 
-    // Check for reasonable partial match (both must be multi-word skills)
-    // Only allow if the candidate skill is a clear superset (e.g., "react.js" contains "react")
+    // Partial match only when skills share a word of >=4 chars, e.g. "react.js"/"react"
     const hasReasonablePartialMatch = normalizedCandidateSkills.some(cs => {
-      // Only consider partial match if one skill is clearly a variant of the other
-      // e.g., "javascript" matches "js", "react" matches "reactjs", "node.js" matches "node"
       const csWords = cs.split(/[\s\.\-_]+/);
       const jobWords = jobSkill.split(/[\s\.\-_]+/);
 
-      // Check if they share a significant word (at least 4 characters)
       return csWords.some(cw => jobWords.some(jw =>
         cw.length >= 4 && jw.length >= 4 && (cw === jw || cw.includes(jw) || jw.includes(cw))
       ));
@@ -51,14 +33,13 @@ function calculateSkillMatch(candidateSkills, jobSkills) {
     }
   });
 
-  // Calculate match percentage
   const matchPercentage = Math.round((matchingSkills.length / normalizedJobSkills.length) * 100);
 
-  // Skill score — only give bonus if at least 1 skill matches
+  // Bonus for extra skills, but only if at least one required skill matched (max +10)
   const baseScore = matchPercentage;
   const extraSkillsBonus = matchingSkills.length > 0
-    ? Math.min(candidateSkills.length - matchingSkills.length, 5) * 2 // Max +10
-    : 0; // No bonus if zero skills match
+    ? Math.min(candidateSkills.length - matchingSkills.length, 5) * 2
+    : 0;
   const score = Math.min(baseScore + extraSkillsBonus, 100);
 
   return {
@@ -73,18 +54,10 @@ function calculateSkillMatch(candidateSkills, jobSkills) {
   };
 }
 
-/**
- * Calculate experience match score
- * @param {Number} candidateYears - Candidate's years of experience
- * @param {Number} requiredYears - Job's required years
- * @param {String} experienceLevel - Job's experience level (entry, mid, senior)
- * @returns {Object} Experience match details
- */
 function calculateExperienceMatch(candidateYears, requiredYears, experienceLevel) {
   candidateYears = candidateYears || 0;
   requiredYears = requiredYears || 0;
 
-  // Define experience level ranges
   const levelRanges = {
     'entry': { min: 0, max: 2, ideal: 1 },
     'junior': { min: 1, max: 3, ideal: 2 },
@@ -99,11 +72,10 @@ function calculateExperienceMatch(candidateYears, requiredYears, experienceLevel
   let score = 0;
   let explanation = '';
 
-  // Perfect match
   if (candidateYears >= range.min && candidateYears <= range.max) {
     const distanceFromIdeal = Math.abs(candidateYears - range.ideal);
-    score = 100 - (distanceFromIdeal * 5); // Lose 5 points per year from ideal
-    score = Math.max(score, 80); // Minimum 80 if within range
+    score = 100 - (distanceFromIdeal * 5); // -5 points per year away from ideal
+    score = Math.max(score, 80); // floor of 80 while within range
 
     if (level === 'entry' && candidateYears === 0) {
       explanation = `Perfect for entry-level candidates`;
@@ -113,22 +85,18 @@ function calculateExperienceMatch(candidateYears, requiredYears, experienceLevel
       explanation = `${candidateYears} years - great fit for ${level} role`;
     }
   }
-  // Slightly over-qualified
   else if (candidateYears > range.max && candidateYears <= range.max + 3) {
     score = 70;
     explanation = `Senior candidate for ${level} role`;
   }
-  // Over-qualified
   else if (candidateYears > range.max + 3) {
     score = 50;
     explanation = `Highly experienced for this ${level} position`;
   }
-  // Slightly under-qualified
   else if (candidateYears < range.min && candidateYears >= range.min - 1) {
     score = 60;
     explanation = `Quick learner can succeed in ${level} role`;
   }
-  // Under-qualified
   else {
     score = 30;
     explanation = `${level.charAt(0).toUpperCase() + level.slice(1)} role - build more experience`;
@@ -138,23 +106,15 @@ function calculateExperienceMatch(candidateYears, requiredYears, experienceLevel
 }
 
 /**
- * Calculate location match score with relocation preferences
- * Simplified scoring:
+ * Location scoring rules:
  * - Remote: 100 (location irrelevant)
  * - Same city (any mode): 100
- * - Hybrid/Onsite + Different city + Willing to relocate: 100
- * - Hybrid + Different city + Not willing: 70
- * - Onsite + Different city + Not willing: 40
+ * - Hybrid/Onsite + different city + willing to relocate: 100
+ * - Hybrid + different city + not willing: 70; Onsite: 40
  * - No location provided: 20
- *
- * @param {String} candidateLocation - Candidate's location
- * @param {Object} jobLocation - Job's location {city, country}
- * @param {String} workMode - Job's work mode (remote, hybrid, onsite)
- * @param {Boolean} willingToRelocate - User's relocation choice (true/false/null)
- * @returns {Object} Location match details
+ * willingToRelocate is true/false/null (null = not yet answered).
  */
 function calculateLocationMatch(candidateLocation, jobLocation, workMode, willingToRelocate = null) {
-  // Rule 1: Remote jobs → location irrelevant
   if (workMode && workMode.toLowerCase() === 'remote') {
     return {
       score: 100,
@@ -163,7 +123,6 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode, willin
     };
   }
 
-  // Rule 2: No candidate location provided
   if (!candidateLocation || !jobLocation) {
     return {
       score: 20,
@@ -172,11 +131,9 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode, willin
     };
   }
 
-  // Normalize for comparison (case-insensitive)
   const candidateLower = String(candidateLocation || '').toLowerCase().trim();
   const jobCity = String(jobLocation.city || '').toLowerCase().trim();
 
-  // Rule 3: Same city (exact match)
   if (jobCity && candidateLower.includes(jobCity)) {
     return {
       score: 100,
@@ -185,10 +142,6 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode, willin
     };
   }
 
-  // Rule 4: Different city - check relocation preference
-  // Both Hybrid and Onsite ask relocation question if different city
-
-  // 4a: User willing to relocate
   if (willingToRelocate === true) {
     return {
       score: 100,
@@ -199,9 +152,7 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode, willin
     };
   }
 
-  // 4b: User NOT willing to relocate
   if (willingToRelocate === false) {
-    // Hybrid: score 70, Onsite: score 40
     const score = workMode?.toLowerCase() === 'hybrid' ? 70 : 40;
     return {
       score,
@@ -213,8 +164,7 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode, willin
     };
   }
 
-  // 4c: User hasn't answered relocation question yet (null)
-  // Default to lower score until they answer
+  // Relocation question unanswered (null): use a lower default until answered
   const defaultScore = workMode?.toLowerCase() === 'hybrid' ? 40 : 20;
   return {
     score: defaultScore,
@@ -223,13 +173,6 @@ function calculateLocationMatch(candidateLocation, jobLocation, workMode, willin
   };
 }
 
-/**
- * Calculate salary match score
- * @param {Number} candidateMin - Candidate's minimum salary expectation
- * @param {Number} candidateMax - Candidate's maximum salary expectation
- * @param {Object} jobBudget - Job's budget {min, max}
- * @returns {Object} Salary match details
- */
 function calculateSalaryMatch(candidateMin, candidateMax, jobBudget) {
   if (!jobBudget || (!jobBudget.min && !jobBudget.max)) {
     return { score: 50, explanation: 'Salary not disclosed' };
@@ -243,40 +186,27 @@ function calculateSalaryMatch(candidateMin, candidateMax, jobBudget) {
   const jobMax = jobBudget.max || jobBudget.min || 0;
   const candidateDesired = candidateMax || candidateMin || 0;
 
-  // Job offers more than candidate expects
   if (jobMin >= candidateDesired) {
     return { score: 100, explanation: 'Salary exceeds your expectations' };
   }
 
-  // Job's max meets candidate's min
   if (jobMax >= candidateMin) {
     return { score: 80, explanation: 'Salary within your expected range' };
   }
 
-  // Job offers less but close
   if (jobMax >= candidateMin * 0.8) {
     return { score: 60, explanation: 'Salary slightly below expectations' };
   }
 
-  // Job offers significantly less
   return { score: 30, explanation: 'Salary below your expectations' };
 }
 
-/**
- * Calculate overall job match score with weighted factors
- * @param {Object} candidate - Candidate profile
- * @param {Object} job - Job details
- * @param {Boolean} willingToRelocate - User's relocation choice (for applications)
- * @returns {Object} Comprehensive match score and explanation
- */
 export function calculateJobMatch(candidate, job, willingToRelocate = null) {
-  // Safely extract candidate info with defaults
   const candidateSkills = candidate?.skills || candidate?.parsedResume?.skills || [];
   const candidateYears = candidate?.parsedResume?.yearsOfExperience || candidate?.yearsOfExperience || 0;
   const candidateLocation = candidate?.location || candidate?.parsedResume?.location || '';
-  const preferences = candidate?.preferences || {}; // Relocation preferences
+  const preferences = candidate?.preferences || {};
 
-  // Safely extract job requirements with defaults
   const jobSkills = job?.skills || job?.required_skills || [];
   const requiredYears = job?.hardConstraints?.minYears || job?.ideal_experience || 0;
   const experienceLevel = job?.experienceLevel || 'mid';
@@ -284,19 +214,17 @@ export function calculateJobMatch(candidate, job, willingToRelocate = null) {
   const workMode = job?.workMode || '';
   const jobBudget = job?.budget || {};
 
-  // Calculate individual scores
   const skillMatch = calculateSkillMatch(candidateSkills, jobSkills);
   const experienceMatch = calculateExperienceMatch(candidateYears, requiredYears, experienceLevel);
-  // Pass willingToRelocate from application (if set), otherwise use default null
   const locationMatch = calculateLocationMatch(
     candidateLocation,
     jobLocation,
     workMode,
     willingToRelocate
   );
-  const salaryMatch = calculateSalaryMatch(null, null, jobBudget); // Candidate salary not in profile yet
+  const salaryMatch = calculateSalaryMatch(null, null, jobBudget); // candidate salary not yet captured in profile
 
-  // Weighted scoring (skills are most important)
+  // Weights must stay in sync with mlModel.js training data
   const weights = {
     skills: 0.50,      
     experience: 0.35, 
@@ -404,7 +332,6 @@ export function calculateJobMatch(candidate, job, willingToRelocate = null) {
 export function rankJobsByRelevance(jobs, candidate) {
   if (!jobs || jobs.length === 0) return [];
 
-  // Calculate match for each job
   const jobsWithScores = jobs.map(job => {
     const match = calculateJobMatch(candidate, job);
     return {
@@ -418,17 +345,9 @@ export function rankJobsByRelevance(jobs, candidate) {
     };
   });
 
-  // Sort by match score (highest first)
   return jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
 }
 
-/**
- * Get top N recommended jobs for a candidate
- * @param {Array} jobs - Array of job objects
- * @param {Object} candidate - Candidate profile
- * @param {Number} limit - Number of recommendations (default 5)
- * @returns {Array} Top recommended jobs
- */
 export function getTopRecommendations(jobs, candidate, limit = 5) {
   const rankedJobs = rankJobsByRelevance(jobs, candidate);
   return rankedJobs.slice(0, limit);

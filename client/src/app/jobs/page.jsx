@@ -57,21 +57,17 @@ export default function JobsPage() {
   const [showAllRecommendations, setShowAllRecommendations] = useState(false);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
 
-  // SHAP/LIME explainability
   const [shapData, setShapData] = useState({});
   const [limeData, setLimeData] = useState({});
   const [loadingSHAP, setLoadingSHAP] = useState({});
   const [loadingLIME, setLoadingLIME] = useState({});
   const [explainabilityMode, setExplainabilityMode] = useState({}); // jobId -> 'shap' or 'lime'
 
-  // Fetch jobs after hydration is complete
   useEffect(() => {
     if (!isHydrated || !user) return;
 
     fetchJobs();
-    // Fetch recommendations if user is a seeker
     if (user?.role === "seeker") {
-      // Show location prompt if no location
       if (!user.location) {
         setShowLocationPrompt(true);
       }
@@ -113,9 +109,8 @@ export default function JobsPage() {
     }
   };
 
-  // Fetch SHAP explanation for a job
   const fetchSHAPExplanation = async (jobId) => {
-    if (shapData[jobId] || loadingSHAP[jobId]) return; // Already loaded or loading
+    if (shapData[jobId] || loadingSHAP[jobId]) return;
 
     setLoadingSHAP({ ...loadingSHAP, [jobId]: true });
     setExplainabilityMode({ ...explainabilityMode, [jobId]: 'shap' });
@@ -133,9 +128,8 @@ export default function JobsPage() {
     }
   };
 
-  // Fetch LIME explanation for a job
   const fetchLIMEExplanation = async (jobId) => {
-    if (limeData[jobId] || loadingLIME[jobId]) return; // Already loaded or loading
+    if (limeData[jobId] || loadingLIME[jobId]) return;
 
     setLoadingLIME({ ...loadingLIME, [jobId]: true });
     setExplainabilityMode({ ...explainabilityMode, [jobId]: 'lime' });
@@ -177,14 +171,12 @@ export default function JobsPage() {
     setPagination({ ...pagination, current: 1 });
   };
 
-  // Check if any filters are active
   const hasActiveFilters = filters.search || filters.category || filters.industry || filters.jobType || filters.workMode || filters.experienceLevel || filters.location;
 
   const isJobOwner = (job) => {
     return isAuthenticated && user && job?.postedBy?._id === user?._id;
   };
 
-  // Get match badge styling
   const getMatchBadgeStyle = (matchScore) => {
     if (matchScore >= 80) {
       return "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300";
@@ -206,8 +198,7 @@ export default function JobsPage() {
   ];
   const workModes = ["remote", "hybrid", "onsite"];
   const experienceLevels = ["entry", "junior", "mid", "senior", "expert"];
-  
-  // NEW: Category and Industry options
+
   const categories = [
     "technology",
     "business",
@@ -417,7 +408,6 @@ export default function JobsPage() {
         </CardContent>
       </Card>
 
-      {/* Location Missing Prompt (for seekers without location) */}
       {user?.role === "seeker" && showLocationPrompt && !user?.location && (
         <Card className="mb-8 border-2 border-orange-200 bg-orange-50 dark:bg-orange-900/10">
           <CardContent className="p-4">
@@ -446,7 +436,6 @@ export default function JobsPage() {
         </Card>
       )}
 
-      {/* Personalized Recommendations Section (for seekers only) */}
       {user?.role === "seeker" && recommendations.length > 0 && !hasActiveFilters && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
@@ -475,7 +464,6 @@ export default function JobsPage() {
                     {job.whyThisJob}
                   </p>
 
-                  {/* ML Prediction Badge */}
                   {job.mlPrediction && (
                     <div className="mb-3 p-2 bg-linear-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-md border border-purple-200 dark:border-purple-800 flex items-center justify-between">
                       <p className="text-sm font-bold text-purple-900 dark:text-purple-100 flex items-center gap-1">
@@ -558,7 +546,6 @@ export default function JobsPage() {
                           </h3>
                         </Link>
 
-                        {/* Match Score Badge (for seekers only) */}
                         {user?.role === "seeker" && job.matchScore !== undefined && (
                           <Badge
                             variant="outline"
@@ -568,7 +555,6 @@ export default function JobsPage() {
                           </Badge>
                         )}
 
-                        {/* Applied Badge (if user has already applied) */}
                         {job.isApplied && (
                           <Badge className="bg-gray-500 text-white flex items-center gap-1 shrink-0">
                             <CheckCircle2 className="h-3 w-3" />
@@ -581,7 +567,6 @@ export default function JobsPage() {
                         {job.postedBy?.name || "Sandeep"}
                       </p>
 
-                      {/* Why This Job (for seekers only) */}
                       {user?.role === "seeker" && job.whyThisJob && job.matchScore >= 40 && (
                         <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-md">
                           <p className="text-xs text-blue-800 dark:text-blue-300 flex items-start gap-1">
@@ -591,7 +576,6 @@ export default function JobsPage() {
                         </div>
                       )}
 
-                      {/* ML Prediction (for seekers only) */}
                       {user?.role === "seeker" && job.mlPrediction && (
                         <div className={`mt-2 p-2 rounded-md border flex items-center justify-between ${
                           job.mlPrediction.acceptanceProbability >= 70
@@ -682,7 +666,6 @@ export default function JobsPage() {
                           </Button>
                         </Link>
 
-                        {/* Match Details Button (for seekers only) */}
                         {user?.role === "seeker" && job.matchBreakdown && (
                           <Dialog>
                             <DialogTrigger asChild>
@@ -702,7 +685,6 @@ export default function JobsPage() {
                               </DialogHeader>
 
                               <div className="mt-4 space-y-4">
-                                {/* Overall Score */}
                                 <div className="p-4 bg-linear-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                   <h3 className="font-semibold mb-2">Overall Match Score</h3>
                                   <div className="flex items-center gap-3">
@@ -726,7 +708,6 @@ export default function JobsPage() {
 
                                
 
-                                {/* Skills Breakdown */}
                                 <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border">
                                   <h3 className="font-semibold mb-2 flex items-center gap-2">
                                     <Briefcase className="h-4 w-4" />
@@ -762,7 +743,6 @@ export default function JobsPage() {
                                   )}
                                 </div>
 
-                                {/* Experience */}
                                 <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border">
                                   <h3 className="font-semibold mb-2">
                                     Experience Match
@@ -772,7 +752,6 @@ export default function JobsPage() {
                                   </p>
                                 </div>
 
-                                {/* Location */}
                                 <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border">
                                   <h3 className="font-semibold mb-2 flex items-center gap-2">
                                     <MapPin className="h-4 w-4" />
@@ -783,7 +762,6 @@ export default function JobsPage() {
                                   </p>
                                 </div>
 
-                                {/* Recommendation */}
                                 <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
                                   <h3 className="font-semibold mb-2">💡 Our Recommendation</h3>
                                   <p className="text-sm">{job.recommendation}</p>
@@ -811,7 +789,6 @@ export default function JobsPage() {
                 </CardContent>
               </Card>
             ))}
-          {/* //added */}
           {jobs.filter((job) => !isJobOwner(job)).length === 0 && (
             <Card>
               <CardContent className="text-center py-12">

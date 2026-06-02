@@ -1,7 +1,3 @@
-/**
- * Machine Learning Model for Job Application Success Prediction
- */
-
 import NeuralNetwork from './neuralNetwork.js';
 import fs from 'fs';
 import path from 'path';
@@ -10,7 +6,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Global network instance
 let trainedNetwork = null;
 const MODEL_PATH = path.join(__dirname, '../../ml-models/acceptance-model.json');
 
@@ -117,10 +112,6 @@ export async function trainModel() {
   };
 }
 
-/**
- * Load trained model from disk
- * @returns {boolean} Success status
- */
 export function loadModel() {
   try {
     if (!fs.existsSync(MODEL_PATH)) {
@@ -140,18 +131,14 @@ export function loadModel() {
   }
 }
 
-/**
- * Ensure model is loaded, train if necessary
- */
 async function ensureModelLoaded() {
   if (trainedNetwork) {
-    return; // Already loaded
+    return;
   }
 
   const loaded = loadModel();
 
   if (!loaded) {
-    // Train new model
     console.log('Training new model for the first time...');
     await trainModel();
   }
@@ -189,7 +176,6 @@ export async function predictAcceptance(matchBreakdown) {
     confidenceLevel = 'low';
   }
 
-  // Generate recommendation based on ML prediction
   let mlRecommendation;
   let mlInsight;
 
@@ -213,7 +199,7 @@ export async function predictAcceptance(matchBreakdown) {
     confidenceScore: Math.round(confidence * 100),
     recommendation: mlRecommendation,
     insight: mlInsight,
-    rawProbability: acceptanceProbability, // 0-1 for internal use
+    rawProbability: acceptanceProbability,
   };
 }
 

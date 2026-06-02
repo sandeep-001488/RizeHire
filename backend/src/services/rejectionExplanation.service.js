@@ -1,17 +1,8 @@
-/**
- * Service to generate rejection explanations with SHAP/LIME analysis
- * Reuses explainability service for BERT-based SHAP/LIME calls
- */
-
 import {
   getSHAPExplanation,
   getLIMEExplanation,
 } from "./explainability.service.js";
 
-/**
- * Generate rejection explanation with recommendations
- * Now supports BERT semantic matching via text data
- */
 export async function generateRejectionExplanation({
   hardRuleFailed,
   matchBreakdown,
@@ -19,22 +10,16 @@ export async function generateRejectionExplanation({
   candidate,
 }) {
   try {
-    // Build text data for BERT semantic matching (if candidate/job text available)
     const textData = {
       resumeText: candidate?.parsedResume?.parsed_summary || candidate?.bio || '',
       jobDescription: job?.description || '',
     };
 
-    // Get SHAP explanation (global feature importance) with BERT
     const shapExplanation = await getSHAPExplanation(matchBreakdown, textData);
-
-    // Get LIME explanation (local feature importance) with BERT
     const limeExplanation = await getLIMEExplanation(matchBreakdown, textData);
 
-    // Generate recommendations based on weak areas
     const recommendations = generateRecommendations(matchBreakdown, hardRuleFailed);
 
-    // Determine primary reason
     let reason = "";
     if (hardRuleFailed && hardRuleFailed.length > 0) {
       reason = `Failed hard requirement: ${hardRuleFailed.join(", ")}`;
@@ -63,9 +48,6 @@ export async function generateRejectionExplanation({
   }
 }
 
-/**
- * Get weakest matching area
- */
 function getWeakestArea(matchBreakdown) {
   const areas = [
     { name: "Skills", score: matchBreakdown?.skills?.score || 0 },
@@ -81,9 +63,6 @@ function getWeakestArea(matchBreakdown) {
   return weakest.name;
 }
 
-/**
- * Generate improvement recommendations
- */
 function generateRecommendations(matchBreakdown, hardRuleFailed) {
   const recommendations = [];
 
@@ -97,7 +76,6 @@ function generateRecommendations(matchBreakdown, hardRuleFailed) {
     });
   }
 
-  // Check match scores and recommend improvements
   if ((matchBreakdown?.skills?.score || 0) < 50) {
     recommendations.push("Learn the required technical skills for this role");
   }
@@ -114,7 +92,6 @@ function generateRecommendations(matchBreakdown, hardRuleFailed) {
     recommendations.push("Review your salary expectations for this role");
   }
 
-  // Ensure we have recommendations
   if (recommendations.length === 0) {
     recommendations.push("Review your profile and improve weak areas");
     recommendations.push("Apply to more similar positions for better matches");
@@ -123,9 +100,6 @@ function generateRecommendations(matchBreakdown, hardRuleFailed) {
   return recommendations;
 }
 
-/**
- * Format rejection explanation for email
- */
 export function formatRejectionForEmail(explanation) {
   const { reason, hardRuleFailed, matchBreakdown, recommendations } = explanation;
 

@@ -16,7 +16,7 @@ const registerSchema = Joi.object({
   gender: Joi.when("role", {
     is: "seeker",
     then: Joi.string().valid("male", "female", "other").required(),
-    otherwise: Joi.forbidden(), // Change this line - don't accept gender for posters
+    otherwise: Joi.forbidden(),
   }),
   bio: Joi.string().max(10000).optional().allow(""),
   linkedinUrl: Joi.string().uri().optional().allow(""),
@@ -57,7 +57,6 @@ const register = async (req, res) => {
       });
     }
 
-    // Create user object conditionally
     const userData = {
       name,
       email,
@@ -68,7 +67,6 @@ const register = async (req, res) => {
       walletAddress,
     };
 
-    // Only add gender if user is a seeker
     if (role === "seeker" && gender) {
       userData.gender = gender;
     }
@@ -231,13 +229,12 @@ const updateProfile = async (req, res) => {
   try {
     const updateSchema = Joi.object({
       name: Joi.string().min(2).max(100).optional(),
-      location: Joi.string().max(200).optional().allow(""), // NEW: Current location field
+      location: Joi.string().max(200).optional().allow(""),
       gender: Joi.string().valid("male", "female", "other").optional(),
       bio: Joi.string().max(10000).optional().allow(""),
       linkedinUrl: Joi.string().uri().optional().allow(""),
       walletAddress: Joi.string().optional().allow(""),
       skills: Joi.array().items(Joi.string().max(50)).optional(),
-      // Relocation preferences
       preferences: Joi.object({
         willingToRelocate: Joi.boolean().optional(),
         relocationType: Joi.string().valid('same-city-only', 'within-country', 'international').optional(),
@@ -252,15 +249,13 @@ const updateProfile = async (req, res) => {
       });
     }
 
-    // Priority: If user manually sets location, use that. Otherwise keep existing or parsed resume location
+    // A manually set location takes priority over the parsed-resume location;
+    // omitting it leaves the existing value untouched
     if (value.location === "") {
-      // If user clears location, remove it (fallback to resume location will happen on frontend)
       value.location = "";
     } else if (value.location) {
-      // If user sets location, use their choice (priority over resume)
       value.location = value.location.trim();
     }
-    // If location not provided, keep existing (don't override)
 
     const updatedUser = await User.findByIdAndUpdate(req.user._id, value, {
       new: true,
@@ -291,8 +286,7 @@ const updateSkills = async (req, res) => {
         message: "Skills must be an array of strings",
       });
     }
-    // REMOVED: 20 skill limit check
-    
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       { skills },
@@ -316,82 +310,6 @@ const updateSkills = async (req, res) => {
   }
 };
 
-// UPDATED: Parse and Save Resume with Gender Priority Logic ---
-// const parseAndSaveResume = async (req, res) => {
-//   try {
-//     if (!req.file) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Resume file (PDF/DOCX) is required",
-//       });
-//     }
-
-//     const resumeText = await extractTextFromResume(req.file.path);
-    
-//     if (!resumeText || resumeText.trim().length < 50) {
-//       fs.unlinkSync(req.file.path);
-//       return res.status(400).json({
-//         success: false,
-//         message: "Could not extract meaningful text from resume.",
-//       });
-//     }
-
-//     const parsedData = await parseResumeWithAI(resumeText);
-//     await uploadToCloudinary(req.file.path);
-
-//     const user = req.user;
-
-//     // Gender priority logic
-//     if (user.gender && (user.gender === "male" || user.gender === "female")) {
-//       parsedData.gender = user.gender;
-//     } else if (parsedData.gender && user.gender === "other") {
-//       user.gender = parsedData.gender;
-//     }
-
-//     user.parsedResume = parsedData;
-
-//     // FIXED: Properly merge and update skills
-//     if (parsedData.skills && parsedData.skills.length > 0) {
-//       const existingSkills = user.skills || [];
-//       const allSkills = [...existingSkills, ...parsedData.skills];
-      
-//       // Remove duplicates (case-insensitive)
-//       const uniqueSkills = [...new Set(
-//         allSkills.map(skill => skill.trim().toLowerCase())
-//       )].map(lowerSkill => {
-//         return allSkills.find(s => s.toLowerCase() === lowerSkill);
-//       });
-
-//       user.skills = uniqueSkills; 
-//     }
-
-//     await user.save();
-
-//     res.json({
-//       success: true,
-//       message: "Resume parsed and profile updated successfully",
-//       data: {
-//         user,
-//         parsedDetails: {
-//           name: parsedData.name,
-//           email: parsedData.email,
-//           phone: parsedData.phone,
-//           skills: parsedData.skills,
-//           yearsOfExperience: parsedData.yearsOfExperience,
-//           gender: parsedData.gender,
-//           location: parsedData.location,
-//           education: parsedData.education,
-//         },
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Resume parsing error:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: `Failed to parse resume: ${error.message}`,
-//     });
-//   }
-// };
 const parseAndSaveResume = async (req, res) => {
   try {
     if (!req.file) {
@@ -423,20 +341,19 @@ const parseAndSaveResume = async (req, res) => {
       skills: parsedData.skills,
     });
 
-    // Upload resume to Cloudinary
     const resumeUrl = await uploadToCloudinary(req.file.path);
     console.log("☁️ Uploaded to Cloudinary:", resumeUrl);
 
     const user = req.user;
 
-    // Gender priority logic
+    // Explicit male/female on the account overrides the AI-parsed gender;
+    // an "other" account inherits the parsed value
     if (user.gender && (user.gender === "male" || user.gender === "female")) {
       parsedData.gender = user.gender;
     } else if (parsedData.gender && user.gender === "other") {
       user.gender = parsedData.gender;
     }
 
-    // **CRITICAL FIX**: Save parsed resume data
     user.parsedResume = {
       name: parsedData.name,
       email: parsedData.email,
@@ -448,17 +365,14 @@ const parseAndSaveResume = async (req, res) => {
       education: parsedData.education || [],
     };
 
-    // **FIX**: Properly merge skills
     console.log("📊 Current user skills:", user.skills?.length || 0);
     console.log("📊 Parsed skills:", parsedData.skills?.length || 0);
 
     if (parsedData.skills && Array.isArray(parsedData.skills) && parsedData.skills.length > 0) {
       const existingSkills = user.skills || [];
-      
-      // Combine all skills
       const allSkills = [...existingSkills, ...parsedData.skills];
-      
-      // Remove duplicates (case-insensitive)
+
+      // Merge existing + parsed skills, deduping case-insensitively
       const uniqueSkillsMap = new Map();
       allSkills.forEach(skill => {
         const lowerSkill = skill.trim().toLowerCase();
@@ -501,7 +415,6 @@ const parseAndSaveResume = async (req, res) => {
   }
 };
 
-// --- Forgot Password ---
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -546,7 +459,6 @@ const forgotPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Forgot password error:", error);
-    // Clear tokens on error
     if (req.user) {
       req.user.resetPasswordToken = undefined;
       req.user.resetPasswordExpires = undefined;
@@ -559,7 +471,6 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// --- Reset Password ---
 const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -572,7 +483,6 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Hash the token from the URL
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({

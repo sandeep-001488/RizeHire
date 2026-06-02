@@ -23,12 +23,12 @@ export default function PostJobPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [suggestedSkills, setSuggestedSkills] = useState([]); // NEW: AI suggested skills
-  const [isLoadingSkills, setIsLoadingSkills] = useState(false); // NEW: Loading state
+  const [suggestedSkills, setSuggestedSkills] = useState([]);
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    category: "other", // NEW: Job category
-    industry: "Other", // NEW: Industry
+    category: "other",
+    industry: "Other",
     description: "",
     skills: [],
     jobType: "full-time",
@@ -57,10 +57,8 @@ export default function PostJobPage() {
   const [skillInput, setSkillInput] = useState("");
   const [tagInput, setTagInput] = useState("");
 
-  // NEW: Fetch AI skill suggestions when job title or category changes
   useEffect(() => {
     const fetchSkillSuggestions = async () => {
-      // Only fetch if we have both title and category
       if (formData.title.length < 3 || !formData.category) {
         setSuggestedSkills([]);
         return;
@@ -73,8 +71,7 @@ export default function PostJobPage() {
           category: formData.category,
           description: formData.description,
         });
-        
-        // Filter out skills that are already added
+
         const newSuggestions = response.data.data.skills.filter(
           (skill) => !formData.skills.includes(skill)
         );
@@ -88,7 +85,6 @@ export default function PostJobPage() {
       }
     };
 
-    // Debounce the API call
     const timeoutId = setTimeout(fetchSkillSuggestions, 800);
     return () => clearTimeout(timeoutId);
   }, [formData.title, formData.category, formData.skills]);
@@ -105,7 +101,6 @@ export default function PostJobPage() {
     setIsSubmitting(true);
 
     try {
-      // Clean up empty values
       const jobData = {
         ...formData,
         budget: formData.budget.min ? formData.budget : undefined,
@@ -175,14 +170,12 @@ export default function PostJobPage() {
     }
   };
 
-  // NEW: Add skill from suggestions
   const addSuggestedSkill = (skill) => {
     if (!formData.skills.includes(skill)) {
       setFormData((prev) => ({
         ...prev,
         skills: [...prev.skills, skill],
       }));
-      // Remove from suggestions
       setSuggestedSkills((prev) => prev.filter((s) => s !== skill));
       toast.success(`Added "${skill}" to required skills`);
     }
@@ -229,7 +222,6 @@ export default function PostJobPage() {
     }
   };
 
-  // NEW: Job categories for universal platform
   const jobCategories = [
     { value: "technology", label: "Technology & IT" },
     { value: "business", label: "Business & Management" },
@@ -246,7 +238,6 @@ export default function PostJobPage() {
     { value: "other", label: "Other" },
   ];
 
-  // NEW: Industries
   const industries = [
     "IT & Software",
     "Banking & Finance",
@@ -325,7 +316,6 @@ export default function PostJobPage() {
                 />
               </div>
 
-              {/* NEW: Category and Industry Selection */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="category">Job Category *</Label>
@@ -486,7 +476,6 @@ export default function PostJobPage() {
                 )}
               </div>
 
-              {/* NEW: AI Skill Suggestions */}
               {(isLoadingSkills || suggestedSkills.length > 0) && (
                 <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-2 mb-3">
@@ -527,7 +516,6 @@ export default function PostJobPage() {
             </CardContent>
           </Card>
 
-          {/* Hard Constraints Section */}
           <Card className="border-orange-200 dark:border-orange-800">
             <CardHeader>
               <CardTitle>Hard Constraints (Optional)</CardTitle>

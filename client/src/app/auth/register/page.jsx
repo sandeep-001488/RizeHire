@@ -45,10 +45,8 @@ const handleSubmit = async (e) => {
     return;
   }
 
-  // Clean data: remove optional fields if they are empty
   const cleanedData = { ...formData };
-  
-  // Remove gender field entirely if user is a poster
+
   if (formData.role === "poster") {
     delete cleanedData.gender;
   }
@@ -172,7 +170,6 @@ const handleSubmit = async (e) => {
                 </SelectContent>
               </Select>
             </div>
-            {/* Gender field - Only for seekers */}
             {formData.role === "seeker" ? (
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender *</Label>

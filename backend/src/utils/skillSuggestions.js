@@ -1,25 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-/**
- * AI-powered skill suggestion utility
- * Uses Gemini AI to suggest relevant skills for any job category
- * Works universally across all industries (tech, business, marketing, etc.)
- */
-
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-/**
- * Get skill suggestions from Gemini AI based on job details
- * @param {string} jobTitle - The job title (e.g., "Digital Marketing Manager")
- * @param {string} category - Job category (e.g., "marketing", "technology")
- * @param {string} description - Optional job description for better context
- * @returns {Promise<Array<string>>} - Array of suggested skills
- */
 export async function getSuggestedSkills(jobTitle, category, description = "") {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    // Build context-aware prompt
     const prompt = `
 You are an expert HR consultant helping recruiters post job listings.
 
@@ -51,7 +37,6 @@ Now provide the skills array:`;
     const response = await result.response;
     const text = response.text();
 
-    // Extract JSON array from response
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       console.error("Failed to extract JSON from AI response:", text);
@@ -60,11 +45,10 @@ Now provide the skills array:`;
 
     const skills = JSON.parse(jsonMatch[0]);
 
-    // Validate and clean skills
     const cleanedSkills = skills
       .filter((skill) => typeof skill === "string" && skill.trim().length > 0)
       .map((skill) => skill.trim())
-      .slice(0, 15); // Limit to 15 skills
+      .slice(0, 15);
 
     return cleanedSkills.length > 0 ? cleanedSkills : getFallbackSkills(category);
   } catch (error) {
@@ -73,10 +57,6 @@ Now provide the skills array:`;
   }
 }
 
-/**
- * Fallback skills when AI fails or for quick responses
- * Provides basic skills for each category
- */
 function getFallbackSkills(category) {
   const fallbackSkills = {
     technology: [
@@ -240,38 +220,23 @@ function getFallbackSkills(category) {
   return fallbackSkills[category] || fallbackSkills.other;
 }
 
-/**
- * Get skills from historical job postings (for future implementation)
- * This will learn from your platform's data over time
- */
 export async function getHistoricalSkills(jobTitle, category) {
-  // TODO: Implement database query to find similar jobs
-  // and extract common skills
-  // For now, return empty array to indicate no historical data
   return [];
 }
 
-/**
- * Combine AI suggestions with historical data
- * This provides the best of both worlds
- */
 export async function getSmartSkillSuggestions(jobTitle, category, description = "") {
   try {
-    // Try to get historical skills first (faster)
     const historicalSkills = await getHistoricalSkills(jobTitle, category);
 
     if (historicalSkills.length >= 5) {
-      // We have enough historical data, use it
       return historicalSkills;
     }
 
-    // Not enough historical data, use AI
     const aiSkills = await getSuggestedSkills(jobTitle, category, description);
 
-    // Merge historical and AI skills (remove duplicates)
     const allSkills = [...new Set([...historicalSkills, ...aiSkills])];
 
-    return allSkills.slice(0, 15); // Limit to 15 skills
+    return allSkills.slice(0, 15);
   } catch (error) {
     console.error("Error in smart skill suggestions:", error);
     return getFallbackSkills(category);

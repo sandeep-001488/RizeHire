@@ -176,7 +176,6 @@ export default function AISkillsPage() {
           </Card>
         )}
 
-        {/* Current Profile Skills */}
         {user?.skills?.length > 0 && (
           <Card>
             <CardHeader>
