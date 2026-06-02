@@ -3,14 +3,12 @@ import { v2 as cloudinary } from "cloudinary";
 import path from "path";
 import fs from "fs";
 
-// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Local storage first
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(process.cwd(), 'uploads', 'resumes');
@@ -39,19 +37,17 @@ export const uploadResume = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-// Then upload to Cloudinary after parsing
 export const uploadToCloudinary = async (localPath) => {
   try {
-    // Use 'auto' resource type instead of 'raw' to avoid untrusted account issues
+    // resource_type 'auto' (not 'raw') avoids untrusted-account access issues
     const result = await cloudinary.uploader.upload(localPath, {
       folder: "resumes",
-      resource_type: "auto", // Changed from 'raw' to 'auto'
+      resource_type: "auto",
       type: "upload",
       access_mode: "public",
-      flags: "attachment", // Ensures download behavior
+      flags: "attachment",
     });
 
-    // Delete local file after upload
     fs.unlinkSync(localPath);
 
     return result.secure_url;
@@ -61,32 +57,24 @@ export const uploadToCloudinary = async (localPath) => {
   }
 };
 
-// Generate authenticated signed URL for viewing PDFs
 export const generateSignedUrl = (cloudinaryUrl) => {
   try {
-    // Extract public_id from Cloudinary URL
-    // URL format: https://res.cloudinary.com/{cloud_name}/raw/upload/v{version}/{folder}/{public_id}.{ext}
+    // Derive public_id from a Cloudinary URL of the form .../upload/v{version}/{folder}/{id}.{ext}
     const urlParts = cloudinaryUrl.split('/upload/');
     if (urlParts.length !== 2) {
       throw new Error('Invalid Cloudinary URL format');
     }
 
-    // Get the part after /upload/ (e.g., "v1771778103/resumes/ibu6wqh16vsav8bb7fgb.pdf")
     const afterUpload = urlParts[1];
-
-    // Remove version if present (v1771778103/)
     const withoutVersion = afterUpload.replace(/^v\d+\//, '');
-
-    // This is our public_id with extension (e.g., "resumes/ibu6wqh16vsav8bb7fgb.pdf")
     const publicIdWithExt = withoutVersion;
 
-    // Generate signed URL (valid for 1 hour)
     const signedUrl = cloudinary.utils.private_download_url(
       publicIdWithExt,
       'pdf',
       {
         resource_type: 'raw',
-        expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+        expires_at: Math.floor(Date.now() / 1000) + 3600, // expires in 1 hour
       }
     );
 

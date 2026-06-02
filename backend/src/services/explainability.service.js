@@ -1,34 +1,15 @@
-/**
- * Explainability Service
- * Communicates with Python BERT + SHAP/LIME microservice
- *
- * Uses Sentence-BERT (all-MiniLM-L6-v2) for semantic matching
- * with SHAP and LIME for model explainability
- */
-
 import axios from 'axios';
 
 const PYTHON_SERVICE_URL = process.env.PYTHON_EXPLAINABILITY_URL || 'http://localhost:5001';
 
-// Axios instance for Python service
 const pythonAPI = axios.create({
   baseURL: PYTHON_SERVICE_URL,
-  timeout: 60000, // 60 seconds (BERT embeddings + SHAP/LIME can be slow)
+  timeout: 60000, // BERT embeddings + SHAP/LIME can take tens of seconds
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-/**
- * Build the payload for Python BERT service
- * Includes both text data (for BERT semantic matching) and scores (for hybrid prediction)
- *
- * @param {Object} matchBreakdown - Match scores from jobMatching.js
- * @param {Object} textData - Optional text data for BERT mode
- * @param {string} textData.resumeText - Candidate resume text/summary
- * @param {string} textData.jobDescription - Job description text
- * @returns {Object} Payload for Python service
- */
 function buildPayload(matchBreakdown, textData = {}) {
   const payload = {
     skills: matchBreakdown.skills?.score || 0,
@@ -37,7 +18,6 @@ function buildPayload(matchBreakdown, textData = {}) {
     salary: matchBreakdown.salary?.score || 0,
   };
 
-  // Include text data for full BERT semantic matching mode
   if (textData.resumeText) {
     payload.resume_text = textData.resumeText;
   }
@@ -48,10 +28,6 @@ function buildPayload(matchBreakdown, textData = {}) {
   return payload;
 }
 
-/**
- * Check if Python service is healthy
- * @returns {Promise<boolean>}
- */
 export async function isPythonServiceHealthy() {
   try {
     const response = await pythonAPI.get('/health');
@@ -62,15 +38,6 @@ export async function isPythonServiceHealthy() {
   }
 }
 
-/**
- * Get SHAP explanation for a prediction
- *
- * @param {Object} matchBreakdown - Match scores from jobMatching.js
- * @param {Object} textData - Optional text data for BERT semantic matching
- * @param {string} textData.resumeText - Candidate resume text
- * @param {string} textData.jobDescription - Job description text
- * @returns {Promise<Object>} SHAP explanation
- */
 export async function getSHAPExplanation(matchBreakdown, textData = {}) {
   try {
     const payload = buildPayload(matchBreakdown, textData);
@@ -92,19 +59,10 @@ export async function getSHAPExplanation(matchBreakdown, textData = {}) {
     };
   } catch (error) {
     console.error('❌ SHAP explanation error:', error.message);
-
-    // Return fallback explanation if Python service fails
     return getFallbackExplanation(matchBreakdown);
   }
 }
 
-/**
- * Get LIME explanation for a prediction
- *
- * @param {Object} matchBreakdown - Match scores
- * @param {Object} textData - Optional text data for BERT semantic matching
- * @returns {Promise<Object>} LIME explanation
- */
 export async function getLIMEExplanation(matchBreakdown, textData = {}) {
   try {
     const payload = buildPayload(matchBreakdown, textData);
@@ -128,14 +86,6 @@ export async function getLIMEExplanation(matchBreakdown, textData = {}) {
   }
 }
 
-/**
- * Get combined SHAP + LIME explanation
- * More comprehensive but slower
- *
- * @param {Object} matchBreakdown - Match scores
- * @param {Object} textData - Optional text data for BERT semantic matching
- * @returns {Promise<Object>} Combined explanation
- */
 export async function getCombinedExplanation(matchBreakdown, textData = {}) {
   try {
     const payload = buildPayload(matchBreakdown, textData);
@@ -160,13 +110,6 @@ export async function getCombinedExplanation(matchBreakdown, textData = {}) {
   }
 }
 
-/**
- * Fallback explanation if Python service is unavailable
- * Uses simple rule-based logic similar to SHAP
- *
- * @param {Object} matchBreakdown - Match scores
- * @returns {Object} Fallback explanation
- */
 function getFallbackExplanation(matchBreakdown) {
   const scores = {
     skills: matchBreakdown.skills?.score || 0,
@@ -175,17 +118,14 @@ function getFallbackExplanation(matchBreakdown) {
     salary: matchBreakdown.salary?.score || 0,
   };
 
-  // Calculate weighted contributions (aligned with jobMatching.js weights)
-  // Note: When BERT service is available, it uses BERT 40% + Skills 30% + Exp 15% + Loc 10% + Sal 5%
-  // Fallback uses traditional-only weights from jobMatching.js
+  // Fallback weights must match jobMatching.js (the BERT service uses different hybrid weights)
   const contributions = {
-    skills: (scores.skills - 50) * 0.50,      // 50% weight (matches jobMatching.js)
-    experience: (scores.experience - 50) * 0.35, // 35% weight (matches jobMatching.js)
-    location: (scores.location - 50) * 0.10,   // 10% weight (matches jobMatching.js)
-    salary: (scores.salary - 50) * 0.05,       // 5% weight (matches jobMatching.js)
+    skills: (scores.skills - 50) * 0.50,
+    experience: (scores.experience - 50) * 0.35,
+    location: (scores.location - 50) * 0.10,
+    salary: (scores.salary - 50) * 0.05,
   };
 
-  // Sort by absolute importance
   const features = Object.entries(contributions)
     .map(([name, contribution]) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1) + ' Match',
@@ -195,7 +135,6 @@ function getFallbackExplanation(matchBreakdown) {
     }))
     .sort((a, b) => b.importance - a.importance);
 
-  // Generate explanation
   const explanations = features
     .slice(0, 3)
     .map((f) => {
@@ -222,12 +161,6 @@ function getFallbackExplanation(matchBreakdown) {
   };
 }
 
-/**
- * Get feature importance summary (for quick display)
- *
- * @param {Object} matchBreakdown - Match scores
- * @returns {Promise<Array>} Feature importance array
- */
 export async function getFeatureImportance(matchBreakdown) {
   try {
     const explanation = await getSHAPExplanation(matchBreakdown);

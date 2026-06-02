@@ -30,7 +30,6 @@ const useJobStore = create((set, get) => ({
   isLoading: false,
   isLoadingMyJobs: false,
 
-  // Setters
   setJobs: (jobs) => set({ jobs }),
   setCurrentJob: (job) => set({ currentJob: job }),
   setMyJobs: (jobs) => set({ myJobs: jobs }),
@@ -43,7 +42,6 @@ const useJobStore = create((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setLoadingMyJobs: (isLoadingMyJobs) => set({ isLoadingMyJobs }),
 
-  // Actions
   addJob: (job) =>
     set((state) => ({
       jobs: [job, ...state.jobs],
@@ -85,7 +83,6 @@ const useJobStore = create((set, get) => ({
       },
     }),
 
-  // API Actions
   fetchJobs: async (params = {}) => {
     try {
       set({ isLoading: true });

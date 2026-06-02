@@ -1,9 +1,5 @@
 import Notification from '../models/notification.model.js';
 
-/**
- * GET /api/notifications
- * Get all notifications for the current user (paginated)
- */
 export const getNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -36,10 +32,6 @@ export const getNotifications = async (req, res) => {
   }
 };
 
-/**
- * GET /api/notifications/unread/count
- * Get unread notification count for the current user
- */
 export const getUnreadCount = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -61,16 +53,11 @@ export const getUnreadCount = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/notifications/:id/read
- * Mark a specific notification as read
- */
 export const markAsRead = async (req, res) => {
   try {
     const userId = req.user._id;
     const { id } = req.params;
 
-    // Verify notification belongs to user
     const notification = await Notification.findById(id);
     if (!notification) {
       return res.status(404).json({
@@ -104,10 +91,6 @@ export const markAsRead = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/notifications/read/all
- * Mark all notifications as read for the current user
- */
 export const markAllAsRead = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -128,16 +111,11 @@ export const markAllAsRead = async (req, res) => {
   }
 };
 
-/**
- * DELETE /api/notifications/:id
- * Delete a specific notification
- */
 export const deleteNotification = async (req, res) => {
   try {
     const userId = req.user._id;
     const { id } = req.params;
 
-    // Verify notification belongs to user
     const notification = await Notification.findById(id);
     if (!notification) {
       return res.status(404).json({

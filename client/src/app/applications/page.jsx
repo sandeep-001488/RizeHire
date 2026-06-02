@@ -183,7 +183,6 @@ export default function ApplicationsPage() {
                         </Badge>
                       </div>
 
-                      {/* Message Button - Show if recruiter has sent messages */}
                       {application.hasMessages && (
                         <div className="mt-4">
                           <Button
@@ -242,7 +241,6 @@ export default function ApplicationsPage() {
                         </div>
                       )}
 
-                      {/* Enhanced Rejection Feedback Section */}
                       {application.status === "rejected" && (
                         <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
                           <div className="flex items-start gap-3">
@@ -252,7 +250,6 @@ export default function ApplicationsPage() {
                                 Application Not Selected
                               </h4>
 
-                              {/* Match Score */}
                               {application.matchScore !== undefined && application.matchScore > 0 && (
                                 <div className="mb-3">
                                   <div className="flex items-center gap-2 mb-1">
@@ -270,7 +267,6 @@ export default function ApplicationsPage() {
                                       {application.matchScore}%
                                     </Badge>
                                   </div>
-                                  {/* Progress Bar */}
                                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                                     <div
                                       className={`h-full transition-all ${
@@ -284,7 +280,6 @@ export default function ApplicationsPage() {
                                 </div>
                               )}
 
-                              {/* Rejection Reason & Explanation */}
                               {application.rejectionReason && (
                                 <div className="mb-3">
                                   <p className="text-sm text-red-800 dark:text-red-200">
@@ -293,7 +288,6 @@ export default function ApplicationsPage() {
                                 </div>
                               )}
 
-                              {/* Rejection Explanation with SHAP/LIME */}
                               {application.rejectionExplanation && (
                                 <div className="mb-3 p-3 bg-red-100/50 dark:bg-red-900/20 rounded border border-red-300 dark:border-red-700">
                                   <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
@@ -310,7 +304,6 @@ export default function ApplicationsPage() {
                                     )}
                                   </div>
 
-                                  {/* Improvement Recommendations */}
                                   {application.rejectionExplanation.recommendations && application.rejectionExplanation.recommendations.length > 0 && (
                                     <div className="mt-3 pt-3 border-t border-red-300 dark:border-red-700">
                                       <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
@@ -326,7 +319,6 @@ export default function ApplicationsPage() {
                                 </div>
                               )}
 
-                              {/* View Detailed Feedback Button */}
                               {application.feedback && application.feedback.length > 0 && (
                                 <Dialog>
                                   <DialogTrigger asChild>
@@ -351,7 +343,6 @@ export default function ApplicationsPage() {
                                     </DialogHeader>
 
                                     <div className="mt-6 space-y-4">
-                                      {/* Match Score Section */}
                                       {application.matchScore > 0 && (
                                       <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                         <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
@@ -383,7 +374,6 @@ export default function ApplicationsPage() {
                                       </div>
                                       )}
 
-                                      {/* Feedback Messages */}
                                       {application.feedback.map((feedback, index) => (
                                         <div
                                           key={index}
@@ -401,7 +391,6 @@ export default function ApplicationsPage() {
                                         </div>
                                       ))}
 
-                                      {/* Encouragement Section */}
                                       <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
                                         <h3 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
                                           ✨ Keep Going!
@@ -428,7 +417,6 @@ export default function ApplicationsPage() {
                         </Button>
                       </Link>
 
-                      {/* added */}
                       <div className="flex flex-col gap-1">
                         <Badge
                           className={getStatusInfo(application.status).color}

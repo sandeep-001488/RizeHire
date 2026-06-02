@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-// --- HARD CONSTRAINTS SCHEMA (Gender & Experience Only) ---
 const hardConstraintsSchema = new mongoose.Schema(
   {
     gender: {
@@ -25,7 +24,6 @@ const jobSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, "Title too long"],
     },
-    // --- NEW: Job Category (for universal platform support) ---
     category: {
       type: String,
       enum: [
@@ -46,7 +44,6 @@ const jobSchema = new mongoose.Schema(
       required: [true, "Job category is required"],
       default: "other"
     },
-    // --- NEW: Industry (optional, for better categorization) ---
     industry: {
       type: String,
       enum: [
@@ -129,7 +126,6 @@ const jobSchema = new mongoose.Schema(
       enum: ["entry", "junior", "mid", "senior", "expert"],
       default: "mid",
     },
-    // --- HARD CONSTRAINTS (Gender & Experience Only) ---
     hardConstraints: {
       type: hardConstraintsSchema,
       default: () => ({}),
@@ -175,7 +171,6 @@ jobSchema.index({ jobType: 1 });
 jobSchema.index({ "location.city": 1 });
 jobSchema.index({ createdAt: -1 });
 jobSchema.index({ isActive: 1 });
-// NEW: Indexes for category and industry for better filtering performance
 jobSchema.index({ category: 1 });
 jobSchema.index({ industry: 1 });
 jobSchema.index({ category: 1, industry: 1 }); // Compound index for combined filtering

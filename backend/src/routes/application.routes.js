@@ -15,15 +15,12 @@ const router = express.Router();
 
 router.use(protect);
 
-// --- Applicant Routes ---
 router.post("/jobs/:jobId/apply", uploadResume.single("resume"), applyToJob);
 router.get("/my-applications", getMyApplications);
 
-// --- Recruiter (Poster) Routes ---
 router.get("/jobs/:jobId/applicants", isPoster, getJobApplicants);
 router.put("/:applicationId/status", isPoster, updateApplicationStatus);
 
-// --- Shared Route (Applicant & Poster) ---
 router.get("/:applicationId", getApplication);
 router.get("/:applicationId/resume", getApplicationResume);
 

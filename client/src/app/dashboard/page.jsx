@@ -171,7 +171,6 @@ export default function DashboardPage() {
     );
   }
 
-  // --- RENDER POSTER DASHBOARD ---
   if (user.role === "poster") {
     return (
       <AuthGuard>
@@ -285,7 +284,6 @@ export default function DashboardPage() {
     );
   }
 
-  // --- RENDER SEEKER DASHBOARD ---
   if (user.role === "seeker") {
     return (
       <AuthGuard>
@@ -416,6 +414,5 @@ export default function DashboardPage() {
     );
   }
 
-  // Fallback for weird states
   return <AuthGuard>{null}</AuthGuard>;
 }

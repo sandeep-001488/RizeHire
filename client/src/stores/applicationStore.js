@@ -27,7 +27,7 @@ const useApplicationStore = create((set, get) => ({
   },
   applicantsFilters: {
     status: "all",
-    sortBy: "matchScore", // New default sort
+    sortBy: "matchScore",
     sortOrder: "desc",
   },
   myApplicationsFilters: {
@@ -138,7 +138,6 @@ const useApplicationStore = create((set, get) => ({
       },
     }),
 
-  // API Actions
   applyToJob: async (jobId, coverLetter) => {
     try {
       set({ isLoading: true });
@@ -244,7 +243,6 @@ const useApplicationStore = create((set, get) => ({
       );
       if (response.data.success) {
         get().updateApplicationStatus(applicationId, status, null);
-        // Refetch stats
         await get().fetchJobApplicants(
           response.data.data.application.jobId,
           {}

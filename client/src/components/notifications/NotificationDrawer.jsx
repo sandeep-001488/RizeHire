@@ -17,7 +17,6 @@ export default function NotificationDrawer({
 }) {
   const drawerRef = useRef(null);
 
-  // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
 
@@ -31,7 +30,6 @@ export default function NotificationDrawer({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
 
@@ -49,15 +47,12 @@ export default function NotificationDrawer({
 
   return (
     <>
-      {/* Overlay */}
       <div className="fixed inset-0 bg-black/50 z-40 transition-opacity" onClick={onClose} />
 
-      {/* Drawer */}
       <div
         ref={drawerRef}
         className="fixed right-0 top-0 h-screen max-h-screen w-full sm:w-96 bg-background border-l border-border shadow-lg z-50 flex flex-col animate-in slide-in-from-right duration-300"
       >
-        {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">
             Notifications {unreadCount > 0 && <span className="text-red-500">({unreadCount})</span>}
@@ -71,7 +66,6 @@ export default function NotificationDrawer({
           </button>
         </div>
 
-        {/* Actions */}
         {notifications.length > 0 && (
           <div className="flex-shrink-0 flex gap-2 px-4 py-3 border-b border-border">
             {unreadCount > 0 && (
@@ -86,7 +80,6 @@ export default function NotificationDrawer({
           </div>
         )}
 
-        {/* Notifications List */}
         <div className="flex-1 min-h-0 overflow-y-auto p-4">
           {isLoading ? (
             <div className="flex items-center justify-center h-32 text-muted-foreground">
@@ -116,12 +109,10 @@ export default function NotificationDrawer({
           )}
         </div>
 
-        {/* Footer */}
         {notifications.length > 0 && (
           <div className="flex-shrink-0 border-t border-border p-4">
             <button
               onClick={() => {
-                // Clear all could be implemented with a deleteAll endpoint
                 notifications.forEach((notif) => onDelete(notif._id));
               }}
               className="flex items-center gap-1 w-full justify-center px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"

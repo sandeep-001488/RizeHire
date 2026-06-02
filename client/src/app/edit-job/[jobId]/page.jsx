@@ -93,7 +93,7 @@ export default function EditJobPage({ params }) {
           minYears: 0,
         },
       });
-      // Store original data to detect changes
+      // Original snapshot used to detect unsaved changes (enables Save button)
       setOriginalFormData({
         title: job.title || "",
         description: job.description || "",

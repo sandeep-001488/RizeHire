@@ -9,13 +9,11 @@ const useNotificationStore = create((set, get) => ({
   isLoading: false,
   isFetching: false,
 
-  // State setters
   setNotifications: (notifications) => set({ notifications }),
   setUnreadCount: (count) => set({ unreadCount: count }),
   setLoading: (isLoading) => set({ isLoading }),
   setFetching: (isFetching) => set({ isFetching }),
 
-  // Fetch unread count
   fetchUnreadCount: async () => {
     try {
       const response = await api.get('/notifications/unread/count');
@@ -29,7 +27,6 @@ const useNotificationStore = create((set, get) => ({
     }
   },
 
-  // Fetch notifications (paginated)
   fetchNotifications: async (skip = 0, limit = 20) => {
     try {
       set({ isFetching: true });
@@ -51,12 +48,10 @@ const useNotificationStore = create((set, get) => ({
     }
   },
 
-  // Mark a notification as read
   markAsRead: async (notificationId) => {
     try {
       const response = await api.put(`/notifications/${notificationId}/read`);
       if (response.data.success) {
-        // Update local state
         set((state) => ({
           notifications: state.notifications.map((notif) =>
             notif._id === notificationId
@@ -65,7 +60,6 @@ const useNotificationStore = create((set, get) => ({
           ),
         }));
 
-        // Update unread count
         await get().fetchUnreadCount();
         return response.data.data.notification;
       }
@@ -75,12 +69,10 @@ const useNotificationStore = create((set, get) => ({
     }
   },
 
-  // Mark all notifications as read
   markAllAsRead: async () => {
     try {
       const response = await api.put('/notifications/read/all');
       if (response.data.success) {
-        // Update local state
         set((state) => ({
           notifications: state.notifications.map((notif) => ({
             ...notif,
@@ -97,19 +89,16 @@ const useNotificationStore = create((set, get) => ({
     }
   },
 
-  // Delete a notification
   deleteNotification: async (notificationId) => {
     try {
       const response = await api.delete(`/notifications/${notificationId}`);
       if (response.data.success) {
-        // Update local state
         set((state) => ({
           notifications: state.notifications.filter(
             (notif) => notif._id !== notificationId
           ),
         }));
 
-        // Update unread count
         await get().fetchUnreadCount();
         return response.data;
       }
@@ -119,7 +108,6 @@ const useNotificationStore = create((set, get) => ({
     }
   },
 
-  // Add notification from real-time Socket.IO event
   addNotificationRealtime: (notification) => {
     set((state) => ({
       notifications: [notification, ...state.notifications],
@@ -127,7 +115,6 @@ const useNotificationStore = create((set, get) => ({
     }));
   },
 
-  // Remove notification from list (for UI dismissal)
   removeNotification: (notificationId) => {
     set((state) => ({
       notifications: state.notifications.filter(
@@ -136,7 +123,6 @@ const useNotificationStore = create((set, get) => ({
     }));
   },
 
-  // Clear all notifications
   clearAllNotifications: () => {
     set({
       notifications: [],

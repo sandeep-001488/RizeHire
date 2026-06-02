@@ -99,7 +99,6 @@ export default function AIRecommendationsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Job Recommendations */}
             <div className="lg:col-span-2 space-y-4">
               <Card>
                 <CardHeader>
@@ -227,11 +226,9 @@ export default function AIRecommendationsPage() {
               )}
             </div>
 
-            {/* Career Suggestions Sidebar */}
             <div className="space-y-6">
               {careerSuggestions && (
                 <>
-                  {/* Job Titles to Target */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center text-lg">
@@ -259,7 +256,6 @@ export default function AIRecommendationsPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Skills to Learn */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center text-lg">
@@ -286,7 +282,6 @@ export default function AIRecommendationsPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Career Path Advice */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center text-lg">
@@ -303,7 +298,6 @@ export default function AIRecommendationsPage() {
                 </>
               )}
 
-              {/* Action Cards */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">

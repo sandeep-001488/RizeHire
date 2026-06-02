@@ -1,9 +1,8 @@
 import dotenv from "dotenv";
-dotenv.config(); // MUST come after import
+dotenv.config();
 
 import { Resend } from "resend";
 
-// Debug log to verify env is loaded
 console.log("RESEND_API_KEY at email.js load:", process.env.RESEND_API_KEY);
 
 const resend = new Resend(process.env.RESEND_API_KEY);

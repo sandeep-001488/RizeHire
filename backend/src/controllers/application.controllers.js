@@ -14,7 +14,7 @@ import { generateRejectionExplanation, formatRejectionForEmail } from "../servic
 const applyToJob = async (req, res) => {
   try {
     const jobId = req.params.jobId;
-    const { coverLetter, willingToRelocate } = req.body; // Get relocation choice
+    const { coverLetter, willingToRelocate } = req.body;
     const applicant = req.user;
 
     if (!jobId) {
@@ -33,7 +33,7 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    // Check if application deadline has passed (priority 1)
+    // Deadline is checked before the acceptingApplications flag
     if (job.applicationDeadline && new Date(job.applicationDeadline) < new Date()) {
       return res.status(400).json({
         success: false,
@@ -41,7 +41,6 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    // Check if job is accepting applications (priority 2 - only checked if deadline not passed)
     if (!job.acceptingApplications) {
       return res.status(400).json({
         success: false,
@@ -68,16 +67,13 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    // Handle resume upload - store locally instead of Cloudinary
+    // multer already saved the file under uploads/resumes/; store its relative path
     let resumeUrl = null;
     if (req.file) {
-      // Store the relative path to the uploaded file
-      // File is already saved locally by multer in uploads/resumes/
       resumeUrl = `/uploads/resumes/${req.file.filename}`;
       console.log("✅ Resume saved locally:", resumeUrl);
     }
 
-    // Create screening profile with gender priority
     const screeningProfile = {
       ...applicant.parsedResume,
       skills: applicant.skills || applicant.parsedResume?.skills || [],
@@ -88,13 +84,11 @@ const applyToJob = async (req, res) => {
           : applicant.parsedResume?.gender || null,
     };
 
-    // Initialize screening variables
     let applicationStatus = "pending";
     let screeningResult = {};
     let matchScore = 0;
     let rejectionReason = null;
 
-    // 1. Apply Hard Rules
     const hard = applyHardRules(job.hardConstraints, screeningProfile);
     screeningResult = {
       hardFail: hard.hardFail,
@@ -102,12 +96,10 @@ const applyToJob = async (req, res) => {
     };
 
     if (hard.hardFail) {
-      // INSTANT REJECTION - Generate explanation
       applicationStatus = "rejected";
       matchScore = 0;
       rejectionReason = `Your application did not meet the required criteria: ${hard.reasons.join(", ")}`;
 
-      // Generate rejection explanation with SHAP/LIME (non-blocking)
       const rejectionExplanation = await generateRejectionExplanation({
         hardRuleFailed: hard.reasons,
         matchBreakdown: {},
@@ -129,7 +121,6 @@ const applyToJob = async (req, res) => {
         willingToRelocate: willingToRelocate !== undefined ? willingToRelocate : null,
       });
 
-      // Send rejection email (non-blocking, fire-and-forget)
       setImmediate(() => {
         sendRejectionEmail({
           candidateEmail: applicant.email,
@@ -161,7 +152,7 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    // 2. Soft Scoring (if passed hard rules)
+    // Soft scoring runs only after hard rules pass
     try {
       const requiredSkills = job.skills || [];
       const matchingSkills = (screeningProfile.skills || []).filter((skill) =>
@@ -177,7 +168,6 @@ const applyToJob = async (req, res) => {
       matchScore = 50;
     }
 
-    // 3. Create Application
     const application = await Application.create({
       jobId: jobId,
       applicantId: applicant._id,
@@ -187,10 +177,9 @@ const applyToJob = async (req, res) => {
       status: applicationStatus,
       matchScore: matchScore,
       screeningResult: screeningResult,
-      willingToRelocate: willingToRelocate !== undefined ? willingToRelocate : null, // Store relocation choice
+      willingToRelocate: willingToRelocate !== undefined ? willingToRelocate : null,
     });
 
-    // Create notification for recruiter about new application
     try {
       const notification = await Notification.createNotification(
         job.postedBy,
@@ -208,7 +197,6 @@ const applyToJob = async (req, res) => {
         }
       );
 
-      // Emit Socket.IO event to recruiter
       io.to(`user:${job.postedBy}`).emit('applicationReceived', {
         notificationId: notification._id,
         applicationId: application._id,
@@ -262,10 +250,9 @@ const getMyApplications = async (req, res) => {
 
     const total = await Application.countDocuments(filter);
 
-    // Get message information for each application
     const formattedApplications = await Promise.all(
       applications.map(async (app) => {
-        // Skip if job or recruiter has been deleted
+        // Job or recruiter may have been deleted
         if (!app.jobId || !app.jobId.postedBy) {
           return {
             _id: app._id,
@@ -283,20 +270,17 @@ const getMyApplications = async (req, res) => {
           };
         }
 
-        // Create conversation ID
         const conversationId = Message.createConversationId(
           app.jobId._id,
           app.applicantId,
           app.jobId.postedBy._id
         );
 
-        // Check if recruiter has sent any messages
         const recruiterMessages = await Message.countDocuments({
           conversationId,
           senderId: app.jobId.postedBy._id,
         });
 
-        // Check for unread messages from recruiter
         const unreadCount = await Message.countDocuments({
           conversationId,
           receiverId: req.user._id,
@@ -392,13 +376,12 @@ const getJobApplicants = async (req, res) => {
 
     const total = await Application.countDocuments(filter);
 
-    // **CRITICAL FIX**: Only update status to "viewed" for pending applications
-    // Do NOT change status for rejected or already-processed applications
+    // Only flip pending applications to "viewed"; never touch rejected/processed ones
     await Application.updateMany(
-      { 
-        jobId: jobId, 
+      {
+        jobId: jobId,
         viewedByRecruiter: false,
-        status: "pending" // ONLY change pending applications
+        status: "pending"
       },
       { 
         $set: { 
@@ -448,22 +431,18 @@ const getJobApplicants = async (req, res) => {
       }
     });
 
-    // Get message information for each applicant
     const applicants = await Promise.all(
       applications.map(async (app) => {
-        // Skip message logic if applicant was deleted
         let conversationId = null;
         let unreadCount = 0;
 
         if (app.applicantId) {
-          // Create conversation ID
           conversationId = Message.createConversationId(
             app.jobId,
             app.applicantId._id,
             req.user._id
           );
 
-          // Check for unread messages from applicant
           unreadCount = await Message.countDocuments({
             conversationId,
             senderId: app.applicantId._id,
@@ -572,12 +551,10 @@ const updateApplicationStatus = async (req, res) => {
     application.viewedByRecruiter = true;
     application.lastUpdated = new Date();
 
-    // Handle rejection with AI-powered feedback
     if (status === "rejected") {
       console.log("🤖 Generating AI-powered rejection feedback...");
 
       try {
-        // Generate detailed feedback
         const rejectionFeedback = await generateRejectionFeedback({
           job: application.jobId,
           candidateProfile: application.applicantId.parsedResume || {
@@ -588,10 +565,8 @@ const updateApplicationStatus = async (req, res) => {
           matchScore: application.matchScore || 0,
         });
 
-        // Store detailed rejection reason
         application.rejectionReason = rejectionFeedback.primaryReasons.join(". ");
 
-        // Add AI-generated feedback to feedback array
         application.feedback.push({
           message: `Match Score: ${rejectionFeedback.matchScore}%\n\n${rejectionFeedback.detailedAnalysis.skillGapAnalysis || ""}`,
           givenBy: req.user._id,
@@ -601,7 +576,6 @@ const updateApplicationStatus = async (req, res) => {
 
         console.log("✅ Rejection feedback generated successfully");
 
-        // Send rejection email asynchronously (don't wait for it)
         sendRejectionEmail({
           candidateEmail: application.applicantId.email,
           candidateName: application.applicantId.name,
@@ -621,12 +595,10 @@ const updateApplicationStatus = async (req, res) => {
           });
       } catch (feedbackError) {
         console.error("❌ Error generating rejection feedback:", feedbackError);
-        // Continue without AI feedback if it fails
         application.rejectionReason = "Your application did not meet the job requirements.";
       }
     }
 
-    // Handle acceptance with email notification
     if (status === "accepted") {
       console.log("🎉 Sending acceptance email...");
 
@@ -647,7 +619,6 @@ const updateApplicationStatus = async (req, res) => {
         });
     }
 
-    // Handle status change email notifications (viewed, moving-forward)
     if (status === "viewed" || status === "moving-forward") {
       console.log(`📧 Sending status change email for: ${status}...`);
 
@@ -669,7 +640,6 @@ const updateApplicationStatus = async (req, res) => {
         });
     }
 
-    // Add manual feedback if provided
     if (feedback && feedback.trim()) {
       application.feedback.push({
         message: feedback.trim(),
@@ -707,7 +677,6 @@ const updateApplicationStatus = async (req, res) => {
           }
         );
 
-        // Emit Socket.IO event to applicant
         io.to(`user:${application.applicantId._id}`).emit('applicationStatusChanged', {
           notificationId: notification._id,
           applicationId: application._id,
@@ -745,7 +714,6 @@ const getApplication = async (req, res) => {
   try {
     const { applicationId } = req.params;
 
-    // --- FIXED: Added 'gender' to populate fields ---
     const application = await Application.findById(applicationId)
       .populate({
         path: "jobId",
@@ -832,7 +800,6 @@ const getApplicationResume = async (req, res) => {
       });
     }
 
-    // Check authorization
     const isRecruiter = application.jobId.postedBy.toString() === req.user._id.toString();
     const isApplicant = application.applicantId._id.toString() === req.user._id.toString();
 
@@ -857,11 +824,9 @@ const getApplicationResume = async (req, res) => {
       });
     }
 
-    // Serve PDF from local storage or Cloudinary
     try {
       console.log("📄 Attempting to serve resume from:", application.resume);
 
-      // Check if it's a local file path or Cloudinary URL
       if (application.resume.startsWith('/uploads/')) {
         // Local file - serve directly from filesystem
         const fs = await import('fs');
@@ -871,7 +836,6 @@ const getApplicationResume = async (req, res) => {
 
         console.log("📂 Serving local file from:", filePath);
 
-        // Check if file exists
         if (!fs.existsSync(filePath)) {
           console.error("❌ File not found:", filePath);
           return res.status(404).json({
@@ -880,25 +844,22 @@ const getApplicationResume = async (req, res) => {
           });
         }
 
-        // Read file
         const fileBuffer = fs.readFileSync(filePath);
 
         console.log("✅ Successfully loaded resume, size:", fileBuffer.length, "bytes");
 
-        // Set appropriate headers for PDF viewing
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `inline; filename="${application.applicantId.name.replace(/[^a-zA-Z0-9]/g, '_')}_resume.pdf"`);
-        res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+        res.setHeader("Cache-Control", "public, max-age=86400");
 
-        // Send the PDF buffer
         return res.send(fileBuffer);
       } else if (application.resume.includes('cloudinary.com')) {
-        // Cloudinary URL - try to fetch (for backward compatibility with old uploads)
+        // Cloudinary URL - kept for backward compatibility with old uploads
         console.log("☁️  Fetching from Cloudinary...");
 
         let pdfUrl = application.resume;
 
-        // If URL contains '/raw/upload/', try to generate signed URL
+        // Signed URL needed for raw/upload assets
         if (application.resume.includes('/raw/upload/')) {
           try {
             pdfUrl = generateSignedUrl(application.resume);

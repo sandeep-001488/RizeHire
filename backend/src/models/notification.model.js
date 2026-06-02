@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema(
   {
-    // Notification recipient
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -10,39 +9,33 @@ const notificationSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Notification type
     type: {
       type: String,
       enum: ['new_application', 'new_message', 'status_change'],
       required: true,
     },
 
-    // Display title
     title: {
       type: String,
       required: true,
     },
 
-    // Description/message
     description: {
       type: String,
       required: true,
     },
 
-    // Icon type for UI
     icon: {
       type: String,
       enum: ['mail', 'message-square', 'check-circle', 'alert-circle'],
       required: true,
     },
 
-    // URL to redirect to when clicked
     actionUrl: {
       type: String,
       required: true,
     },
 
-    // Related IDs for context
     relatedIds: {
       applicationId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -61,28 +54,24 @@ const notificationSchema = new mongoose.Schema(
       },
     },
 
-    // Read status
     read: {
       type: Boolean,
       default: false,
       index: true,
     },
 
-    // When marked as read
     readAt: {
       type: Date,
     },
   },
   {
-    timestamps: true, // adds createdAt and updatedAt
+    timestamps: true,
   }
 );
 
-// Index for efficient queries
 notificationSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ userId: 1, read: 1 });
 
-// Static method to create notification
 notificationSchema.statics.createNotification = async function(userId, type, data) {
   try {
     const notification = new this({
@@ -103,7 +92,6 @@ notificationSchema.statics.createNotification = async function(userId, type, dat
   }
 };
 
-// Static method to get unread count for a user
 notificationSchema.statics.getUnreadCount = async function(userId) {
   return this.countDocuments({
     userId,
@@ -111,7 +99,6 @@ notificationSchema.statics.getUnreadCount = async function(userId) {
   });
 };
 
-// Static method to get all notifications for a user (paginated)
 notificationSchema.statics.getNotifications = async function(userId, skip = 0, limit = 20) {
   return this.find({ userId })
     .sort({ createdAt: -1 })
@@ -121,7 +108,6 @@ notificationSchema.statics.getNotifications = async function(userId, skip = 0, l
     .lean();
 };
 
-// Static method to mark as read
 notificationSchema.statics.markAsRead = async function(notificationId) {
   return this.findByIdAndUpdate(
     notificationId,
@@ -133,12 +119,10 @@ notificationSchema.statics.markAsRead = async function(notificationId) {
   );
 };
 
-// Static method to delete notification
 notificationSchema.statics.deleteNotification = async function(notificationId) {
   return this.findByIdAndDelete(notificationId);
 };
 
-// Static method to clear all unread notifications for a user
 notificationSchema.statics.clearAllUnread = async function(userId) {
   return this.updateMany(
     { userId, read: false },

@@ -44,7 +44,6 @@ export default function Header() {
     router.push("/auth/login");
   };
 
-  // --- UPDATED: Role-based navigation ---
   const seekerNavigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Jobs", href: "/jobs", icon: Briefcase },
@@ -185,7 +184,6 @@ export default function Header() {
         )}
       </div>
 
-      {/* Notification Drawer */}
       <NotificationDrawer
         isOpen={isNotificationDrawerOpen}
         onClose={() => setIsNotificationDrawerOpen(false)}

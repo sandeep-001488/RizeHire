@@ -48,16 +48,13 @@ export default function MyJobsPage() {
     Object.values(filters).some((value) => value !== "");
 
   useEffect(() => {
-    // When filters are active, fetch all jobs without pagination
     if (hasActiveFilters) {
-      fetchMyJobs({ limit: 1000 }); // Fetch up to 1000 jobs to show all matches
+      fetchMyJobs({ limit: 1000 }); // fetch all matches so client-side filtering covers every job
     } else {
-      // Otherwise use normal pagination
       fetchMyJobs();
     }
   }, [hasActiveFilters]);
 
-  // Filter jobs based on search and filters
   const filteredJobs = useMemo(() => {
     return myJobs.filter((job) => {
       const matchSearch =
@@ -110,7 +107,6 @@ export default function MyJobsPage() {
           </Link>
         </div>
 
-        {/* Search and Filter Section */}
         <Card>
           <CardContent className="p-6 space-y-4">
             <div className="flex gap-2">
@@ -235,7 +231,6 @@ export default function MyJobsPage() {
           </CardContent>
         </Card>
 
-        {/* Results info */}
         {hasActiveFilters && (
           <div className="text-sm text-muted-foreground">
             Found {filteredJobs.length} matching {filteredJobs.length === 1 ? "job" : "jobs"}

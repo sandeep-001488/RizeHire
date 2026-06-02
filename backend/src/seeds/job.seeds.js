@@ -3,7 +3,6 @@ import Job from "../models/job.model.js";
 
 const router = express.Router();
 
-// Random deadline generator
 function randomDeadline() {
   const start = new Date("2025-12-28");
   const end = new Date("2026-01-20");
@@ -12,13 +11,11 @@ function randomDeadline() {
 
 router.post("/seed-jobs", async (req, res) => {
   try {
-    // Utility to randomly choose postedBy
 const postedByList = ["693dcc0bcfc73927e1e0a75f", "693e401929b23cc4921bbb68"];
 const pickPoster = () => postedByList[Math.floor(Math.random() * postedByList.length)];
 
 const sampleJobs = [
 
-  // 1️⃣ Full Stack Developer – Zoho
   {
     title: "Full Stack Developer (Java + React)",
     company: {
@@ -48,7 +45,6 @@ const sampleJobs = [
     required_skills: ["Java"],
   },
 
-  // 2️⃣ Frontend Developer – Razorpay
   {
     title: "Frontend Developer (React/Next.js)",
     company: {
@@ -78,7 +74,6 @@ const sampleJobs = [
     required_skills: ["React"],
   },
 
-  // 3️⃣ Java Backend Developer – Infosys
   {
     title: "Java Backend Developer",
     company: {
@@ -108,7 +103,6 @@ const sampleJobs = [
     required_skills: ["Java"],
   },
 
-  // 4️⃣ Mobile App Developer – Swiggy
   {
     title: "Mobile App Developer (React Native)",
     company: {
@@ -138,7 +132,6 @@ const sampleJobs = [
     required_skills: ["React Native"],
   },
 
-  // 5️⃣ Data Scientist – CRED
   {
     title: "Data Scientist",
     company: {
@@ -168,7 +161,6 @@ const sampleJobs = [
     required_skills: ["Python"],
   },
 
-  // 6️⃣ Cybersecurity Analyst – Deloitte
   {
     title: "Cybersecurity Analyst",
     company: {
@@ -198,7 +190,6 @@ const sampleJobs = [
     required_skills: ["Cybersecurity"],
   },
 
-  // 7️⃣ DevOps Engineer – TCS
   {
     title: "DevOps Engineer",
     company: {
@@ -228,7 +219,6 @@ const sampleJobs = [
     required_skills: ["AWS"],
   },
 
-  // 8️⃣ AI/ML Engineer – NVIDIA
   {
     title: "AI/ML Engineer",
     company: {
@@ -258,7 +248,6 @@ const sampleJobs = [
     required_skills: ["PyTorch"],
   },
 
-  // 9️⃣ UI/UX Designer – Freshworks
   {
     title: "UI/UX Designer",
     company: {
@@ -288,7 +277,6 @@ const sampleJobs = [
     required_skills: ["Figma"],
   },
 
-  // 1️⃣0️⃣ Data Engineer – Accenture
   {
     title: "Data Engineer",
     company: {
@@ -318,7 +306,6 @@ const sampleJobs = [
     required_skills: ["SQL"],
   },
 
-  // 1️⃣1️⃣ QA Automation Engineer – Cognizant
   {
     title: "QA Automation Engineer",
     company: {
@@ -348,7 +335,6 @@ const sampleJobs = [
     required_skills: ["Selenium"],
   },
 
-  // 1️⃣2️⃣ Systems Engineer – Wipro
   {
     title: "Systems Engineer",
     company: {
@@ -378,7 +364,6 @@ const sampleJobs = [
     required_skills: ["Linux"],
   },
 
-  // 1️⃣3️⃣ Marketing Associate – Byju’s
   {
     title: "Marketing Associate",
     company: {
@@ -408,7 +393,6 @@ const sampleJobs = [
     required_skills: ["Marketing"],
   },
 
-  // 1️⃣4️⃣ Blockchain Developer – Polygon
   {
     title: "Blockchain Developer",
     company: {
@@ -438,7 +422,6 @@ const sampleJobs = [
     required_skills: ["Solidity"],
   },
 
-  // 1️⃣5️⃣ Technical Support Engineer – HCL
   {
     title: "Technical Support Engineer",
     company: {
@@ -468,7 +451,6 @@ const sampleJobs = [
     required_skills: ["Troubleshooting"],
   },
 
-  // 1️⃣6️⃣ Full Stack Engineer – Flipkart
   {
     title: "Full Stack Engineer",
     company: {
@@ -498,7 +480,6 @@ const sampleJobs = [
     required_skills: ["Node.js"],
   },
 
-  // 1️⃣7️⃣ Cloud Engineer – AWS India
   {
     title: "Cloud Engineer",
     company: {
@@ -528,7 +509,6 @@ const sampleJobs = [
     required_skills: ["AWS"],
   },
 
-  // 1️⃣8️⃣ Business Analyst – EY
   {
     title: "Business Analyst",
     company: {
@@ -558,7 +538,6 @@ const sampleJobs = [
     required_skills: ["Business Analysis"],
   },
 
-  // 1️⃣9️⃣ Junior Web Developer – Tech Mahindra
   {
     title: "Junior Web Developer",
     company: {
@@ -588,7 +567,6 @@ const sampleJobs = [
     required_skills: ["JavaScript"],
   },
 
-  // 2️⃣0️⃣ ERP Consultant – SAP
   {
     title: "ERP Consultant (SAP Functional)",
     company: {
@@ -620,7 +598,6 @@ const sampleJobs = [
 
 ];
 
-    // Insert all jobs
     await Job.insertMany(sampleJobs);
 
     return res.json({ success: true, inserted: sampleJobs.length });

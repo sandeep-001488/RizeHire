@@ -1,6 +1,5 @@
 import { generateContent } from "../config/gemini.js";
 
-
 function applyHardRules(jobConstraints, parsedResume) {
   const reasons = [];
   const hits = {};
@@ -9,19 +8,17 @@ function applyHardRules(jobConstraints, parsedResume) {
     return { hardFail: false, reasons: [], hits: {} };
   }
 
-  // Gender rule (ONLY if explicitly specified as "male" or "female")
+  // Gender rule only applies if the job explicitly specifies "male" or "female"
   if (jobConstraints.gender && jobConstraints.gender !== null) {
     const requiredGender = String(jobConstraints.gender).toLowerCase();
     const candidateGender = (parsedResume.gender || "").toLowerCase();
 
-    // Only reject if gender is specified AND doesn't match
     if (candidateGender && requiredGender !== candidateGender) {
       reasons.push(
         `This position requires ${requiredGender} candidates. Your profile indicates ${candidateGender}.`
       );
       hits.gender = true;
     } else if (!candidateGender) {
-      // If candidate hasn't specified gender but job requires it
       reasons.push(
         `This position requires ${requiredGender} candidates. Please update your gender in profile.`
       );
@@ -29,8 +26,7 @@ function applyHardRules(jobConstraints, parsedResume) {
     }
   }
 
-  // Experience rules
-  // Support both field names and take the maximum value
+  // Resume parser may populate either field name; take the larger value
   const exp1 = Number(parsedResume.yearsOfExperience || 0);
   const exp2 = Number(parsedResume.total_experience_years || 0);
   const candidateExp = Math.max(exp1, exp2);
@@ -68,7 +64,6 @@ function applyHardRules(jobConstraints, parsedResume) {
   };
 }
 
-/** AI scoring (soft, flexible) */
 async function scoreWithAI({ job, parsedResume }) {
   const prompt = `
 You are an expert technical recruiter. Rate the job-candidate match on a scale of 0-100 and provide short reasons.
@@ -124,8 +119,6 @@ Return ONLY the JSON, nothing else.
     };
   }
 }
-
-/** AI resume parser */
 
 async function parseResumeWithAI(resumeText) {
   const prompt = `
@@ -192,7 +185,6 @@ ${resumeText.slice(0, 15000)}
       skills: parsed.skills,
     });
 
-    // Sanitize and validate
     const result = {
       name: parsed.name || null,
       email: parsed.email || null,
@@ -229,9 +221,8 @@ ${resumeText.slice(0, 15000)}
   }
 }
 
-/** End-to-end evaluation */
 async function evaluateCandidateAgainstJD({ job, parsedResume }) {
-  // Apply hard rules first
+  // Hard rules must run before AI scoring; a hard fail short-circuits to rejection
   const hard = applyHardRules(job.hardConstraints, parsedResume);
 
   if (hard.hardFail) {
@@ -243,7 +234,6 @@ async function evaluateCandidateAgainstJD({ job, parsedResume }) {
     };
   }
 
-  // Apply AI scoring for soft evaluation
   const ai = await scoreWithAI({ job, parsedResume });
   const decision = ai.score >= 60 ? "accepted" : "rejected";
 

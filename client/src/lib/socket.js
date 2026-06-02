@@ -16,10 +16,9 @@ export const initializeSocket = (userId) => {
     reconnectionDelay: 1000,
   });
 
-  // Connect the socket
   socket.connect();
 
-  // Join user's personal room for notifications
+  // Join the user's personal room so the server can target notifications
   socket.on('connect', () => {
     console.log('✅ Socket connected:', socket.id);
     if (userId) {

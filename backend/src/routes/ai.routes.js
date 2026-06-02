@@ -31,15 +31,13 @@ router.post("/suggest-skills", suggestSkills);
 router.get("/job-match/:jobId", calculateJobMatch);
 router.get("/interview-questions/:jobId", generateInterviewQuestions);
 
-// ML Model Endpoints
-router.post("/ml/train", trainMLModel); // Train the neural network
-router.get("/ml/performance", getMLModelPerformance); // Get model metrics
-router.get("/ml/predict/:jobId", getMLPrediction); // Get ML prediction for a job
+router.post("/ml/train", trainMLModel);
+router.get("/ml/performance", getMLModelPerformance);
+router.get("/ml/predict/:jobId", getMLPrediction);
 
-// Explainability Endpoints (SHAP & LIME)
-router.get("/explainability/health", checkExplainabilityService); // Check Python service health
-router.get("/explainability/shap/:jobId", getSHAPForJob); // Get SHAP explanation
-router.get("/explainability/lime/:jobId", getLIMEForJob); // Get LIME explanation
-router.get("/explainability/combined/:jobId", getCombinedExplanationForJob); // Get both SHAP + LIME
+router.get("/explainability/health", checkExplainabilityService);
+router.get("/explainability/shap/:jobId", getSHAPForJob);
+router.get("/explainability/lime/:jobId", getLIMEForJob);
+router.get("/explainability/combined/:jobId", getCombinedExplanationForJob);
 
 export default router;

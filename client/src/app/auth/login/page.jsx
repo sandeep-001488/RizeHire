@@ -26,7 +26,6 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading, error, clearError, isAuthenticated, isHydrated } = useAuthStore();
 
-  // Get redirect URL from query params on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -37,7 +36,6 @@ export default function LoginPage() {
     }
   }, []);
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (isHydrated && isAuthenticated) {
       router.push(redirectUrl);
@@ -68,7 +66,6 @@ export default function LoginPage() {
     }));
   };
 
-  // Don't render the form if already authenticated
   if (isHydrated && isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center gradient-bg">

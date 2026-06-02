@@ -1,13 +1,5 @@
 import { generateContent } from "../config/gemini.js";
 
-/**
- * Generate detailed rejection feedback using AI
- * @param {Object} job - Job details
- * @param {Object} candidateProfile - Candidate's parsed resume
- * @param {Object} screeningResult - Screening results with reasons
- * @param {Number} matchScore - Match score (0-100)
- * @returns {Object} Detailed feedback with suggestions
- */
 export async function generateRejectionFeedback({
   job,
   candidateProfile,
@@ -15,13 +7,11 @@ export async function generateRejectionFeedback({
   matchScore,
 }) {
   try {
-    // Extract relevant data
     const jobSkills = job.skills || [];
     const candidateSkills = candidateProfile.skills || [];
     const candidateExperience = candidateProfile.yearsOfExperience || candidateProfile.total_experience_years || 0;
     const requiredExperience = job.hardConstraints?.minYears || job.ideal_experience || 0;
 
-    // Calculate skill gaps
     const missingSkills = jobSkills.filter(
       (skill) => !candidateSkills.some((cs) => cs.toLowerCase().includes(skill.toLowerCase()))
     );
@@ -29,7 +19,6 @@ export async function generateRejectionFeedback({
       (skill) => candidateSkills.some((cs) => cs.toLowerCase().includes(skill.toLowerCase()))
     );
 
-    // Basic feedback structure
     const feedback = {
       matchScore,
       primaryReasons: screeningResult.reasons || [],
@@ -38,14 +27,12 @@ export async function generateRejectionFeedback({
       encouragement: "",
     };
 
-    // If hard constraints failed, provide clear explanations
     if (screeningResult.hardFail) {
       feedback.detailedAnalysis = {
         hardConstraintsFailed: true,
         reasons: screeningResult.reasons,
       };
 
-      // Generate improvement suggestions based on hard failures
       if (screeningResult.reasons.some((r) => r.includes("experience"))) {
         feedback.improvementSuggestions.push(
           `Gain more professional experience. This role requires ${requiredExperience}+ years, and you currently have ${candidateExperience} years.`
@@ -60,7 +47,6 @@ export async function generateRejectionFeedback({
       return feedback;
     }
 
-    // For soft rejections, use AI to generate detailed feedback
     const prompt = `
 You are a professional career counselor providing constructive feedback to a job applicant who was not selected.
 
@@ -108,14 +94,10 @@ Return ONLY valid JSON in this exact format:
       feedback.improvementSuggestions = aiAnalysis.topSuggestions;
       feedback.encouragement = aiAnalysis.encouragement;
     } else {
-      // Enhanced fallback if AI fails - provides detailed analysis
-      console.log("⚠️  Using enhanced fallback (AI not available)");
-
       const matchPercentage = jobSkills.length > 0
         ? Math.round((matchingSkills.length / jobSkills.length) * 100)
         : 0;
 
-      // Skill Gap Analysis
       let skillGapAnalysis = "";
       if (matchingSkills.length === 0) {
         skillGapAnalysis = `Your profile doesn't show any of the required skills for this ${job.title} position. This role requires expertise in ${jobSkills.slice(0, 3).join(", ")}${jobSkills.length > 3 ? ` and ${jobSkills.length - 3} other key skills` : ""}.`;
@@ -127,7 +109,6 @@ Return ONLY valid JSON in this exact format:
         skillGapAnalysis = `You matched ${matchingSkills.length} out of ${jobSkills.length} required skills (${matchPercentage}%). You have most of the required skills - other candidates had slightly more experience or a better overall fit.`;
       }
 
-      // Experience Gap Analysis
       const experienceDiff = requiredExperience - candidateExperience;
       let experienceGap = "";
       if (experienceDiff > 2) {
@@ -145,7 +126,6 @@ Return ONLY valid JSON in this exact format:
         missingSkills: missingSkills.length > 0 ? missingSkills : null,
       };
 
-      // Generate specific improvement suggestions
       const suggestions = [];
 
       if (missingSkills.length > 0) {
@@ -170,7 +150,6 @@ Return ONLY valid JSON in this exact format:
 
       feedback.improvementSuggestions = suggestions.slice(0, 5);
 
-      // Personalized encouragement
       if (matchScore === 0) {
         feedback.encouragement = "Starting a new career path takes courage! Focus on building foundational skills. Remember, every expert was once a beginner. You've got this!";
       } else if (matchScore < 30) {
@@ -186,7 +165,6 @@ Return ONLY valid JSON in this exact format:
   } catch (error) {
     console.error("Error generating rejection feedback:", error);
 
-    // Return basic fallback feedback
     return {
       matchScore: matchScore || 0,
       primaryReasons: screeningResult.reasons || ["Your profile didn't match the job requirements closely enough."],
@@ -203,12 +181,6 @@ Return ONLY valid JSON in this exact format:
   }
 }
 
-/**
- * Generate a brief rejection summary for immediate feedback
- * @param {Object} screeningResult - Screening results
- * @param {Number} matchScore - Match score
- * @returns {String} Brief rejection message
- */
 export function generateQuickRejectionMessage(screeningResult, matchScore) {
   if (screeningResult.hardFail) {
     return screeningResult.reasons.join(". ") + ". Please review the job requirements carefully.";

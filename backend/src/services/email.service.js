@@ -1,10 +1,7 @@
 import nodemailer from "nodemailer";
 
-// Create transporter with SMTP configuration
 const createTransporter = () => {
-  // Check if using Mailtrap (for testing) or Resend (for production)
   if (process.env.SMTP_HOST && process.env.SMTP_PORT) {
-    // Mailtrap or custom SMTP
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT),
@@ -14,7 +11,6 @@ const createTransporter = () => {
       },
     });
   } else if (process.env.RESEND_API_KEY) {
-    // Resend API
     return nodemailer.createTransport({
       host: "smtp.resend.com",
       port: 465,
@@ -30,10 +26,6 @@ const createTransporter = () => {
   }
 };
 
-/**
- * Send application rejection email with detailed feedback
- * @param {Object} params - Email parameters
- */
 export async function sendRejectionEmail({
   candidateEmail,
   candidateName,
@@ -88,9 +80,6 @@ export async function sendRejectionEmail({
   }
 }
 
-/**
- * Generate HTML email template for rejection
- */
 function generateRejectionEmailHTML({
   candidateName,
   jobTitle,
@@ -259,9 +248,6 @@ function generateRejectionEmailHTML({
   `;
 }
 
-/**
- * Generate plain text email for rejection
- */
 function generateRejectionEmailText({
   candidateName,
   jobTitle,
@@ -309,9 +295,6 @@ function generateRejectionEmailText({
   return text;
 }
 
-/**
- * Send application accepted email
- */
 export async function sendAcceptanceEmail({
   candidateEmail,
   candidateName,
@@ -350,13 +333,10 @@ export async function sendAcceptanceEmail({
   }
 }
 
-/**
- * Validate if email is real (not test/fake email)
- */
+// Reject obvious test/placeholder addresses so notifications aren't sent to fake accounts
 function isRealEmail(email) {
   if (!email || typeof email !== 'string') return false;
 
-  // Common test/fake email patterns to exclude
   const fakePatterns = [
     /test@/i,
     /fake@/i,
@@ -371,24 +351,21 @@ function isRealEmail(email) {
     /donotreply@/i,
     /@localhost/i,
     /@127\.0\.0\.1/i,
-    /test\d+@/i, // test123@example.com
-    /user\d+@/i, // user123@test.com
+    /test\d+@/i,
+    /user\d+@/i,
   ];
 
-  // Check if email matches any fake pattern
   for (const pattern of fakePatterns) {
     if (pattern.test(email)) {
       return false;
     }
   }
 
-  // Basic email format validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return false;
   }
 
-  // Check for common free email providers (these are real)
   const realEmailDomains = [
     '@gmail.com',
     '@yahoo.com',
@@ -402,7 +379,6 @@ function isRealEmail(email) {
     '@zoho.com',
   ];
 
-  // If it's a known real email provider, accept it
   const lowerEmail = email.toLowerCase();
   for (const domain of realEmailDomains) {
     if (lowerEmail.endsWith(domain)) {
@@ -410,16 +386,11 @@ function isRealEmail(email) {
     }
   }
 
-  // For custom domains, accept if it's not in fake list
   return true;
 }
 
-/**
- * Send application status change notification email
- */
 export async function sendStatusChangeEmail({ candidate, recruiter, job, oldStatus, newStatus, applicationId }) {
   try {
-    // Validate candidate email is real
     if (!isRealEmail(candidate.email)) {
       console.log(`⚠️  Skipping email to ${candidate.email} (not a real email)`);
       return { success: false, message: "Not a real email address" };
@@ -432,7 +403,6 @@ export async function sendStatusChangeEmail({ candidate, recruiter, job, oldStat
       return { success: false, message: "Email not configured" };
     }
 
-    // Status-specific content
     const statusConfig = {
       'viewed': {
         emoji: '👀',
@@ -576,12 +546,8 @@ export async function sendStatusChangeEmail({ candidate, recruiter, job, oldStat
   }
 }
 
-/**
- * Send new message notification email
- */
 export async function sendMessageNotificationEmail(receiver, sender, job, messageText, applicationId) {
   try {
-    // Validate receiver email is real
     if (!isRealEmail(receiver.email)) {
       console.log(`⚠️  Skipping email to ${receiver.email} (not a real email)`);
       return { success: false, message: "Not a real email address" };
@@ -594,7 +560,6 @@ export async function sendMessageNotificationEmail(receiver, sender, job, messag
       return { success: false, message: "Email not configured" };
     }
 
-    // Truncate message preview to 150 characters
     const messagePreview = messageText.length > 150
       ? messageText.substring(0, 150) + '...'
       : messageText;

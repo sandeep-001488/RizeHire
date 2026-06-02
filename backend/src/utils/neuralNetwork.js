@@ -1,63 +1,39 @@
-/**
- * Simple Neural Network Implementation in Pure JavaScript
- * No external dependencies required!
- *
- * 2-layer feedforward neural network with backpropagation
- * Perfect for job application acceptance prediction
- */
-
 class NeuralNetwork {
   constructor(config = {}) {
     this.inputSize = config.inputSize || 4; // 4 match scores
-    this.hiddenSize = config.hiddenSize || 8; // Hidden layer neurons
-    this.outputSize = config.outputSize || 1; // Acceptance probability
+    this.hiddenSize = config.hiddenSize || 8;
+    this.outputSize = config.outputSize || 1; // acceptance probability
     this.learningRate = config.learningRate || 0.01;
 
-    // Initialize weights with random values (-1 to 1)
     this.weightsInputHidden = this.initializeWeights(this.inputSize, this.hiddenSize);
     this.weightsHiddenOutput = this.initializeWeights(this.hiddenSize, this.outputSize);
 
-    // Initialize biases
     this.biasHidden = new Array(this.hiddenSize).fill(0).map(() => Math.random() * 0.2 - 0.1);
     this.biasOutput = new Array(this.outputSize).fill(0).map(() => Math.random() * 0.2 - 0.1);
   }
 
-  /**
-   * Initialize weights with small random values
-   */
   initializeWeights(rows, cols) {
     const weights = [];
     for (let i = 0; i < rows; i++) {
       weights[i] = [];
       for (let j = 0; j < cols; j++) {
-        // Xavier initialization
+        // Xavier initialization: scale by 1/sqrt(fan-in) to keep activations stable
         weights[i][j] = (Math.random() * 2 - 1) / Math.sqrt(rows);
       }
     }
     return weights;
   }
 
-  /**
-   * Sigmoid activation function
-   */
   sigmoid(x) {
     return 1 / (1 + Math.exp(-x));
   }
 
-  /**
-   * Derivative of sigmoid (for backpropagation)
-   */
+  // Derivative expressed in terms of the already-activated output
   sigmoidDerivative(x) {
     return x * (1 - x);
   }
 
-  /**
-   * Forward propagation
-   * @param {Array} input - Input features [skillsMatch, experienceMatch, locationMatch, salaryMatch]
-   * @returns {Object} - Activations at each layer
-   */
   forward(input) {
-    // Input layer to hidden layer
     const hiddenLayerInput = [];
     for (let i = 0; i < this.hiddenSize; i++) {
       let sum = this.biasHidden[i];
@@ -67,10 +43,8 @@ class NeuralNetwork {
       hiddenLayerInput.push(sum);
     }
 
-    // Apply activation function
     const hiddenLayerOutput = hiddenLayerInput.map(x => this.sigmoid(x));
 
-    // Hidden layer to output layer
     const outputLayerInput = [];
     for (let i = 0; i < this.outputSize; i++) {
       let sum = this.biasOutput[i];
@@ -80,7 +54,6 @@ class NeuralNetwork {
       outputLayerInput.push(sum);
     }
 
-    // Apply activation function
     const output = outputLayerInput.map(x => this.sigmoid(x));
 
     return {
@@ -89,20 +62,13 @@ class NeuralNetwork {
     };
   }
 
-  /**
-   * Backward propagation (learning)
-   * @param {Array} input - Input features
-   * @param {Number} targetOutput - Expected output
-   * @param {Object} forwardResult - Result from forward pass
-   */
   backward(input, targetOutput, forwardResult) {
     const { hiddenLayerOutput, output } = forwardResult;
 
-    // Calculate output layer error
     const outputError = targetOutput - output[0];
     const outputDelta = outputError * this.sigmoidDerivative(output[0]);
 
-    // Calculate hidden layer error
+    // Backpropagate output delta through hidden->output weights
     const hiddenError = [];
     for (let i = 0; i < this.hiddenSize; i++) {
       let error = 0;
@@ -116,22 +82,19 @@ class NeuralNetwork {
       error * this.sigmoidDerivative(hiddenLayerOutput[i])
     );
 
-    // Update weights and biases (gradient descent)
-    // Hidden to output
+    // Gradient descent weight/bias updates
     for (let i = 0; i < this.hiddenSize; i++) {
       for (let j = 0; j < this.outputSize; j++) {
         this.weightsHiddenOutput[i][j] += this.learningRate * outputDelta * hiddenLayerOutput[i];
       }
     }
 
-    // Input to hidden
     for (let i = 0; i < this.inputSize; i++) {
       for (let j = 0; j < this.hiddenSize; j++) {
         this.weightsInputHidden[i][j] += this.learningRate * hiddenDelta[j] * input[i];
       }
     }
 
-    // Update biases
     for (let i = 0; i < this.outputSize; i++) {
       this.biasOutput[i] += this.learningRate * outputDelta;
     }
@@ -143,18 +106,13 @@ class NeuralNetwork {
     return Math.abs(outputError);
   }
 
-  /**
-   * Train the network
-   * @param {Array} trainingData - Array of {input, output} pairs
-   * @param {Number} epochs - Number of training iterations
-   */
   train(trainingData, epochs = 1000) {
     let totalError = 0;
 
     for (let epoch = 0; epoch < epochs; epoch++) {
       totalError = 0;
 
-      // Shuffle training data for better learning
+      // Shuffle each epoch so weight updates don't follow a fixed sample order
       const shuffled = trainingData.sort(() => Math.random() - 0.5);
 
       for (const data of shuffled) {
@@ -163,7 +121,6 @@ class NeuralNetwork {
         totalError += error;
       }
 
-      // Log progress every 1000 epochs
       if ((epoch + 1) % 1000 === 0) {
         const avgError = totalError / trainingData.length;
         console.log(`Epoch ${epoch + 1}/${epochs}, Avg Error: ${avgError.toFixed(6)}`);
@@ -176,19 +133,11 @@ class NeuralNetwork {
     };
   }
 
-  /**
-   * Predict output for given input
-   * @param {Array} input - Input features
-   * @returns {Number} - Predicted output
-   */
   predict(input) {
     const result = this.forward(input);
     return result.output[0];
   }
 
-  /**
-   * Serialize network to JSON
-   */
   toJSON() {
     return {
       config: {
@@ -208,9 +157,6 @@ class NeuralNetwork {
     };
   }
 
-  /**
-   * Load network from JSON
-   */
   fromJSON(json) {
     this.inputSize = json.config.inputSize;
     this.hiddenSize = json.config.hiddenSize;

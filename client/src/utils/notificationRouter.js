@@ -6,7 +6,6 @@ export const handleNotificationClick = (notification, router) => {
   if (!notification || !router) return;
 
   try {
-    // Use the actionUrl from the notification
     if (notification.actionUrl) {
       router.push(notification.actionUrl);
     }

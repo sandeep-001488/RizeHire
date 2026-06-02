@@ -274,15 +274,12 @@ YOUR RESPONSE:`;
         throw new Error(`Failed to parse JSON response: ${parseError.message}`);
       }
 
-      // Validate parsedData
       if (typeof parsedData !== 'object' || parsedData === null) {
         throw new Error("Parsed result is not a JSON object");
       }
 
-      // Extract individual fields
       const { name, email, phone, total_experience_years, skills, education, gender, resume_confidence, parsed_summary } = parsedData;
 
-      // Assign extracted values
       extractedData = {
         name: name || null,
         email: email || null,
@@ -351,7 +348,6 @@ const calculateJobMatch = async (req, res) => {
 };
 
 const evaluateCandidate = (job, parsedResume) => {
-  // 1. Hard Filters
   let hardFail = false;
   const hardFilterReasons = [];
 
@@ -376,7 +372,6 @@ const evaluateCandidate = (job, parsedResume) => {
     };
   }
 
-  // 2. Soft Scoring Features
   const requiredSkills = job.skills || [];
   const matchingSkills = parsedResume.skills.filter((skill) =>
     requiredSkills.some((jobSkill) =>
@@ -385,8 +380,8 @@ const evaluateCandidate = (job, parsedResume) => {
   );
   const skill_match = requiredSkills.length > 0 ? matchingSkills.length / requiredSkills.length : 1;
 
-  const ideal_experience = job.ideal_experience || 5; // Default ideal experience
-  const experience_std_dev = 2; // Standard deviation for experience
+  const ideal_experience = job.ideal_experience || 5;
+  const experience_std_dev = 2;
   const exp_score = Math.exp(-Math.pow(parsedResume.total_experience_years - ideal_experience, 2) / (2 * Math.pow(experience_std_dev, 2)));
 
   const preferred_education = job.preferred_education || "Bachelor's";
@@ -394,15 +389,14 @@ const evaluateCandidate = (job, parsedResume) => {
   if (parsedResume.education.includes(preferred_education)) {
     education_match = 1;
   } else if (parsedResume.education.length > 0) {
-    education_match = 0.8; // Higher education
+    education_match = 0.8;
   }
 
-  const resume_confidence = parsedResume.resume_confidence || 0.7; // Default resume confidence
+  const resume_confidence = parsedResume.resume_confidence || 0.7;
 
-  // 3. Weighted Scoring Formula
   const final_score = 0.45 * skill_match + 0.25 * exp_score + 0.15 * education_match + 0.15 * resume_confidence;
 
-  // 4. SHAP-like Explanation
+  // SHAP-like contribution explanation
   const skill_match_contribution = 0.45 * skill_match;
   const exp_score_contribution = 0.25 * exp_score;
   const education_match_contribution = 0.15 * education_match;
@@ -415,7 +409,6 @@ const evaluateCandidate = (job, parsedResume) => {
   const education_match_percent = Math.abs(education_match_contribution) / total_contribution * 100;
   const resume_confidence_percent = Math.abs(resume_confidence_contribution) / total_contribution * 100;
 
-  // 5. Final Decision
   let decisionStatus = "reject";
   let decisionReason = "Candidate does not meet the required qualifications.";
   if (final_score >= 0.75) {
@@ -426,7 +419,6 @@ const evaluateCandidate = (job, parsedResume) => {
     decisionReason = "Candidate requires manual review.";
   }
 
-  // 6. JSON Structure
   const result = {
     decision: {
       status: decisionStatus,
@@ -481,7 +473,6 @@ const testAI = async (req, res) => {
  */
 const PYTHON_SERVICE_URL = process.env.PYTHON_EXPLAINABILITY_URL || 'http://localhost:5001';
 
-// Helper: extract text data for BERT
 function extractTextForBERT(user, job) {
   const parsedResume = user.parsedResume || {};
   const skills = [
@@ -521,7 +512,6 @@ const getJobRecommendations = async (req, res) => {
       });
     }
 
-    // Get applied job IDs to exclude
     const appliedJobIds = await Application.find({
       applicantId: user._id,
     })
@@ -530,7 +520,7 @@ const getJobRecommendations = async (req, res) => {
 
     const appliedJobIdsArray = appliedJobIds.map((app) => app.jobId.toString());
 
-    // Get all active jobs (not just skill-filtered, so Gemini/BERT can find broader matches)
+    // Fetch all active jobs (not skill-filtered) so Gemini/BERT can find broader matches
     const jobs = await Job.find({
       isActive: true,
       postedBy: { $ne: user._id },
@@ -550,9 +540,7 @@ const getJobRecommendations = async (req, res) => {
     let recommendations = [];
     let source = 'traditional';
 
-    // ============================================
-    // TIER 1: Try Gemini API (batch ranking)
-    // ============================================
+    // TIER 1: Gemini API (batch ranking)
     try {
       console.log("🤖 Tier 1: Attempting Gemini AI recommendations...");
 
@@ -602,7 +590,6 @@ Sort by score descending. Only include jobs with score > 10.`;
 
       const responseText = await generateContent(prompt);
 
-      // Parse JSON response
       let cleanText = responseText.trim();
       if (cleanText.startsWith('```')) {
         cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
@@ -628,9 +615,7 @@ Sort by score descending. Only include jobs with score > 10.`;
     } catch (geminiError) {
       console.warn("⚠️ Tier 1 Gemini failed:", geminiError.message);
 
-      // ============================================
-      // TIER 2: Try BERT Python Service
-      // ============================================
+      // TIER 2: BERT Python Service
       try {
         console.log("🧠 Tier 2: Attempting BERT recommendations...");
 
@@ -697,9 +682,7 @@ Sort by score descending. Only include jobs with score > 10.`;
       } catch (bertError) {
         console.warn("⚠️ Tier 2 BERT failed:", bertError.message);
 
-        // ============================================
         // TIER 3: Traditional keyword matching
-        // ============================================
         console.log("📊 Tier 3: Using traditional keyword matching...");
 
         recommendations = jobs.map((job) => {
@@ -772,7 +755,6 @@ const getCareerSuggestions = async (req, res) => {
       }
     } catch (aiError) {
       console.warn("AI career suggestions failed:", aiError.message);
-      // Fallback
       suggestions = {
         jobTitles: [
           "Software Developer",
@@ -853,11 +835,10 @@ const generateInterviewQuestions = async (req, res) => {
     let questions = [];
 
     try {
-      // Add timestamp and random seed for uniqueness
+      // Timestamp + random seed force a unique prompt so Gemini doesn't return cached questions
       const timestamp = Date.now();
       const randomSeed = Math.floor(Math.random() * 10000);
-      
-      // Build a rich context for more authentic questions
+
       const jobContext = {
         title: job.title,
         skills: job.skills || [],
@@ -894,13 +875,11 @@ Generate the questions now:`;
 
       if (jsonMatch) {
         questions = JSON.parse(jsonMatch[0]);
-        
-        // Ensure we have 5-7 questions
+
         if (questions.length < 5) {
           throw new Error("Not enough questions generated");
         }
-        
-        // Limit to 7 questions max
+
         questions = questions.slice(0, 7);
       } else {
         throw new Error("No valid JSON array found");
@@ -908,7 +887,6 @@ Generate the questions now:`;
     } catch (aiError) {
       console.warn("AI question generation failed:", aiError.message);
 
-      // Enhanced fallback with more variety
       const skillBased = job.skills?.[0]
         ? `Tell me about a complex project where you used ${job.skills[0]}. What challenges did you face and how did you overcome them?`
         : "Describe a challenging technical project you've worked on recently.";
@@ -939,10 +917,6 @@ Generate the questions now:`;
   }
 };
 
-/**
- * NEW: Get AI-powered skill suggestions for job posting
- * Works for ALL job categories (tech, business, marketing, etc.)
- */
 const suggestSkills = async (req, res) => {
   try {
     const { jobTitle, category, description } = req.body;
@@ -954,7 +928,6 @@ const suggestSkills = async (req, res) => {
       });
     }
 
-    // Get smart skill suggestions (AI + historical data)
     const skills = await getSmartSkillSuggestions(
       jobTitle,
       category,
@@ -977,15 +950,6 @@ const suggestSkills = async (req, res) => {
   }
 };
 
-/**
- * ML MODEL ENDPOINTS
- * Train and evaluate the neural network model
- */
-
-/**
- * Train the ML model
- * Only accessible by admin/poster for demo purposes
- */
 const trainMLModel = async (req, res) => {
   try {
     console.log("🧠 Training ML model...");
@@ -998,7 +962,7 @@ const trainMLModel = async (req, res) => {
       data: {
         iterations: stats.iterations,
         finalError: stats.error,
-        trainingTime: stats.iterations * 0.001, // Approximate time in seconds
+        trainingTime: stats.iterations * 0.001,
       },
     });
   } catch (error) {
@@ -1010,9 +974,6 @@ const trainMLModel = async (req, res) => {
   }
 };
 
-/**
- * Get ML model performance metrics
- */
 const getMLModelPerformance = async (req, res) => {
   try {
     const performance = await getModelPerformance();
@@ -1030,15 +991,10 @@ const getMLModelPerformance = async (req, res) => {
   }
 };
 
-/**
- * Get ML prediction for a specific job
- * Helps users understand their chances before applying
- */
 const getMLPrediction = async (req, res) => {
   try {
     const { jobId } = req.params;
 
-    // Get job details
     const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({
@@ -1047,10 +1003,7 @@ const getMLPrediction = async (req, res) => {
       });
     }
 
-    // Calculate match breakdown
     const match = calculateMatch(req.user, job);
-
-    // Get ML prediction
     const mlPrediction = await predictAcceptance(match.breakdown);
 
     res.json({
@@ -1079,14 +1032,6 @@ const getMLPrediction = async (req, res) => {
   }
 };
 
-/**
- * EXPLAINABLE AI ENDPOINTS (SHAP & LIME)
- * Provides interpretable explanations for ML predictions
- */
-
-/**
- * Check Python explainability service health
- */
 const checkExplainabilityService = async (req, res) => {
   try {
     const isHealthy = await isPythonServiceHealthy();
@@ -1107,14 +1052,7 @@ const checkExplainabilityService = async (req, res) => {
   }
 };
 
-/**
- * Extract text data from user and job for BERT semantic matching
- * @param {Object} user - User object with parsedResume
- * @param {Object} job - Job object with description
- * @returns {Object} Text data for BERT service
- */
 function extractTextData(user, job) {
-  // Build resume text from parsed resume data
   const parsedResume = user.parsedResume || {};
   const skills = [
     ...(parsedResume.skills || []),
@@ -1135,15 +1073,10 @@ function extractTextData(user, job) {
   };
 }
 
-/**
- * Get SHAP explanation for a job match
- * Uses BERT semantic matching + SHAP explainability
- */
 const getSHAPForJob = async (req, res) => {
   try {
     const { jobId } = req.params;
 
-    // Get job
     const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({
@@ -1152,13 +1085,8 @@ const getSHAPForJob = async (req, res) => {
       });
     }
 
-    // Calculate match
     const match = calculateMatch(req.user, job);
-
-    // Extract text data for BERT semantic matching
     const textData = extractTextData(req.user, job);
-
-    // Get SHAP explanation (with BERT text data)
     const explanation = await getSHAPExplanation(match.breakdown, textData);
 
     res.json({
@@ -1178,15 +1106,10 @@ const getSHAPForJob = async (req, res) => {
   }
 };
 
-/**
- * Get LIME explanation for a job match
- * Uses BERT semantic matching + LIME explainability
- */
 const getLIMEForJob = async (req, res) => {
   try {
     const { jobId } = req.params;
 
-    // Get job
     const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({
@@ -1195,13 +1118,8 @@ const getLIMEForJob = async (req, res) => {
       });
     }
 
-    // Calculate match
     const match = calculateMatch(req.user, job);
-
-    // Extract text data for BERT semantic matching
     const textData = extractTextData(req.user, job);
-
-    // Get LIME explanation (with BERT text data)
     const explanation = await getLIMEExplanation(match.breakdown, textData);
 
     res.json({
@@ -1221,15 +1139,10 @@ const getLIMEForJob = async (req, res) => {
   }
 };
 
-/**
- * Get combined SHAP + LIME explanation
- * Uses BERT semantic matching with comprehensive explainability
- */
 const getCombinedExplanationForJob = async (req, res) => {
   try {
     const { jobId } = req.params;
 
-    // Get job
     const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({
@@ -1238,13 +1151,8 @@ const getCombinedExplanationForJob = async (req, res) => {
       });
     }
 
-    // Calculate match
     const match = calculateMatch(req.user, job);
-
-    // Extract text data for BERT semantic matching
     const textData = extractTextData(req.user, job);
-
-    // Get combined explanation (with BERT text data)
     const explanation = await getCombinedExplanation(match.breakdown, textData);
 
     res.json({
@@ -1275,11 +1183,9 @@ export {
   generateInterviewQuestions,
   testAI,
   suggestSkills,
-  // ML Endpoints
   trainMLModel,
   getMLModelPerformance,
   getMLPrediction,
-  // Explainability Endpoints (SHAP & LIME)
   checkExplainabilityService,
   getSHAPForJob,
   getLIMEForJob,

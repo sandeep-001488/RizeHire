@@ -54,7 +54,6 @@ export default function JobApplicantsPage() {
   const jobId = params.jobId;
   const { tokens } = useAuthStore();
 
-  // Local state management
   const [jobApplicants, setJobApplicants] = useState([]);
   const [applicantsStats, setApplicantsStats] = useState({
     totalApplications: 0,
@@ -89,7 +88,6 @@ export default function JobApplicantsPage() {
     }
   }, [activeTab]);
 
-  // Helper function to view resume with authentication
   const viewResume = async (applicationId) => {
     if (!applicationId) return;
 
@@ -101,7 +99,6 @@ export default function JobApplicantsPage() {
         return;
       }
 
-      // Fetch PDF with authentication
       const response = await fetch(`${baseUrl}/applications/${applicationId}/resume`, {
         headers: {
           'Authorization': `Bearer ${tokens.accessToken}`,
@@ -113,14 +110,11 @@ export default function JobApplicantsPage() {
         throw new Error('Failed to load resume');
       }
 
-      // Create blob URL from response
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
-      // Open in new tab
       window.open(url, '_blank');
 
-      // Clean up blob URL after a delay
       setTimeout(() => window.URL.revokeObjectURL(url), 100);
     } catch (error) {
       console.error('Error viewing resume:', error);
@@ -167,15 +161,14 @@ export default function JobApplicantsPage() {
   };
 
   const handleStatusUpdate = async (applicationId, newStatus) => {
-    // Track which specific button is being clicked
     setUpdatingStatus({ applicationId, action: newStatus });
 
-    // Store original state for rollback on error
+    // Snapshot for rollback if the API call fails
     const originalApplicants = [...jobApplicants];
     const originalStats = { ...applicantsStats };
 
     try {
-      // Optimistic update - update UI immediately
+      // Optimistic update so the UI reflects the change before the API responds
       setJobApplicants(prevApplicants =>
         prevApplicants.map(app =>
           app.applicationId === applicationId
@@ -184,17 +177,14 @@ export default function JobApplicantsPage() {
         )
       );
 
-      // Update stats optimistically
       const updatedApplicant = jobApplicants.find(app => app.applicationId === applicationId);
       if (updatedApplicant) {
         setApplicantsStats(prevStats => {
           const newStats = { ...prevStats };
-          // Decrement old status count
           const oldStatusKey = `${updatedApplicant.status}Applications`;
           if (newStats[oldStatusKey] !== undefined) {
             newStats[oldStatusKey] = Math.max(0, newStats[oldStatusKey] - 1);
           }
-          // Increment new status count
           const newStatusKey = `${newStatus}Applications`;
           if (newStats[newStatusKey] !== undefined) {
             newStats[newStatusKey] = (newStats[newStatusKey] || 0) + 1;
@@ -203,14 +193,12 @@ export default function JobApplicantsPage() {
         });
       }
 
-      // Make API call in background
       await applicationsAPI.updateApplicationStatus(applicationId, {
         status: newStatus,
       });
 
       toast.success(`Application ${newStatus} successfully`);
     } catch (error) {
-      // Rollback on error
       setJobApplicants(originalApplicants);
       setApplicantsStats(originalStats);
       console.error("Error updating application status:", error);
@@ -220,12 +208,10 @@ export default function JobApplicantsPage() {
     }
   };
 
-  // Helper function to check if a specific button is loading
   const isButtonLoading = (applicationId, action) => {
     return updatingStatus?.applicationId === applicationId && updatingStatus?.action === action;
   };
 
-  // Helper function to check if any status button for this applicant is loading
   const isAnyStatusLoading = (applicationId) => {
     return updatingStatus?.applicationId === applicationId;
   };
@@ -258,7 +244,6 @@ export default function JobApplicantsPage() {
 
   const handlePageChange = (newPage) => {
     setApplicantsPagination((prev) => ({ ...prev, current: newPage }));
-    // Trigger refetch with new page
     const params = {
       page: newPage,
       limit: applicantsPagination.limit,
@@ -314,7 +299,6 @@ export default function JobApplicantsPage() {
           </Link>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card>
             <CardContent className="p-4">
@@ -400,7 +384,6 @@ export default function JobApplicantsPage() {
           </Card>
         </div>
 
-        {/* Applications Section */}
         <Card>
           <CardHeader>
             <CardTitle>Applications</CardTitle>
@@ -409,7 +392,6 @@ export default function JobApplicantsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Mobile Tabs */}
             <div className="md:hidden mb-6">
               <select
                 value={activeTab}
@@ -436,7 +418,6 @@ export default function JobApplicantsPage() {
                 </option>
               </select>
             </div>
-            {/* Desktop tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="hidden md:grid w-full grid-cols-6">
                 <TabsTrigger value="all">
@@ -492,7 +473,6 @@ export default function JobApplicantsPage() {
                       >
                         <CardContent className="p-4 md:p-6">
                           <div className="space-y-4">
-                            {/* Mobile Action Buttons - Show at top on mobile */}
                             <div className="md:hidden">
                               <div className="flex flex-col gap-2">
                                 {applicant.status === "pending" && (
@@ -514,7 +494,6 @@ export default function JobApplicantsPage() {
                                           <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
                                           <>
-                                            {/* <Eye className="mr-1 h-3 w-3" /> */}
                                             Mark as Viewed
                                           </>
                                         )}
@@ -534,7 +513,6 @@ export default function JobApplicantsPage() {
                                           <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
                                           <>
-                                            {/* <ArrowRight className="mr-1 h-3 w-3" /> */}
                                             Move Forward
                                           </>
                                         )}
@@ -703,7 +681,6 @@ export default function JobApplicantsPage() {
                                   </div>
                                 )}
 
-                                {/* Always show message and LinkedIn buttons on mobile */}
                                 <div className="grid grid-cols-1 gap-2">
                                   <Button
                                     size="sm"
@@ -737,9 +714,6 @@ export default function JobApplicantsPage() {
                                     </Button>
                                   )}
                                 </div>
-                                {/* Resume Buttons */}
-                                
-                              {/* Resume Button - Single option to view */}
 {applicant.resumeUrl && (
   <div className="mb-3">
     <Button
@@ -755,7 +729,6 @@ export default function JobApplicantsPage() {
 )}
 
 
-                                {/* Show Rejection Reason and Explanation for Recruiters */}
                                 {applicant.status === "rejected" && (applicant.rejectionReason || applicant.rejectionExplanation) && (
                                   <div className="mb-3">
                                     {applicant.rejectionExplanation ? (
@@ -783,7 +756,6 @@ export default function JobApplicantsPage() {
                                           </DialogHeader>
 
                                           <div className="space-y-4 mt-4">
-                                            {/* Rejection Reason */}
                                             <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                                               <h3 className="font-semibold text-red-900 dark:text-red-100 mb-2">Reason for Rejection</h3>
                                               <p className="text-sm text-red-800 dark:text-red-200">
@@ -791,7 +763,6 @@ export default function JobApplicantsPage() {
                                               </p>
                                             </div>
 
-                                            {/* Match Breakdown */}
                                             {applicant.rejectionExplanation.matchBreakdown && (
                                               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                                 <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">Match Score Breakdown</h3>
@@ -824,7 +795,6 @@ export default function JobApplicantsPage() {
                                               </div>
                                             )}
 
-                                            {/* Hard Rules Failed */}
                                             {applicant.rejectionExplanation.hardRuleFailed && applicant.rejectionExplanation.hardRuleFailed.length > 0 && (
                                               <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
                                                 <h3 className="font-semibold text-orange-900 dark:text-orange-100 mb-2">Hard Requirements Failed</h3>
@@ -838,7 +808,6 @@ export default function JobApplicantsPage() {
                                               </div>
                                             )}
 
-                                            {/* Recommendations */}
                                             {applicant.rejectionExplanation.recommendations && applicant.rejectionExplanation.recommendations.length > 0 && (
                                               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                                                 <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">Candidate Feedback</h3>
@@ -853,7 +822,6 @@ export default function JobApplicantsPage() {
                                               </div>
                                             )}
 
-                                            {/* Candidate Location Preference */}
                                             {applicant.willingToRelocate !== undefined && (
                                               <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                                                 <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">Candidate Relocation Preference</h3>
@@ -863,7 +831,6 @@ export default function JobApplicantsPage() {
                                               </div>
                                             )}
 
-                                            {/* Rejection Email Status */}
                                             <div className="p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-800">
                                               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Email Notification</h3>
                                               <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -895,7 +862,6 @@ export default function JobApplicantsPage() {
 
                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                               <div className="flex-1 min-w-0">
-                                {/* min-w-0 allows flex child to shrink */}
                                 <div className="flex items-start space-x-3 md:space-x-4">
                                   <Avatar className="h-10 w-10 md:h-12 md:w-12 shrink-0">
                                     <AvatarImage
@@ -908,7 +874,6 @@ export default function JobApplicantsPage() {
                                   </Avatar>
 
                                   <div className="flex-1 min-w-0">
-                                    {/* min-w-0 allows flex child to shrink */}
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                                       <h3 className="text-base md:text-lg font-semibold wrap-break-word">
                                         {applicant?.user?.name || "Unknown Applicant"}
@@ -1022,8 +987,6 @@ export default function JobApplicantsPage() {
                                         )}
                                       </div>
                                     )}
-                                    {/* Resume Buttons */}
-                                 {/* Resume Button - Mobile */}
 {applicant.resumeUrl && (
   <Button
     size="sm"
@@ -1036,7 +999,6 @@ export default function JobApplicantsPage() {
   </Button>
 )}
 
-                                    {/* Show Rejection Reason and Explanation for Recruiters */}
                                     {applicant.status === "rejected" && (applicant.rejectionReason || applicant.rejectionExplanation) && (
                                       <div className="mb-3">
                                         {applicant.rejectionExplanation ? (
@@ -1064,7 +1026,6 @@ export default function JobApplicantsPage() {
                                               </DialogHeader>
 
                                               <div className="space-y-4 mt-4">
-                                                {/* Rejection Reason */}
                                                 <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                                                   <h3 className="font-semibold text-red-900 dark:text-red-100 mb-2">Reason for Rejection</h3>
                                                   <p className="text-sm text-red-800 dark:text-red-200">
@@ -1072,7 +1033,6 @@ export default function JobApplicantsPage() {
                                                   </p>
                                                 </div>
 
-                                                {/* Match Breakdown */}
                                                 {applicant.rejectionExplanation.matchBreakdown && (
                                                   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                                     <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">Match Score Breakdown</h3>
@@ -1105,7 +1065,6 @@ export default function JobApplicantsPage() {
                                                   </div>
                                                 )}
 
-                                                {/* Hard Rules Failed */}
                                                 {applicant.rejectionExplanation.hardRuleFailed && applicant.rejectionExplanation.hardRuleFailed.length > 0 && (
                                                   <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
                                                     <h3 className="font-semibold text-orange-900 dark:text-orange-100 mb-2">Hard Requirements Failed</h3>
@@ -1119,7 +1078,6 @@ export default function JobApplicantsPage() {
                                                   </div>
                                                 )}
 
-                                                {/* Recommendations */}
                                                 {applicant.rejectionExplanation.recommendations && applicant.rejectionExplanation.recommendations.length > 0 && (
                                                   <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                                                     <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">Candidate Feedback</h3>
@@ -1134,7 +1092,6 @@ export default function JobApplicantsPage() {
                                                   </div>
                                                 )}
 
-                                                {/* Candidate Location Preference */}
                                                 {applicant.willingToRelocate !== undefined && (
                                                   <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                                                     <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">Candidate Relocation Preference</h3>
@@ -1144,7 +1101,6 @@ export default function JobApplicantsPage() {
                                                   </div>
                                                 )}
 
-                                                {/* Rejection Email Status */}
                                                 <div className="p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-800">
                                                   <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Email Notification</h3>
                                                   <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -1171,7 +1127,6 @@ export default function JobApplicantsPage() {
                                         )}
                                       </div>
                                     )}
-                                    {/* View Full Details Button */}
                                     <div className="mb-3">
                                       <Dialog>
                                         <DialogTrigger asChild>
@@ -1255,7 +1210,6 @@ export default function JobApplicantsPage() {
                                 </div>
                               </div>
 
-                              {/* Desktop Action Buttons - Hidden on mobile */}
                               <div className="hidden md:flex flex-col gap-2 min-w-35">
                                 {applicant.status === "pending" && (
                                   <>
@@ -1453,7 +1407,6 @@ export default function JobApplicantsPage() {
                                   </>
                                 )}
 
-                                {/* Message Button - Always show on desktop */}
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -1468,7 +1421,6 @@ export default function JobApplicantsPage() {
                                   )}
                                 </Button>
 
-                                {/* LinkedIn Button on desktop */}
                                 {applicant?.user?.linkedinUrl && (
                                   <Button
                                     size="sm"
@@ -1493,7 +1445,6 @@ export default function JobApplicantsPage() {
                         </CardContent>
                       </Card>
                     ))}
-                    {/* Pagination */}
                     {applicantsPagination.pages > 1 && (
                       <div className="flex justify-center space-x-2 mt-6">
                         <Button

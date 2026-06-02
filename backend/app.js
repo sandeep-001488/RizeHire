@@ -33,19 +33,17 @@ app.use(
 );
 app.options(allowedOrigin, cors());
 
-// Rate limiter for AI routes
 const aiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50, // 50 AI requests per 15 minutes
+  windowMs: 15 * 60 * 1000,
+  max: 50,
   message: { error: "Too many AI requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Rate limiter for notification routes
 const notificationLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 60, // 60 requests per minute
+  windowMs: 60 * 1000,
+  max: 60,
   message: { error: "Too many notification requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -58,7 +56,6 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// --- Health Check Route ---
 app.get("/health", (_, res) => {
   res.json({
     success: true,
@@ -67,22 +64,18 @@ app.get("/health", (_, res) => {
   });
 });
 
-// --- API Routes ---
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api", jobSeedRoutes);
 app.use("/api/applications", applicationRoutes);
-app.use("/api/messages", messageRoutes); // Real-time messaging
-app.use("/api/notifications", notificationLimiter, notificationRoutes); // Apply rate limiter to notifications
-app.use("/api/ai", aiLimiter, aiRoutes); // Apply rate limiter to AI routes
+app.use("/api/messages", messageRoutes);
+app.use("/api/notifications", notificationLimiter, notificationRoutes);
+app.use("/api/ai", aiLimiter, aiRoutes);
 app.use("/api/resume", resumeRoutes);
 
-
-// --- Error Handling ---
 app.use(notFound);
 app.use(errorHandler);
 
-// --- HTTP Server & Socket.IO Setup ---
 const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
@@ -93,29 +86,24 @@ const io = new Server(httpServer, {
   },
 });
 
-// Socket.IO connection handling
 io.on("connection", (socket) => {
   console.log(`✅ Socket connected: ${socket.id}`);
 
-  // User joins their personal room for receiving messages
   socket.on("join", (userId) => {
     socket.join(`user:${userId}`);
     console.log(`👤 User ${userId} joined their room`);
   });
 
-  // User joins a conversation room
   socket.on("joinConversation", (conversationId) => {
     socket.join(`conversation:${conversationId}`);
     console.log(`💬 Socket ${socket.id} joined conversation: ${conversationId}`);
   });
 
-  // User leaves a conversation room
   socket.on("leaveConversation", (conversationId) => {
     socket.leave(`conversation:${conversationId}`);
     console.log(`🚪 Socket ${socket.id} left conversation: ${conversationId}`);
   });
 
-  // Typing indicator
   socket.on("typing", ({ conversationId, userId, userName }) => {
     socket.to(`conversation:${conversationId}`).emit("userTyping", {
       userId,
@@ -124,7 +112,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Stop typing indicator
   socket.on("stopTyping", ({ conversationId, userId }) => {
     socket.to(`conversation:${conversationId}`).emit("userStoppedTyping", {
       userId,
@@ -132,7 +119,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Notification: Mark as read
   socket.on("notification:markAsRead", async (data) => {
     try {
       const Notification = (await import("./src/models/notification.model.js")).default;
@@ -143,7 +129,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Notification: Delete
   socket.on("notification:delete", async (data) => {
     try {
       const Notification = (await import("./src/models/notification.model.js")).default;
@@ -154,13 +139,11 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle disconnection
   socket.on("disconnect", () => {
     console.log(`❌ Socket disconnected: ${socket.id}`);
   });
 });
 
-// Make io available globally for controllers
 export { io };
 
 const PORT = process.env.PORT || 5000;
