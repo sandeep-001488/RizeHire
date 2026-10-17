@@ -2,7 +2,7 @@ import Job from "../models/job.model.js";
 import Application from "../models/application.model.js";
 import Joi from "joi";
 import axios from "axios";
-import { calculateJobMatch, rankJobsByRelevance } from "../utils/jobMatching.js";
+import { calculateJobMatch, rankJobsWithTfidf } from "../utils/jobMatching.js";
 import { predictAcceptance } from "../utils/mlModel.js";
 import { generateContent } from "../config/gemini.js";
 
@@ -702,7 +702,7 @@ const getMyJobs = async (req, res) => {
  * Tiered Recommendation System:
  * Tier 1: Gemini API (AI-powered ranking & scoring)
  * Tier 2: BERT Python Service (semantic matching)
- * Tier 3: Traditional keyword matching (fallback)
+ * Tier 3: TF-IDF + keyword matching (fallback, no external service)
  */
 
 async function getGeminiRecommendations(user, jobs) {
@@ -925,10 +925,10 @@ const getRecommendations = async (req, res) => {
         console.warn("⚠️ BERT service failed:", bertError.message);
 
         // TIER 3: Traditional keyword matching
-        console.log("📊 Tier 3: Using traditional keyword matching...");
-        rankedJobs = rankJobsByRelevance(unappliedJobs, req.user);
-        recommendationSource = 'traditional';
-        console.log(`✅ Traditional matching returned ${rankedJobs.length} recommendations`);
+        console.log("📊 Tier 3: Using TF-IDF + keyword matching...");
+        rankedJobs = rankJobsWithTfidf(unappliedJobs, req.user);
+        recommendationSource = 'tfidf';
+        console.log(`✅ TF-IDF matching returned ${rankedJobs.length} recommendations`);
       }
     }
 

@@ -1,3 +1,5 @@
+import { buildCandidateText, rankJobsByTfidf } from "./tfidf.js";
+
 function calculateSkillMatch(candidateSkills, jobSkills) {
   if (!jobSkills || jobSkills.length === 0) {
     return { score: 50, matchingSkills: [], missingSkills: [], matchPercentage: 0 };
@@ -351,4 +353,71 @@ export function rankJobsByRelevance(jobs, candidate) {
 export function getTopRecommendations(jobs, candidate, limit = 5) {
   const rankedJobs = rankJobsByRelevance(jobs, candidate);
   return rankedJobs.slice(0, limit);
+}
+
+
+/**
+ * Tier 3 ranker: TF-IDF lexical similarity blended with the rule-based
+ * breakdown above. TF-IDF stands in for the semantic signal that Gemini /
+ * BERT provide in Tiers 1-2, so the weight split mirrors the BERT tier
+ * (semantic 40% there, 30% here because TF-IDF is a weaker signal).
+ */
+export const TFIDF_BLEND = { tfidf: 0.30, traditional: 0.70 };
+
+export function applySkillCap(score, skillScore) {
+  if (skillScore === 0) return Math.min(score, 20);
+  if (skillScore < 20) return Math.min(score, 30);
+  if (skillScore < 40) return Math.min(score, 40);
+  return score;
+}
+
+export function bandForScore(score) {
+  if (score >= 80) return { matchCategory: 'Excellent Match', matchBadge: 'best-match' };
+  if (score >= 60) return { matchCategory: 'Good Match', matchBadge: 'good-match' };
+  if (score >= 40) return { matchCategory: 'Fair Match', matchBadge: 'fair-match' };
+  return { matchCategory: 'Needs Development', matchBadge: 'low-match' };
+}
+
+export function rankJobsWithTfidf(jobs, candidate) {
+  if (!jobs || jobs.length === 0) return [];
+
+  const candidateText = buildCandidateText(candidate);
+  const tfidfScores = rankJobsByTfidf(candidateText, jobs);
+
+  const jobsWithScores = jobs.map(rawJob => {
+    // Mongoose documents keep their fields behind getters, so spreading them
+    // would drop _id/title/etc. Normalise to a plain object first.
+    const job = typeof rawJob?.toObject === 'function' ? rawJob.toObject() : rawJob;
+    const match = calculateJobMatch(candidate, job);
+    const tfidfScore = tfidfScores.get(String(job._id)) ?? 0;
+
+    const blended = Math.round(
+      tfidfScore * TFIDF_BLEND.tfidf + match.overallScore * TFIDF_BLEND.traditional
+    );
+    const matchScore = applySkillCap(blended, match.breakdown.skills.score);
+    const band = bandForScore(matchScore);
+
+    return {
+      ...job,
+      matchScore,
+      ...band,
+      matchBreakdown: {
+        ...match.breakdown,
+        tfidf: {
+          score: tfidfScore,
+          explanation: tfidfScore >= 50
+            ? 'Strong keyword overlap with the job description'
+            : tfidfScore >= 25
+              ? 'Partial keyword overlap with the job description'
+              : 'Little keyword overlap with the job description',
+        },
+      },
+      tfidfScore,
+      whyThisJob: match.whyThisJob,
+      recommendation: match.recommendation,
+      recommendationSource: 'tfidf',
+    };
+  });
+
+  return jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
 }

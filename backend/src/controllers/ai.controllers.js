@@ -4,7 +4,7 @@ import Job from "../models/job.model.js";
 import axios from "axios";
 import { getSmartSkillSuggestions } from "../utils/skillSuggestions.js";
 import { trainModel, getModelPerformance, predictAcceptance } from "../utils/mlModel.js";
-import { calculateJobMatch as calculateMatch } from "../utils/jobMatching.js";
+import { calculateJobMatch as calculateMatch, rankJobsWithTfidf } from "../utils/jobMatching.js";
 import {
   getSHAPExplanation,
   getLIMEExplanation,
@@ -469,7 +469,7 @@ const testAI = async (req, res) => {
  * Tiered AI Recommendation System:
  * Tier 1: Gemini API (AI-powered batch ranking & scoring)
  * Tier 2: BERT Python Service (semantic matching via cross-encoder)
- * Tier 3: Traditional keyword matching (fallback)
+ * Tier 3: TF-IDF + keyword matching (fallback, no external service)
  */
 const PYTHON_SERVICE_URL = process.env.PYTHON_EXPLAINABILITY_URL || 'http://localhost:5001';
 
@@ -683,20 +683,18 @@ Sort by score descending. Only include jobs with score > 10.`;
         console.warn("⚠️ Tier 2 BERT failed:", bertError.message);
 
         // TIER 3: Traditional keyword matching
-        console.log("📊 Tier 3: Using traditional keyword matching...");
+        console.log("📊 Tier 3: Using TF-IDF + keyword matching...");
 
-        recommendations = jobs.map((job) => {
-          const match = calculateMatch(user, job);
-          return {
-            job,
-            matchScore: match.overallScore,
-          };
-        })
-          .sort((a, b) => b.matchScore - a.matchScore)
+        recommendations = rankJobsWithTfidf(jobs, user)
+          .map((ranked) => ({
+            job: jobs.find((j) => String(j._id) === String(ranked._id)),
+            matchScore: ranked.matchScore,
+            tfidfScore: ranked.tfidfScore,
+          }))
           .slice(0, 10);
 
-        source = 'traditional';
-        console.log(`✅ Traditional matching returned ${recommendations.length} recommendations`);
+        source = 'tfidf';
+        console.log(`✅ TF-IDF matching returned ${recommendations.length} recommendations`);
       }
     }
 

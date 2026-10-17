@@ -20,7 +20,7 @@ RizeHire is a modern, full-stack job portal application with AI-powered features
 
 - 🔐 **Authentication & Authorization** - JWT-based auth with role-based access (Seeker/Poster)
 - 📄 **Resume Parsing** - AI-powered resume parsing using Google Gemini
-- 🎯 **Smart Job Matching** - Intelligent candidate-job matching
+- 🎯 **Smart Job Matching** - Three-tier recommendations: Gemini batch ranking → BERT cross-encoder (Python service) → TF-IDF + keyword matching fallback
 - 💼 **Job Management** - Post, edit, and manage job listings
 - 📊 **Application Tracking** - Track application status and feedback
 - 🔗 **Blockchain Integration** - Wallet-based verification
@@ -142,6 +142,9 @@ npm run dev
 
 # Production mode
 npm start
+
+# Unit tests (node:test)
+npm test
 ```
 
 The backend server will start on `http://localhost:5000`

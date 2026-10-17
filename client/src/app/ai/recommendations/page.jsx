@@ -114,6 +114,8 @@ export default function AIRecommendationsPage() {
                             ? "Gemini AI"
                             : recommendationSource === "bert"
                             ? "BERT"
+                            : recommendationSource === "tfidf"
+                            ? "TF-IDF + Keyword Matching"
                             : "Keyword Matching"
                         }
                       >
