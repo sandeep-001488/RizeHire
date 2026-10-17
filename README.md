@@ -219,7 +219,7 @@ The frontend will start on `http://localhost:3000`
 | `CLOUDINARY_API_KEY` | Cloudinary API key | Yes |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret | Yes |
 | `SEED_USER_PASSWORD` | Password for the demo accounts seeded by `npm run seed:user` / `POST /api/seed-users?role=seeker\|poster\|both` | Only for seeding |
-| `SEED_USER_EMAIL` / `SEED_POSTER_EMAIL` | Emails for the seeded seeker / poster (defaults: `sandeepsanu1230@gmail.com`, `sandeep.sanu1230@gmail.com`) | No |
+| `SEED_USER_EMAIL` / `SEED_POSTER_EMAIL` | Emails for the seeded seeker / poster (defaults: `sandeep.sanu1230@gmail.com`, `sandeepsanu1230@gmail.com`) | No |
 | `SEED_ON_BOOT` | `true` makes the server seed the demo accounts right after MongoDB connects (use on Render; no local DB access needed) | No |
 | `SEED_ROLES` / `SEED_RESET_PASSWORD` | Which accounts to seed on boot (`seeker`, `poster`, `both`) and whether to reset existing passwords | No |
 | `SEED_ADOPT_ORPHAN_JOBS` | `true` hands jobs whose poster account was deleted (plus their applications and chats) to the seeded poster on boot | No |
