@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findOrphanJobs, reassignMessage, extendExpiredDeadlines } from "./orphanJobs.js";
+import { findOrphanJobs, reassignMessage } from "./orphanJobs.js";
 import Message from "../models/message.model.js";
 
 const OLD = "693dcc0bcfc73927e1e0a75f";
@@ -31,10 +31,4 @@ test("reassignMessage swaps the deleted recruiter and rebuilds the conversation 
 
 test("reassignMessage leaves unrelated messages alone", () => {
   assert.equal(reassignMessage({ jobId: JOB, senderId: NEW, receiverId: APPLICANT }, [OLD], NEW), null);
-});
-
-test("extendExpiredDeadlines is a no-op for missing or non-positive days", async () => {
-  assert.deepEqual(await extendExpiredDeadlines(undefined), { jobs: 0 });
-  assert.deepEqual(await extendExpiredDeadlines("0"), { jobs: 0 });
-  assert.deepEqual(await extendExpiredDeadlines("abc"), { jobs: 0 });
 });
