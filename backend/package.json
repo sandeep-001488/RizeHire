@@ -8,7 +8,8 @@
     "test": "node --test \"src/**/*.test.js\"",
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "seed:user": "node scripts/seedUser.js"
+    "seed:user": "node scripts/seedUser.js",
+    "hash:password": "node scripts/hashPassword.js"
   },
   "author": "",
   "license": "ISC",
