@@ -17,14 +17,14 @@ import resumeRoutes from "./src/routes/resume.routes.js";
 import messageRoutes from "./src/routes/message.routes.js";
 import notificationRoutes from "./src/routes/notification.routes.js";
 import jobSeedRoutes from "./src/seeds/job.seeds.js";
-import userSeedRoutes, { seedOnBoot } from "./src/seeds/user.seeds.js";
+import userSeedRoutes, { runBootTasks } from "./src/seeds/user.seeds.js";
 
 dotenv.config();
 
 const app = express();
 const allowedOrigin = process.env.FRONTEND_URL;
-// Seeding is a no-op unless SEED_ON_BOOT=true (see src/seeds/user.seeds.js)
-connectDB().then(() => seedOnBoot());
+// Boot tasks are no-ops unless their SEED_* flags are set (see src/seeds/user.seeds.js)
+connectDB().then(() => runBootTasks());
 
 app.use(helmet());
 app.use(

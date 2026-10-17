@@ -737,12 +737,12 @@ const getApplication = async (req, res) => {
     const isApplicant =
       application.applicantId._id.toString() === req.user._id.toString();
 
-    // Handle both cases: postedBy can be an ID string or populated object
-    const recruiterId = typeof application.jobId.postedBy === 'object'
-      ? application.jobId.postedBy._id
-      : application.jobId.postedBy;
+    // postedBy can be an ID, a populated object, or null when the poster's
+    // account was deleted (typeof null === 'object', so check for null first).
+    const postedBy = application.jobId?.postedBy;
+    const recruiterId = postedBy?._id ?? postedBy ?? application.recruiterId ?? null;
     const isJobPoster =
-      recruiterId.toString() === req.user._id.toString();
+      !!recruiterId && recruiterId.toString() === req.user._id.toString();
 
     if (!isApplicant && !isJobPoster) {
       return res.status(403).json({

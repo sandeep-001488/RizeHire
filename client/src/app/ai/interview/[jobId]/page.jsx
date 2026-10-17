@@ -134,7 +134,7 @@ export default function InterviewQuestionsPage({ params }) {
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              Company: {job.postedBy.name}
+              Company: {job.company?.name || job.postedBy?.name || "Not listed"}
             </p>
           </CardContent>
         </Card>

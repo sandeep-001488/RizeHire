@@ -222,6 +222,8 @@ The frontend will start on `http://localhost:3000`
 | `SEED_USER_EMAIL` / `SEED_POSTER_EMAIL` | Emails for the seeded seeker / poster (defaults: `sandeepsanu1230@gmail.com`, `sandeep.sanu1230@gmail.com`) | No |
 | `SEED_ON_BOOT` | `true` makes the server seed the demo accounts right after MongoDB connects (use on Render; no local DB access needed) | No |
 | `SEED_ROLES` / `SEED_RESET_PASSWORD` | Which accounts to seed on boot (`seeker`, `poster`, `both`) and whether to reset existing passwords | No |
+| `SEED_ADOPT_ORPHAN_JOBS` | `true` hands jobs whose poster account was deleted (plus their applications and chats) to the seeded poster on boot | No |
+| `SEED_EXTEND_EXPIRED_DEADLINES_DAYS` | e.g. `30`: on boot, moves past deadlines on active jobs to 30–60 days out | No |
 | `SEED_SECRET` | If set, `POST /api/seed-users` requires header `x-seed-secret` | No |
 
 ### Frontend Environment Variables
