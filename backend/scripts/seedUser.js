@@ -3,9 +3,9 @@
  * Render/Atlas database too, no running server needed).
  *
  *   cd backend
- *   node scripts/seedUser.js                    # seeker + poster; create or refresh profiles
+ *   node scripts/seedUser.js                    # poster only (default); create or refresh
  *   node scripts/seedUser.js --role=seeker      # only the seeker
- *   node scripts/seedUser.js --role=poster      # only the poster
+ *   node scripts/seedUser.js --role=both        # poster and the demo seeker
  *   node scripts/seedUser.js --reset            # also reset the password(s)
  *
  * Env: MONGODB_URI and SEED_USER_PASSWORD (required);
@@ -19,7 +19,7 @@ dotenv.config();
 
 const args = process.argv.slice(2);
 const resetPassword = args.includes("--reset");
-const roleArg = (args.find((a) => a.startsWith("--role=")) || "--role=both").split("=")[1];
+const roleArg = (args.find((a) => a.startsWith("--role=")) || "--role=poster").split("=")[1];
 
 const missing = ["MONGODB_URI", "SEED_USER_PASSWORD"].filter((k) => !process.env[k]);
 if (missing.length) {

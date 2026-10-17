@@ -5,15 +5,15 @@ import { useState } from "react";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const ROLE_OPTIONS = [
-  { value: "both", label: "Seeker + Poster" },
-  { value: "seeker", label: "Job Seeker only" },
   { value: "poster", label: "Job Poster only" },
+  { value: "seeker", label: "Job Seeker only" },
+  { value: "both", label: "Seeker + Poster" },
 ];
 
 export default function SeedPage() {
   const [loading, setLoading] = useState(null);
   const [response, setResponse] = useState(null);
-  const [role, setRole] = useState("both");
+  const [role, setRole] = useState("poster");
   const [resetPassword, setResetPassword] = useState(false);
 
   const run = async (label, path) => {
