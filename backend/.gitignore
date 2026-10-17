@@ -14,8 +14,10 @@ yarn-error.log*
 node_modules/
 jspm_packages/
 
-# Do not commit job seeder
-src/seeds/
+# Do not commit job seeder (hardcoded poster IDs); the user seeder is imported by app.js so it must ship
+src/seeds/*
+!src/seeds/user.seeds.js
+!src/seeds/user.seeds.test.js
 
 #uploads folder
 uploads/

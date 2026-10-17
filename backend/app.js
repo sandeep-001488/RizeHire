@@ -17,12 +17,14 @@ import resumeRoutes from "./src/routes/resume.routes.js";
 import messageRoutes from "./src/routes/message.routes.js";
 import notificationRoutes from "./src/routes/notification.routes.js";
 import jobSeedRoutes from "./src/seeds/job.seeds.js";
+import userSeedRoutes, { seedOnBoot } from "./src/seeds/user.seeds.js";
 
 dotenv.config();
 
 const app = express();
 const allowedOrigin = process.env.FRONTEND_URL;
-connectDB();
+// Seeding is a no-op unless SEED_ON_BOOT=true (see src/seeds/user.seeds.js)
+connectDB().then(() => seedOnBoot());
 
 app.use(helmet());
 app.use(
@@ -67,6 +69,7 @@ app.get("/health", (_, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api", jobSeedRoutes);
+app.use("/api", userSeedRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationLimiter, notificationRoutes);
