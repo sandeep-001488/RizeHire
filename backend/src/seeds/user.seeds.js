@@ -4,15 +4,15 @@ import { adoptOrphanJobs } from "./orphanJobs.js";
 
 /**
  * Seeds the demo accounts used for the live demo / interviews:
- *   - a SEEKER  (sandeepsanu1230@gmail.com)
- *   - a POSTER  (sandeep.sanu1230@gmail.com; Gmail ignores dots, so it is the same inbox,
+ *   - a POSTER  (sandeepsanu1230@gmail.com), which also owns orphaned jobs
+ *   - a SEEKER  (sandeep.sanu1230@gmail.com; Gmail ignores dots, so it is the same inbox,
  *     but a distinct value for the unique email index. "+alias" is rejected by the
  *     User schema email regex, so a dotted variant is used instead.)
  *
  * Configure through env vars (no password is stored in this file on purpose):
  *   SEED_USER_PASSWORD    REQUIRED - login password for both seeded accounts
- *   SEED_USER_EMAIL       seeker email   (default sandeepsanu1230@gmail.com)
- *   SEED_POSTER_EMAIL     poster email   (default sandeep.sanu1230@gmail.com)
+ *   SEED_USER_EMAIL       seeker email   (default sandeep.sanu1230@gmail.com)
+ *   SEED_POSTER_EMAIL     poster email   (default sandeepsanu1230@gmail.com)
  *   SEED_USER_GENDER      seeker gender: male | female | other (seekers require one)
  *   SEED_SECRET           if set, the HTTP route requires header x-seed-secret
  *
@@ -21,8 +21,8 @@ import { adoptOrphanJobs } from "./orphanJobs.js";
  */
 
 export const SEED_ROLES = ["seeker", "poster"];
-export const DEFAULT_SEED_USER_EMAIL = "sandeepsanu1230@gmail.com";
-export const DEFAULT_SEED_POSTER_EMAIL = "sandeep.sanu1230@gmail.com";
+export const DEFAULT_SEED_USER_EMAIL = "sandeep.sanu1230@gmail.com";
+export const DEFAULT_SEED_POSTER_EMAIL = "sandeepsanu1230@gmail.com";
 
 const SEEKER_SKILLS = [
   "JavaScript", "TypeScript", "Python", "C++", "SQL",
@@ -80,12 +80,12 @@ export function buildPosterUser(env = process.env) {
   const email = (env.SEED_POSTER_EMAIL || DEFAULT_SEED_POSTER_EMAIL).toLowerCase();
 
   return {
-    name: "Sandeep Kumar (Recruiter)",
+    name: "Sandeep Kumar",
     email,
     password,
     role: "poster",
     bio:
-      "Demo recruiter account for RizeHire. Posts jobs, reviews AI-screened applicants, " +
+      "Recruiter on RizeHire. Posts jobs, reviews AI-screened applicants, " +
       "and chats with candidates in real time.",
     linkedinUrl: "https://www.linkedin.com/in/sandeep-kumar-934237260/",
     location: "Bangalore, India",

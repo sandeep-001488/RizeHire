@@ -37,7 +37,7 @@ export default function SeedPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-medium">Demo accounts</h2>
         <p className="text-sm text-gray-500">
-          Seeker: sandeepsanu1230@gmail.com · Poster: sandeep.sanu1230@gmail.com ·
+          Poster: sandeepsanu1230@gmail.com · Seeker: sandeep.sanu1230@gmail.com ·
           password comes from <code>SEED_USER_PASSWORD</code> on the backend.
         </p>
 
