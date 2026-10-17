@@ -18,6 +18,8 @@ jspm_packages/
 src/seeds/*
 !src/seeds/user.seeds.js
 !src/seeds/user.seeds.test.js
+!src/seeds/orphanJobs.js
+!src/seeds/orphanJobs.test.js
 
 #uploads folder
 uploads/

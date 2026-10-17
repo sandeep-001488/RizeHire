@@ -30,6 +30,14 @@ export const sendMessage = async (req, res) => {
       });
     }
 
+    // A participant's account (or the job) may have been deleted
+    if (!application.jobId || !application.applicantId || !application.recruiterId) {
+      return res.status(409).json({
+        success: false,
+        message: 'This conversation is no longer available because the job or one of its participants was removed',
+      });
+    }
+
     // Sender must be a participant (applicant or recruiter) on this application
     const isApplicant = application.applicantId._id.toString() === senderId.toString();
     const isRecruiter = application.recruiterId._id.toString() === senderId.toString();

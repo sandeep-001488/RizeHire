@@ -1,5 +1,6 @@
 import express from "express";
 import User from "../models/user.model.js";
+import { adoptOrphanJobs, extendExpiredDeadlines } from "./orphanJobs.js";
 
 /**
  * Seeds the demo accounts used for the live demo / interviews:
@@ -165,6 +166,43 @@ export async function seedOnBoot(env = process.env) {
   } catch (error) {
     console.error("🌱 User seeding on boot failed:", error.message);
     return null;
+  }
+}
+
+/**
+ * Everything app.js runs once after MongoDB connects. Each step has its own
+ * flag, is logged, and can't crash the server.
+ *
+ *   SEED_ON_BOOT=true                       seed the demo seeker/poster (see seedOnBoot)
+ *   SEED_ADOPT_ORPHAN_JOBS=true             give jobs whose poster account was deleted
+ *                                           to the seeded poster (SEED_POSTER_EMAIL)
+ *   SEED_EXTEND_EXPIRED_DEADLINES_DAYS=30   move past deadlines on active jobs 30-60 days out
+ */
+export async function runBootTasks(env = process.env) {
+  await seedOnBoot(env);
+
+  if (env.SEED_ADOPT_ORPHAN_JOBS === "true") {
+    try {
+      const posterEmail = (env.SEED_POSTER_EMAIL || DEFAULT_SEED_POSTER_EMAIL).toLowerCase();
+      const poster = await User.findOne({ email: posterEmail, role: "poster" }, "_id").lean();
+      if (!poster) {
+        console.warn(`🌱 SEED_ADOPT_ORPHAN_JOBS is on but no poster ${posterEmail} exists; seed it first (SEED_ON_BOOT=true).`);
+      } else {
+        const r = await adoptOrphanJobs(poster._id);
+        console.log(`🌱 Orphaned jobs adopted by ${posterEmail}: ${r.jobs} jobs, ${r.applications} applications, ${r.messages} messages`);
+      }
+    } catch (error) {
+      console.error("🌱 Adopting orphaned jobs failed:", error.message);
+    }
+  }
+
+  if (env.SEED_EXTEND_EXPIRED_DEADLINES_DAYS) {
+    try {
+      const r = await extendExpiredDeadlines(env.SEED_EXTEND_EXPIRED_DEADLINES_DAYS);
+      console.log(`🌱 Extended expired deadlines on ${r.jobs} active jobs`);
+    } catch (error) {
+      console.error("🌱 Extending deadlines failed:", error.message);
+    }
   }
 }
 

@@ -122,7 +122,7 @@ export default function FeedPage() {
                           </h3>
                         </Link>
                         <p className="text-muted-foreground mt-1">
-                          {job.postedBy.name}
+                          {job.company?.name || job.postedBy?.name || "Company not listed"}
                         </p>
 
                         <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
