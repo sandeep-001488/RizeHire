@@ -53,7 +53,7 @@ test("env overrides apply and emails are lowercased", () => {
 });
 
 test("resolveRoles maps seeker / poster / both and rejects junk", () => {
-  assert.deepEqual(resolveRoles(undefined), ["seeker", "poster"]);
+  assert.deepEqual(resolveRoles(undefined), ["poster"], "default is poster only");
   assert.deepEqual(resolveRoles("both"), ["seeker", "poster"]);
   assert.deepEqual(resolveRoles("Seeker"), ["seeker"]);
   assert.deepEqual(resolveRoles("poster"), ["poster"]);

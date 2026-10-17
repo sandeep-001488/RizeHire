@@ -121,9 +121,9 @@ export async function seedUser({ role = "seeker", resetPassword = false, env = p
   return { role, created: false, updated: true, passwordReset: resetPassword, userId: existing._id, email: existing.email };
 }
 
-/** Parses "seeker" | "poster" | "both" (default both) into the list of roles to seed. */
+/** Parses "seeker" | "poster" | "both" (default poster) into the list of roles to seed. */
 export function resolveRoles(input) {
-  const value = String(input || "both").toLowerCase();
+  const value = String(input || "poster").toLowerCase();
   if (value === "both" || value === "all") return [...SEED_ROLES];
   if (SEED_ROLES.includes(value)) return [value];
   throw new Error(`Unknown role "${input}". Use seeker, poster or both.`);
@@ -143,7 +143,7 @@ export async function seedUsers({ roles = SEED_ROLES, resetPassword = false, env
  *
  *   SEED_ON_BOOT=true            turn it on
  *   SEED_USER_PASSWORD=...       required
- *   SEED_ROLES=both              seeker | poster | both (default both)
+ *   SEED_ROLES=poster            seeker | poster | both (default poster)
  *   SEED_RESET_PASSWORD=true     also reset passwords of existing accounts (default off)
  *
  * Never throws: a seeding problem is logged and the server keeps running.
