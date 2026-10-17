@@ -78,26 +78,4 @@ export async function adoptOrphanJobs(newPosterId) {
   };
 }
 
-/**
- * Moves every past application deadline on active jobs to `days` from now,
- * spread over a further `days` so the jobs don't all close on the same day.
- */
-export async function extendExpiredDeadlines(days, now = new Date()) {
-  const n = Number(days);
-  if (!Number.isFinite(n) || n <= 0) return { jobs: 0 };
-
-  const expired = await Job.find({ isActive: true, applicationDeadline: { $lt: now } }, "_id").lean();
-  if (expired.length === 0) return { jobs: 0 };
-
-  const dayMs = 24 * 60 * 60 * 1000;
-  const ops = expired.map((job, i) => ({
-    updateOne: {
-      filter: { _id: job._id },
-      update: { $set: { applicationDeadline: new Date(now.getTime() + (n + (i % n)) * dayMs) } },
-    },
-  }));
-  await Job.bulkWrite(ops);
-  return { jobs: ops.length };
-}
-
-export default { findOrphanJobs, reassignMessage, adoptOrphanJobs, extendExpiredDeadlines };
+export default { findOrphanJobs, reassignMessage, adoptOrphanJobs };

@@ -1,6 +1,6 @@
 import express from "express";
 import User from "../models/user.model.js";
-import { adoptOrphanJobs, extendExpiredDeadlines } from "./orphanJobs.js";
+import { adoptOrphanJobs } from "./orphanJobs.js";
 
 /**
  * Seeds the demo accounts used for the live demo / interviews:
@@ -176,7 +176,6 @@ export async function seedOnBoot(env = process.env) {
  *   SEED_ON_BOOT=true                       seed the demo seeker/poster (see seedOnBoot)
  *   SEED_ADOPT_ORPHAN_JOBS=true             give jobs whose poster account was deleted
  *                                           to the seeded poster (SEED_POSTER_EMAIL)
- *   SEED_EXTEND_EXPIRED_DEADLINES_DAYS=30   move past deadlines on active jobs 30-60 days out
  */
 export async function runBootTasks(env = process.env) {
   await seedOnBoot(env);
@@ -193,15 +192,6 @@ export async function runBootTasks(env = process.env) {
       }
     } catch (error) {
       console.error("🌱 Adopting orphaned jobs failed:", error.message);
-    }
-  }
-
-  if (env.SEED_EXTEND_EXPIRED_DEADLINES_DAYS) {
-    try {
-      const r = await extendExpiredDeadlines(env.SEED_EXTEND_EXPIRED_DEADLINES_DAYS);
-      console.log(`🌱 Extended expired deadlines on ${r.jobs} active jobs`);
-    } catch (error) {
-      console.error("🌱 Extending deadlines failed:", error.message);
     }
   }
 }
