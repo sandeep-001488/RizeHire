@@ -38,11 +38,11 @@ import {
 
 function profileChecks(user) {
   return [
-    { label: "Resume parsed", done: !!user?.parsedResume },
-    { label: "At least 3 skills", done: (user?.skills?.length || user?.parsedResume?.skills?.length || 0) >= 3 },
-    { label: "Location added", done: !!user?.location },
-    { label: "Short bio", done: !!user?.bio },
-    { label: "LinkedIn linked", done: !!user?.linkedinUrl },
+    { label: "Resume uploaded", todo: "Upload your resume", done: !!user?.parsedResume },
+    { label: "3+ skills", todo: "Add at least 3 skills", done: (user?.skills?.length || user?.parsedResume?.skills?.length || 0) >= 3 },
+    { label: "Location", todo: "Add your location", done: !!user?.location },
+    { label: "Bio", todo: "Write a short bio", done: !!user?.bio },
+    { label: "LinkedIn", todo: "Link your LinkedIn", done: !!user?.linkedinUrl },
   ];
 }
 
@@ -59,38 +59,37 @@ function ProfileStrength({ user }) {
   const checks = profileChecks(user);
   const done = checks.filter((c) => c.done).length;
   const pct = Math.round((done / checks.length) * 100);
+  const missing = checks.filter((c) => !c.done);
   return (
-    <Link
-      href="/profile"
-      className="group flex w-full items-center gap-4 rounded-2xl bg-white/12 p-4 ring-1 ring-white/20 backdrop-blur-sm transition-colors hover:bg-white/18 lg:w-80"
-    >
-      <div className="relative">
-        <svg width="64" height="64" className="-rotate-90">
-          <circle cx="32" cy="32" r="27" fill="none" strokeWidth="6" className="stroke-white/20" />
-          <circle
-            cx="32" cy="32" r="27" fill="none" strokeWidth="6" strokeLinecap="round"
-            strokeDasharray={2 * Math.PI * 27}
-            strokeDashoffset={2 * Math.PI * 27 * (1 - pct / 100)}
-            className="stroke-white transition-[stroke-dashoffset] duration-700"
-          />
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">{pct}%</span>
+    <div className="w-full rounded-xl border bg-card p-4 lg:w-72">
+      <div className="flex items-baseline justify-between">
+        <p className="text-sm font-medium">Your profile</p>
+        <p className="text-sm tabular-nums text-muted-foreground">
+          {done}/{checks.length} done
+        </p>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold">Profile strength</p>
-        <ul className="mt-1 space-y-0.5 text-xs text-white/85">
-          {checks.filter((c) => !c.done).slice(0, 2).map((c) => (
-            <li key={c.label} className="flex items-center gap-1.5">
-              <Circle className="h-3 w-3" /> {c.label}
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${pct}%` }} />
+      </div>
+      {missing.length === 0 ? (
+        <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Complete. Recruiters see everything.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-1">
+          {missing.slice(0, 3).map((c) => (
+            <li key={c.label}>
+              <Link href="/profile" className="group flex items-center justify-between text-sm text-muted-foreground hover:text-foreground">
+                <span className="flex items-center gap-2">
+                  <Circle className="h-3.5 w-3.5" /> {c.todo}
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+              </Link>
             </li>
           ))}
-          {done === checks.length && (
-            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> All set, recruiters see your full profile</li>
-          )}
         </ul>
-      </div>
-      <ArrowRight className="h-4 w-4 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
-    </Link>
+      )}
+    </div>
   );
 }
 
@@ -180,11 +179,17 @@ export default function SeekerDashboard({ user }) {
   const firstName = user?.name?.split(" ")[0] || "there";
   const statsLoading = stats === null;
 
+  const inPlay = inReview + (by["moving-forward"] || 0);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const subtitle = statsLoading
-    ? "Here's your job search at a glance."
+    ? "Here's where your job search stands."
     : total === 0
-      ? "Let's land your first application. Your best matches are below."
-      : `${inReview + (by["moving-forward"] || 0)} of your ${total} application${total === 1 ? "" : "s"} are still in play.`;
+      ? "You haven't applied anywhere yet. A few roles that fit your profile are below."
+      : inPlay > 0
+        ? `${plural(inPlay, "application")} waiting to hear back.`
+        : by.accepted
+          ? `You have ${plural(by.accepted, "accepted offer")}. Nothing else is pending right now.`
+          : "Nothing pending right now. Worth sending a few more applications.";
 
   return (
     <div className="space-y-8">
@@ -194,11 +199,11 @@ export default function SeekerDashboard({ user }) {
         subtitle={subtitle}
         actions={
           <>
-            <Button asChild size="lg" className="rounded-full bg-white text-primary shadow-lg hover:bg-white/90">
+            <Button asChild>
               <Link href="/jobs"><Search className="h-4 w-4" /> Browse jobs</Link>
             </Button>
-            <Button asChild size="lg" variant="ghost" className="rounded-full text-white ring-1 ring-white/40 hover:bg-white/15 hover:text-white">
-              <Link href="/ai/recommendations"><Sparkles className="h-4 w-4" /> All AI matches</Link>
+            <Button asChild variant="outline">
+              <Link href="/ai/recommendations">See all matches</Link>
             </Button>
           </>
         }
@@ -225,10 +230,10 @@ export default function SeekerDashboard({ user }) {
       )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={FileText} label="Applications" value={total} hint="Sent in total" tone="indigo" loading={statsLoading} href="/applications" />
-        <StatCard icon={Clock} label="In review" value={inReview} hint="Pending or viewed" tone="amber" loading={statsLoading} href="/applications" />
-        <StatCard icon={Star} label="Shortlisted" value={by["moving-forward"] || 0} hint="Moving forward" tone="violet" loading={statsLoading} href="/applications" />
-        <StatCard icon={Trophy} label="Offers" value={by.accepted || 0} hint="Accepted" tone="emerald" loading={statsLoading} href="/applications" />
+        <StatCard icon={FileText} label="Applications" value={total} hint="Sent in total" loading={statsLoading} href="/applications" />
+        <StatCard icon={Clock} label="In review" value={inReview} hint="Pending or viewed" loading={statsLoading} href="/applications" />
+        <StatCard icon={Star} label="Shortlisted" value={by["moving-forward"] || 0} hint="Moving forward" loading={statsLoading} href="/applications" />
+        <StatCard icon={Trophy} label="Offers" value={by.accepted || 0} hint="Accepted" loading={statsLoading} href="/applications" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -300,7 +305,7 @@ export default function SeekerDashboard({ user }) {
           { href: "/messages", icon: MessageSquare, title: "Messages", text: "Chat with recruiters" },
           { href: "/profile", icon: UserRound, title: "Profile", text: "Resume, skills, links" },
         ].map((a) => (
-          <Link key={a.href} href={a.href} className="card-hover group rounded-2xl border bg-card p-4">
+          <Link key={a.href} href={a.href} className="card-hover group rounded-xl border bg-card p-4">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
               <a.icon className="h-[18px] w-[18px]" />
             </span>

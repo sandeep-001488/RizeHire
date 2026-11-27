@@ -31,23 +31,13 @@ export function StatusPill({ status, className }) {
   );
 }
 
-const TONES = {
-  indigo: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-300",
-  amber: "bg-amber-500/10 text-amber-600 dark:text-amber-300",
-  violet: "bg-violet-500/10 text-violet-600 dark:text-violet-300",
-  emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-  sky: "bg-sky-500/10 text-sky-600 dark:text-sky-300",
-  rose: "bg-rose-500/10 text-rose-600 dark:text-rose-300",
-};
 
-export function StatCard({ icon: Icon, label, value, hint, tone = "indigo", loading, href }) {
+export function StatCard({ icon: Icon, label, value, hint, loading, href }) {
   const body = (
-    <div className={cn("group relative h-full overflow-hidden rounded-2xl border bg-card p-5 shadow-sm", href && "card-hover")}>
+    <div className={cn("group relative h-full rounded-xl border bg-card p-5", href && "card-hover")}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", TONES[tone])}>
-          <Icon className="h-[18px] w-[18px]" />
-        </span>
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
       </div>
       {loading ? (
         <Skeleton className="mt-3 h-9 w-16" />
@@ -62,7 +52,7 @@ export function StatCard({ icon: Icon, label, value, hint, tone = "indigo", load
 
 export function SectionCard({ title, description, action, children, className, bodyClassName }) {
   return (
-    <section className={cn("min-w-0 rounded-2xl border bg-card shadow-sm", className)}>
+    <section className={cn("min-w-0 rounded-xl border bg-card", className)}>
       <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-base font-semibold">{title}</h2>
@@ -162,22 +152,17 @@ export function EmptyState({ icon: Icon, title, description, action }) {
   );
 }
 
-/** Gradient banner at the top of each dashboard. */
+/** Page header at the top of each dashboard: greeting, one-line summary, actions, and a side card. */
 export function DashboardHero({ eyebrow, title, subtitle, actions, aside }) {
   return (
-    <section className="brand-gradient relative overflow-hidden rounded-3xl p-6 text-white shadow-xl shadow-primary/20 sm:p-8">
-      <div className="dot-grid pointer-events-none absolute inset-0 opacity-60" />
-      <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-fuchsia-300/20 blur-3xl" />
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="max-w-2xl">
-          {eyebrow && <p className="text-sm font-medium text-white/75">{eyebrow}</p>}
-          <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{title}</h1>
-          {subtitle && <p className="mt-2 text-base text-white/85">{subtitle}</p>}
-          {actions && <div className="mt-6 flex flex-wrap gap-3">{actions}</div>}
-        </div>
-        {aside}
+    <section className="flex flex-col gap-6 border-b pb-8 lg:flex-row lg:items-end lg:justify-between">
+      <div className="max-w-2xl">
+        {eyebrow && <p className="text-sm text-muted-foreground">{eyebrow}</p>}
+        <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
+        {subtitle && <p className="mt-2 text-base text-muted-foreground">{subtitle}</p>}
+        {actions && <div className="mt-5 flex flex-wrap gap-2">{actions}</div>}
       </div>
+      {aside}
     </section>
   );
 }
