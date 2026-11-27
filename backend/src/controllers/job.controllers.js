@@ -177,6 +177,20 @@ const createJob = async (req, res) => {
   }
 };
 
+/**
+ * Application counts for many jobs in ONE query (was one countDocuments per job).
+ * The backend and database live in different regions, so each extra round trip
+ * costs ~200 ms; this keeps the jobs list to a constant number of queries.
+ */
+async function applicationCountsByJob(jobIds) {
+  if (!jobIds.length) return new Map();
+  const rows = await Application.aggregate([
+    { $match: { jobId: { $in: jobIds } } },
+    { $group: { _id: "$jobId", count: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), r.count]));
+}
+
 const getJobs = async (req, res) => {
   try {
     const {
@@ -196,17 +210,11 @@ const getJobs = async (req, res) => {
 
     const filter = { isActive: true };
 
-    // Collect applied job IDs to mark (not exclude) them in the results
-    let appliedJobIdsArray = [];
-    if (req.user) {
-      const appliedJobIds = await Application.find({
-        applicantId: req.user._id,
-      })
-        .select("jobId")
-        .lean();
-
-      appliedJobIdsArray = appliedJobIds.map((app) => app.jobId.toString());
-    }
+    // Collect applied job IDs to mark (not exclude) them in the results.
+    // Started here and awaited below so it runs in parallel with the job query.
+    const appliedJobsPromise = req.user
+      ? Application.find({ applicantId: req.user._id }).select("jobId").lean()
+      : Promise.resolve([]);
 
     // Search terms are user input: escape them so "C++" or "(" can't break the regex (or be a ReDoS)
     const textMatch = (value) => new RegExp(escapeRegex(String(value).trim()), "i");
@@ -260,16 +268,17 @@ const getJobs = async (req, res) => {
 
     // Seekers fetch ALL jobs so we can sort by match score before paginating;
     // employers/guests use cheaper DB-level sorting + pagination
-    let allJobs;
-    if (req.user && req.user.role === "seeker") {
-      allJobs = await Job.find(filter)
+    const isSeeker = req.user && req.user.role === "seeker";
+    let jobsQuery;
+    if (isSeeker) {
+      jobsQuery = Job.find(filter)
         .populate("postedBy", "name email profileImage")
         .lean();
     } else {
       const sortOptions = {};
       sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
 
-      allJobs = await Job.find(filter)
+      jobsQuery = Job.find(filter)
         .populate("postedBy", "name email profileImage")
         .sort(sortOptions)
         .limit(limit * 1)
@@ -277,25 +286,25 @@ const getJobs = async (req, res) => {
         .lean();
     }
 
-    const jobsWithApplicationCount = await Promise.all(
-      allJobs.map(async (job) => {
-        const applicationCount = await Application.countDocuments({
-          jobId: job._id,
-        });
-        return { ...job, applicationCount };
-      })
-    );
+    // Independent queries run together: one round trip instead of three in a row.
+    // Seekers load every matching job anyway, so their total needs no extra count query.
+    const [allJobs, appliedJobs, totalForPage, bertUp] = await Promise.all([
+      jobsQuery,
+      appliedJobsPromise,
+      isSeeker ? Promise.resolve(null) : Job.countDocuments(filter),
+      isSeeker ? isBertAvailable() : Promise.resolve(false),
+    ]);
+    const appliedJobIdsArray = appliedJobs.map((app) => app.jobId.toString());
+    const total = isSeeker ? allJobs.length : totalForPage;
+
+    const counts = await applicationCountsByJob(allJobs.map((job) => job._id));
+    const jobsWithApplicationCount = allJobs.map((job) => ({
+      ...job,
+      applicationCount: counts.get(String(job._id)) || 0,
+    }));
 
     let jobsWithMatchScores = jobsWithApplicationCount;
-    console.log("🔍 DEBUG /jobs - User:", req.user?.name, "Role:", req.user?.role, "Jobs count:", jobsWithApplicationCount.length);
-    if (req.user && req.user.role === "seeker") {
-      console.log("🎯 Calculating match scores for seeker:", req.user.name);
-
-      if (!req.user.location) {
-        console.log("⚠️ User has no location - recommendations will show remote jobs only");
-      }
-
-      const bertUp = await isBertAvailable();
+    if (isSeeker) {
       jobsWithMatchScores = await Promise.all(
         jobsWithApplicationCount.map(async (job) => {
           const match = calculateJobMatch(req.user, job);
@@ -381,8 +390,6 @@ const getJobs = async (req, res) => {
       const endIndex = startIndex + parseInt(limit);
       jobsWithMatchScores = jobsWithMatchScores.slice(startIndex, endIndex);
     }
-
-    const total = await Job.countDocuments(filter);
 
     res.json({
       success: true,
@@ -645,26 +652,23 @@ const getMyJobs = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const jobsWithApplicationData = await Promise.all(
-      jobs.map(async (job) => {
-        const applicationCount = await Application.countDocuments({
-          jobId: job._id,
-        });
+    // One aggregation for every job's count and latest application (was 2 queries per job)
+    const stats = jobs.length
+      ? await Application.aggregate([
+          { $match: { jobId: { $in: jobs.map((j) => j._id) } } },
+          { $group: { _id: "$jobId", count: { $sum: 1 }, latest: { $max: "$appliedAt" } } },
+        ])
+      : [];
+    const statsByJob = new Map(stats.map((r) => [String(r._id), r]));
 
-        const latestApplication = await Application.findOne({
-          jobId: job._id,
-        })
-          .sort({ appliedAt: -1 })
-          .select('appliedAt')
-          .lean();
-
-        return {
-          ...job,
-          applicationCount,
-          latestApplicationDate: latestApplication?.appliedAt || null,
-        };
-      })
-    );
+    const jobsWithApplicationData = jobs.map((job) => {
+      const st = statsByJob.get(String(job._id));
+      return {
+        ...job,
+        applicationCount: st?.count || 0,
+        latestApplicationDate: st?.latest || null,
+      };
+    });
 
     // Jobs with recent applications first; fall back to creation date when none
     jobsWithApplicationData.sort((a, b) => {
@@ -682,7 +686,7 @@ const getMyJobs = async (req, res) => {
     const endIndex = startIndex + parseInt(limit);
     const paginatedJobs = jobsWithApplicationData.slice(startIndex, endIndex);
 
-    const total = await Job.countDocuments({ postedBy: req.user._id });
+    const total = jobs.length;
 
     res.json({
       success: true,
@@ -905,15 +909,14 @@ const getRecommendations = async (req, res) => {
 
     console.log("🎯 Generating personalized recommendations for:", req.user.name);
 
-    const allJobs = await Job.find({ isActive: true })
-      .populate("postedBy", "name email profileImage")
-      .lean();
-
-    const appliedJobIds = await Application.find({
-      applicantId: req.user._id,
-    })
-      .select("jobId")
-      .lean();
+    const [allJobs, appliedJobIds] = await Promise.all([
+      Job.find({ isActive: true })
+        .populate("postedBy", "name email profileImage")
+        .lean(),
+      Application.find({ applicantId: req.user._id })
+        .select("jobId")
+        .lean(),
+    ]);
 
     const appliedJobIdsArray = appliedJobIds.map(app => app.jobId.toString());
     const unappliedJobs = allJobs.filter(job => !appliedJobIdsArray.includes(job._id.toString()));
@@ -949,11 +952,10 @@ const getRecommendations = async (req, res) => {
 
     const recommendations = rankedJobs.slice(0, parseInt(limit));
 
+    const recCounts = await applicationCountsByJob(recommendations.map((job) => job._id));
     const recommendationsWithCount = await Promise.all(
       recommendations.map(async (job) => {
-        const applicationCount = await Application.countDocuments({
-          jobId: job._id,
-        });
+        const applicationCount = recCounts.get(String(job._id)) || 0;
 
         const mlPrediction = await predictAcceptance(job.matchBreakdown);
 
