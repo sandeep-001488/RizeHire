@@ -22,9 +22,6 @@ import {
   Lightbulb,
   Target,
   BookOpen,
-  Sparkles,
-  Cpu,
-  Search,
 } from "lucide-react";
 import AuthGuard from "@/components/auth-guard/authGuard";
 
@@ -32,7 +29,6 @@ export default function AIRecommendationsPage() {
   const [recommendations, setRecommendations] = useState([]);
   const [careerSuggestions, setCareerSuggestions] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [recommendationSource, setRecommendationSource] = useState("");
 
   useEffect(() => {
     fetchRecommendations();
@@ -43,7 +39,6 @@ export default function AIRecommendationsPage() {
     try {
       const response = await aiAPI.getRecommendations();
       setRecommendations(response.data.data.recommendations || []);
-      setRecommendationSource(response.data.data.source || "traditional");
     } catch (error) {
       console.error("Error fetching recommendations:", error);
     }
@@ -107,27 +102,6 @@ export default function AIRecommendationsPage() {
                       <TrendingUp className="mr-2 h-5 w-5" />
                       Recommended Jobs
                     </span>
-                    {recommendationSource && (
-                      <span
-                        title={
-                          recommendationSource === "gemini"
-                            ? "Gemini AI"
-                            : recommendationSource === "bert"
-                            ? "BERT"
-                            : recommendationSource === "tfidf"
-                            ? "TF-IDF + Keyword Matching"
-                            : "Keyword Matching"
-                        }
-                      >
-                        {recommendationSource === "gemini" ? (
-                          <Sparkles className="h-5 w-5 text-purple-500" />
-                        ) : recommendationSource === "bert" ? (
-                          <Cpu className="h-5 w-5 text-blue-500" />
-                        ) : (
-                          <Search className="h-5 w-5 text-gray-500" />
-                        )}
-                      </span>
-                    )}
                   </CardTitle>
                   <CardDescription>
                     Jobs that match your skills and profile

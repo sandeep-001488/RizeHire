@@ -36,13 +36,6 @@ import {
   greeting,
 } from "./ui";
 
-const SOURCE_LABEL = {
-  gemini: "Ranked by Gemini AI",
-  bert: "Ranked by BERT semantic model",
-  tfidf: "Ranked by TF-IDF keyword match",
-  traditional: "Ranked by keyword match",
-};
-
 function profileChecks(user) {
   return [
     { label: "Resume parsed", done: !!user?.parsedResume },
@@ -157,7 +150,6 @@ export default function SeekerDashboard({ user }) {
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState(null);
   const [recs, setRecs] = useState(null);
-  const [recSource, setRecSource] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -172,7 +164,6 @@ export default function SeekerDashboard({ user }) {
       .then((r) => {
         if (!alive) return;
         setRecs(r.data.data.recommendations || []);
-        setRecSource(r.data.data.source);
       })
       .catch(() => alive && setRecs([]));
     return () => { alive = false; };
@@ -244,7 +235,6 @@ export default function SeekerDashboard({ user }) {
         <SectionCard
           className="lg:col-span-2"
           title="Top matches for you"
-          description={recSource ? SOURCE_LABEL[recSource] || "AI-ranked for your profile" : "AI-ranked for your profile"}
           action={<ViewAllLink href="/ai/recommendations" />}
         >
           {recs === null ? (
