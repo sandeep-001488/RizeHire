@@ -65,15 +65,18 @@ export default function JobsPage() {
 
   useEffect(() => {
     if (!isHydrated || !user) return;
-
     fetchJobs();
-    if (user?.role === "seeker") {
-      if (!user.location) {
-        setShowLocationPrompt(true);
-      }
-      fetchRecommendations();
-    }
   }, [filters, pagination.current, user, isHydrated]);
+
+  // Recommendations go through Gemini and can take a while, so load them once per
+  // visit instead of on every filter change, page change or search keystroke
+  useEffect(() => {
+    if (!isHydrated || user?.role !== "seeker") return;
+    if (!user.location) {
+      setShowLocationPrompt(true);
+    }
+    fetchRecommendations();
+  }, [isHydrated, user?._id, user?.role]);
 
   const fetchJobs = async () => {
     setLoading(true);
