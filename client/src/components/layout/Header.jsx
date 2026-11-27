@@ -93,8 +93,8 @@ export default function Header() {
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
           <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2.5">
-            <div className="brand-gradient flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25">
-              <Briefcase className="h-[18px] w-[18px] text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
+              <Briefcase className="h-4 w-4 text-background" />
             </div>
             <span className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight">
               Rize<span className="text-primary">Hire</span>
@@ -150,7 +150,7 @@ export default function Header() {
                       className="ml-1 hidden items-center gap-2 rounded-full border border-border/70 py-1 pl-1 pr-2.5 text-sm font-medium transition-colors hover:bg-muted md:flex"
                       aria-label="Account menu"
                     >
-                      <span className="brand-gradient flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-white">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                         {getInitials(user?.name)}
                       </span>
                       <span className="max-w-[9rem] truncate">{user?.name?.split(" ")[0] || "Account"}</span>
@@ -199,7 +199,7 @@ export default function Header() {
                   <Button variant="ghost">Log in</Button>
                 </Link>
                 <Link href="/auth/register">
-                  <Button className="rounded-full px-5 shadow-md shadow-primary/25">Sign up</Button>
+                  <Button>Sign up</Button>
                 </Link>
               </div>
             )}
