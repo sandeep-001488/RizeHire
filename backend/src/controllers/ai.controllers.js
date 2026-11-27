@@ -374,10 +374,11 @@ const evaluateCandidate = (job, parsedResume) => {
   }
 
   const requiredSkills = job.skills || [];
-  const matchingSkills = parsedResume.skills.filter((skill) =>
-    requiredSkills.some((jobSkill) =>
-      jobSkill.toLowerCase().includes(skill.toLowerCase())
-    )
+  // Count job skills the candidate covers (not candidate skills that appear in job skills),
+  // so the ratio stays within 0-1
+  const candidateSkills = (parsedResume.skills || []).map((s) => s.toLowerCase().trim());
+  const matchingSkills = requiredSkills.filter((jobSkill) =>
+    candidateSkills.includes(jobSkill.toLowerCase().trim())
   );
   const skill_match = requiredSkills.length > 0 ? matchingSkills.length / requiredSkills.length : 1;
 

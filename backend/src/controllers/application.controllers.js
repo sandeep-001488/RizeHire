@@ -6,6 +6,7 @@ import Message from "../models/message.model.js";
 import Notification from "../models/notification.model.js";
 import { io } from "../../app.js";
 import { applyHardRules, scoreWithAI } from "../utils/aiScreening.js";
+import { calculateJobMatch } from "../utils/jobMatching.js";
 import { uploadToCloudinary, generateSignedUrl } from "../middleware/upload.middleware.js";
 import { generateRejectionFeedback } from "../utils/rejectionFeedback.js";
 import { sendRejectionEmail, sendAcceptanceEmail, sendStatusChangeEmail } from "../services/email.service.js";
@@ -152,17 +153,21 @@ const applyToJob = async (req, res) => {
       });
     }
 
-    // Soft scoring runs only after hard rules pass
+    // Soft scoring runs only after hard rules pass. Use the same match score the
+    // seeker sees on the jobs page (skills, experience, location, salary; 0-100).
+    // The old "candidate skills contained in any job skill / job skill count"
+    // ratio could exceed 100 ("Java" and "Script" both match "JavaScript"),
+    // which the schema rejects, so applying failed with a 500.
     try {
-      const requiredSkills = job.skills || [];
-      const matchingSkills = (screeningProfile.skills || []).filter((skill) =>
-        requiredSkills.some((jobSkill) =>
-          jobSkill.toLowerCase().includes(skill.toLowerCase())
-        )
+      const relocate = willingToRelocate === undefined || willingToRelocate === null || willingToRelocate === ""
+        ? null
+        : String(willingToRelocate) === "true";
+      const match = calculateJobMatch(
+        { ...applicant.toObject?.() ?? applicant, skills: screeningProfile.skills },
+        job.toObject?.() ?? job,
+        relocate
       );
-      matchScore = requiredSkills.length > 0
-        ? Math.round((matchingSkills.length / requiredSkills.length) * 100)
-        : 50;
+      matchScore = Math.max(0, Math.min(100, Math.round(match.overallScore)));
     } catch (error) {
       console.warn("Scoring failed:", error);
       matchScore = 50;
