@@ -29,15 +29,6 @@ import {
 } from "./ui";
 import { getInitials } from "@/components/layout/Header";
 
-function HeroNumber({ value, label }) {
-  return (
-    <div className="rounded-2xl bg-white/12 px-4 py-3 ring-1 ring-white/20 backdrop-blur-sm">
-      <p className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums">{value}</p>
-      <p className="text-xs text-white/80">{label}</p>
-    </div>
-  );
-}
-
 function MatchBar({ score }) {
   if (score === null || score === undefined) return <span className="text-xs text-muted-foreground">—</span>;
   const v = Math.max(0, Math.min(100, Math.round(score)));
@@ -79,7 +70,7 @@ export default function PosterDashboard({ user }) {
       ? "Post your first job and AI-screened applicants will start showing up here."
       : pending > 0
         ? `${pending} applicant${pending === 1 ? " is" : "s are"} waiting for your review.`
-        : "You're all caught up. No applicants waiting for review.";
+        : "You're all caught up. Nobody is waiting for a review.";
 
   return (
     <div className="space-y-8">
@@ -89,20 +80,13 @@ export default function PosterDashboard({ user }) {
         subtitle={subtitle}
         actions={
           <>
-            <Button asChild size="lg" className="rounded-full bg-white text-primary shadow-lg hover:bg-white/90">
+            <Button asChild>
               <Link href="/post-job"><PlusCircle className="h-4 w-4" /> Post a job</Link>
             </Button>
-            <Button asChild size="lg" variant="ghost" className="rounded-full text-white ring-1 ring-white/40 hover:bg-white/15 hover:text-white">
-              <Link href="/jobs/my-posted-jobs"><Briefcase className="h-4 w-4" /> Manage jobs</Link>
+            <Button asChild variant="outline">
+              <Link href="/jobs/my-posted-jobs">Manage jobs</Link>
             </Button>
           </>
-        }
-        aside={
-          <div className="grid w-full grid-cols-3 gap-3 lg:w-auto">
-            <HeroNumber value={loading ? "–" : data.jobs.open} label="Open roles" />
-            <HeroNumber value={loading ? "–" : by["moving-forward"] || 0} label="Shortlisted" />
-            <HeroNumber value={loading ? "–" : by.accepted || 0} label="Hired" />
-          </div>
         }
       />
 
@@ -113,10 +97,10 @@ export default function PosterDashboard({ user }) {
       )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={Briefcase} label="Open jobs" value={data?.jobs.open ?? 0} hint={loading ? " " : `of ${data.jobs.total} posted`} tone="indigo" loading={loading} href="/jobs/my-posted-jobs" />
-        <StatCard icon={Users} label="Applicants" value={data?.applicants.total ?? 0} hint="Across all jobs" tone="sky" loading={loading} />
-        <StatCard icon={Inbox} label="Awaiting review" value={pending} hint="Pending applications" tone="amber" loading={loading} />
-        <StatCard icon={Eye} label="Job views" value={(data?.jobs.views ?? 0).toLocaleString()} hint="Total across your posts" tone="violet" loading={loading} />
+        <StatCard icon={Briefcase} label="Open jobs" value={data?.jobs.open ?? 0} hint={loading ? " " : `of ${data.jobs.total} posted`} loading={loading} href="/jobs/my-posted-jobs" />
+        <StatCard icon={Users} label="Applicants" value={data?.applicants.total ?? 0} hint="Across all jobs" loading={loading} />
+        <StatCard icon={Inbox} label="Awaiting review" value={pending} hint="Pending applications" loading={loading} />
+        <StatCard icon={Eye} label="Job views" value={(data?.jobs.views ?? 0).toLocaleString()} hint="Total across your posts" loading={loading} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
