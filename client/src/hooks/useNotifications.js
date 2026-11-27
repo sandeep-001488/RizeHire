@@ -19,7 +19,9 @@ export const useNotifications = () => {
     fetchNotifications,
     addNotificationRealtime,
     markAsRead,
+    markAllAsRead,
     deleteNotification,
+    isFetching,
   } = useNotificationStore();
 
   useEffect(() => {
@@ -83,6 +85,8 @@ export const useNotifications = () => {
     fetchNotifications,
     addNotificationRealtime,
     markAsRead,
+    markAllAsRead,
     deleteNotification,
+    isFetching,
   };
 };

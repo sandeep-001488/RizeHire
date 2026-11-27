@@ -16,7 +16,7 @@ import {
   Users,
   Brain,
   ArrowRight,
-  Wallet,
+  Sparkles,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -43,10 +43,10 @@ export default function HomePage() {
         "Get personalized job recommendations based on your skills and experience",
     },
     {
-      icon: Wallet, 
-      title: "Verified Job Posters",
+      icon: Sparkles,
+      title: "Explainable Match Scores",
       description:
-        "Job posters are verified via their wallet address, reducing spam.", 
+        "See why a job fits you: skills, experience and location, broken down by SHAP and LIME.",
     },
     {
       icon: Users,

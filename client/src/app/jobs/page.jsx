@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import useJobStore from "@/stores/jobStore";
 import useAuthStore from "@/stores/authStore";
 import { jobsAPI, aiAPI } from "@/lib/api";
-import { formatDate, formatSalary } from "@/lib/utils";
+import { formatDate, formatSalary, formatLocation } from "@/lib/utils";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import {
   Search,
@@ -616,7 +616,7 @@ export default function JobsPage() {
                         {job.location && (
                           <div className="flex items-center text-sm text-muted-foreground">
                             <MapPin className="h-3 w-3 mr-1" />
-                            {job.location.city}, {job.location.country}
+                            {formatLocation(job.location)}
                           </div>
                         )}
                       </div>

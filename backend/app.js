@@ -16,15 +16,15 @@ import aiRoutes from "./src/routes/ai.routes.js";
 import resumeRoutes from "./src/routes/resume.routes.js";
 import messageRoutes from "./src/routes/message.routes.js";
 import notificationRoutes from "./src/routes/notification.routes.js";
-import jobSeedRoutes from "./src/seeds/job.seeds.js";
-import userSeedRoutes, { runBootTasks } from "./src/seeds/user.seeds.js";
 
 dotenv.config();
 
 const app = express();
+// Render (and most hosts) sit behind one proxy hop; without this every visitor
+// shares the proxy IP, so the rate limiters below throttle all users together.
+app.set("trust proxy", 1);
 const allowedOrigin = process.env.FRONTEND_URL;
-// Boot tasks are no-ops unless their SEED_* flags are set (see src/seeds/user.seeds.js)
-connectDB().then(() => runBootTasks());
+connectDB();
 
 app.use(helmet());
 app.use(
@@ -68,8 +68,6 @@ app.get("/health", (_, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
-app.use("/api", jobSeedRoutes);
-app.use("/api", userSeedRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationLimiter, notificationRoutes);

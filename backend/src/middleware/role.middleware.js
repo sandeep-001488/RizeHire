@@ -9,17 +9,4 @@ const isPoster = (req, res, next) => {
   }
 };
 
-const hasWallet = (req, res, next) => {
-  if (req.user && req.user.walletAddress) {
-    next();
-  } else {
-    res.status(403).json({
-      success: false,
-      message:
-        "A valid wallet address is required to post a job. Please update your profile.",
-      requiresWallet: true,
-    });
-  }
-};
-
-export { isPoster, hasWallet };
+export { isPoster };

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import { jobsAPI } from "@/lib/api";
-import { formatDate, formatSalary } from "@/lib/utils";
+import { formatDate, formatSalary, formatLocation } from "@/lib/utils";
 import {
   TrendingUp,
   MapPin,
@@ -133,7 +133,7 @@ export default function FeedPage() {
                           {job.location && (
                             <div className="flex items-center">
                               <MapPin className="h-4 w-4 mr-1" />
-                              {job.location.city}, {job.location.country}
+                              {formatLocation(job.location)}
                             </div>
                           )}
                           <div className="flex items-center">

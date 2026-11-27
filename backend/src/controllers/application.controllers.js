@@ -907,8 +907,135 @@ const getApplicationResume = async (req, res) => {
   }
 };
 
+const APPLICATION_STATUSES = ["pending", "viewed", "moving-forward", "accepted", "rejected"];
+
+function countsByStatus(rows) {
+  const byStatus = Object.fromEntries(APPLICATION_STATUSES.map((st) => [st, 0]));
+  for (const row of rows) {
+    if (row._id in byStatus) byStatus[row._id] = row.count;
+  }
+  return byStatus;
+}
+
+/**
+ * GET /api/applications/dashboard-stats
+ * One call for the dashboard, shaped by role. Uses aggregations so the cost
+ * doesn't grow with the number of jobs (no per-job queries).
+ */
+const getDashboardStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    if (req.user.role === "poster") {
+      const jobs = await Job.find({ postedBy: userId })
+        .select("title jobType workMode location views isActive acceptingApplications applicationDeadline createdAt company")
+        .sort({ createdAt: -1 })
+        .lean();
+      const jobIds = jobs.map((j) => j._id);
+      const now = new Date();
+
+      const [statusRows, perJobRows, recent] = await Promise.all([
+        Application.aggregate([
+          { $match: { jobId: { $in: jobIds } } },
+          { $group: { _id: "$status", count: { $sum: 1 } } },
+        ]),
+        Application.aggregate([
+          { $match: { jobId: { $in: jobIds } } },
+          {
+            $group: {
+              _id: "$jobId",
+              total: { $sum: 1 },
+              pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+              latest: { $max: "$appliedAt" },
+            },
+          },
+        ]),
+        Application.find({ jobId: { $in: jobIds } })
+          .sort({ appliedAt: -1 })
+          .limit(6)
+          .populate("applicantId", "name email profileImage location")
+          .populate("jobId", "title")
+          .select("status matchScore appliedAt applicantId jobId")
+          .lean(),
+      ]);
+
+      const perJob = new Map(perJobRows.map((r) => [String(r._id), r]));
+      const isOpen = (j) =>
+        j.isActive && j.acceptingApplications !== false &&
+        (!j.applicationDeadline || new Date(j.applicationDeadline) >= now);
+
+      const byStatus = countsByStatus(statusRows);
+      return res.json({
+        success: true,
+        data: {
+          role: "poster",
+          jobs: {
+            total: jobs.length,
+            open: jobs.filter(isOpen).length,
+            views: jobs.reduce((sum, j) => sum + (j.views || 0), 0),
+          },
+          applicants: {
+            total: Object.values(byStatus).reduce((a, b) => a + b, 0),
+            byStatus,
+          },
+          topJobs: jobs
+            .map((j) => {
+              const stats = perJob.get(String(j._id));
+              return {
+                _id: j._id,
+                title: j.title,
+                company: j.company?.name || null,
+                jobType: j.jobType,
+                workMode: j.workMode,
+                city: j.location?.city || null,
+                views: j.views || 0,
+                isOpen: isOpen(j),
+                applicationDeadline: j.applicationDeadline || null,
+                applicants: stats?.total || 0,
+                pending: stats?.pending || 0,
+                latestApplicationAt: stats?.latest || null,
+              };
+            })
+            .sort((a, b) => b.applicants - a.applicants || new Date(b.latestApplicationAt || 0) - new Date(a.latestApplicationAt || 0))
+            .slice(0, 6),
+          recentApplicants: recent.map((a) => ({
+            _id: a._id,
+            status: a.status,
+            matchScore: a.matchScore ?? null,
+            appliedAt: a.appliedAt,
+            applicant: a.applicantId
+              ? { _id: a.applicantId._id, name: a.applicantId.name, location: a.applicantId.location || null }
+              : null,
+            job: a.jobId ? { _id: a.jobId._id, title: a.jobId.title } : null,
+          })),
+        },
+      });
+    }
+
+    const statusRows = await Application.aggregate([
+      { $match: { applicantId: userId } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+    const byStatus = countsByStatus(statusRows);
+    return res.json({
+      success: true,
+      data: {
+        role: "seeker",
+        applications: {
+          total: Object.values(byStatus).reduce((a, b) => a + b, 0),
+          byStatus,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Dashboard stats error:", error);
+    res.status(500).json({ success: false, message: "Failed to load dashboard stats" });
+  }
+};
+
 export {
   applyToJob,
+  getDashboardStats,
   getMyApplications,
   getJobApplicants,
   updateApplicationStatus,

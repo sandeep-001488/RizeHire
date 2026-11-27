@@ -155,16 +155,6 @@ Resume Text:
 ${resumeText.slice(0, 15000)}
 `;
 
-  const fallback = {
-    name: null,
-    email: null,
-    phone: null,
-    skills: [],
-    yearsOfExperience: 0,
-    gender: null,
-    location: { city: null, country: null },
-    education: [],
-  };
 
   try {
     console.log("🤖 Calling AI for resume parsing...");
@@ -175,7 +165,7 @@ ${resumeText.slice(0, 15000)}
 
     if (!match) {
       console.warn("⚠️ No JSON found in AI response");
-      return fallback;
+      throw new Error("AI returned no structured data");
     }
 
     const parsed = JSON.parse(match[0]);
@@ -216,8 +206,11 @@ ${resumeText.slice(0, 15000)}
 
     return result;
   } catch (error) {
-    console.error("❌ Resume parsing error:", error);
-    return fallback;
+    console.error("❌ Resume parsing error:", error.message);
+    // Callers must not save an empty profile as if parsing worked
+    const failure = new Error("Resume parsing is temporarily unavailable. Please try again in a few minutes.");
+    failure.code = "AI_PARSE_FAILED";
+    throw failure;
   }
 }
 

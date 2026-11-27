@@ -101,6 +101,7 @@ export const applicationsAPI = {
   getMyApplications: (params) => {
     return api.get("/applications/my-applications", { params });
   },
+  getDashboardStats: () => api.get("/applications/dashboard-stats"),
   getJobApplicants: (jobId, params) => {
     const url = `/applications/jobs/${jobId}/applicants`;
     return api.get(url, { params });

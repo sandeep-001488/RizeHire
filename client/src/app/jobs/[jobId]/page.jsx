@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import useAuthStore from "@/stores/authStore";
 import { jobsAPI, aiAPI, applicationsAPI } from "@/lib/api";
-import { formatDate, formatSalary } from "@/lib/utils";
+import { formatDate, formatSalary, formatLocation } from "@/lib/utils";
 import {
   MapPin,
   Clock,
@@ -220,7 +221,18 @@ export default function JobDetailPage({ params }) {
       setCoverLetter("");
       setSelectedResume(null);
 
-      alert("Application submitted successfully!");
+      // Hard-rule failures (e.g. minimum experience) come back as 200 with status "rejected"
+      const result = response.data?.data;
+      if (result?.applicationStatus === "rejected") {
+        toast.error("This job's requirements weren't met", {
+          description: result.rejectionReason || "Check your inbox for details on how to improve your match.",
+          duration: 8000,
+        });
+      } else {
+        toast.success("Application submitted", {
+          description: "The recruiter has been notified. Track it under Applications.",
+        });
+      }
     } catch (error) {
       let errorMessage = "Failed to submit application";
 
@@ -247,6 +259,7 @@ export default function JobDetailPage({ params }) {
         console.error("⚠️ Other error:", error.message);
         errorMessage = error.message || "An unexpected error occurred";
       }
+      toast.error(errorMessage);
     } finally {
       setIsApplying(false);
       setShowRelocationDialog(false);
@@ -367,7 +380,7 @@ export default function JobDetailPage({ params }) {
                 <div className="flex items-center text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4 mr-1" />
                   {job.location
-                    ? `${job.location.city}, ${job.location.country}`
+                    ? formatLocation(job.location)
                     : job.workMode}
                 </div>
                 <div className="flex items-center text-sm text-muted-foreground">
@@ -832,7 +845,7 @@ export default function JobDetailPage({ params }) {
                 <div>
                   <p className="text-sm font-medium">Job Location</p>
                   <p className="text-sm text-muted-foreground">
-                    {job?.location?.city}, {job?.location?.country}
+                    {formatLocation(job?.location)}
                   </p>
                 </div>
               </div>

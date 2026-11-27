@@ -85,17 +85,6 @@ const userSchema = new mongoose.Schema(
         maxlength: [50, "Skill name too long"],
       },
     ],
-    walletAddress: {
-      type: String,
-      required: false,
-      validate: {
-        validator: function (v) {
-          if (!v) return true;
-          return /^0x[a-fA-F0-9]{40}$/.test(v);
-        },
-        message: "Invalid Ethereum wallet address",
-      },
-    },
     parsedResume: {
       type: parsedResumeSchema,
       default: null,

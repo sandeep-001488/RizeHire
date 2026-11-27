@@ -25,7 +25,6 @@ import {
   Brain,
   Loader2,
   CheckCircle,
-  AlertTriangle,
   MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -41,7 +40,6 @@ export default function ProfilePage() {
     location: "", 
     bio: "",
     linkedinUrl: "",
-    walletAddress: "",
     skills: [],
     technicalSkills: [],
     gender: "",
@@ -73,7 +71,6 @@ export default function ProfilePage() {
         location: userLocation,
         bio: user.bio || "",
         linkedinUrl: user.linkedinUrl || "",
-        walletAddress: user.walletAddress || "",
         skills: user.skills || [],
         gender: user.gender || "",
         preferences: {
@@ -201,23 +198,6 @@ export default function ProfilePage() {
 
         {user?.role === "seeker" && <ParseResume />}
 
-        {user?.role === "poster" && !user?.walletAddress && (
-          <Card className="bg-yellow-50 dark:bg-yellow-950 border-yellow-300 dark:border-yellow-800">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                <CardTitle className="text-yellow-800 dark:text-yellow-200">
-                  Wallet Address Required
-                </CardTitle>
-              </div>
-              <CardDescription className="text-yellow-700 dark:text-yellow-300">
-                You need to add a valid wallet address to post jobs on the
-                platform.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card>
             <CardHeader>
@@ -311,21 +291,6 @@ export default function ProfilePage() {
                     disabled={!isEditing}
                   />
                 </div>
-                {user?.role === "poster" && (
-                  <div>
-                    <Label htmlFor="walletAddress">
-                      Wallet Address (Required for posting jobs)
-                    </Label>
-                    <Input
-                      id="walletAddress"
-                      name="walletAddress"
-                      placeholder="0x..."
-                      value={formData.walletAddress}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -721,7 +686,6 @@ export default function ProfilePage() {
                     email: user?.email || "",
                     bio: user?.bio || "",
                     linkedinUrl: user?.linkedinUrl || "",
-                    walletAddress: user?.walletAddress || "",
                     skills: user?.skills || [],
                     gender: user?.gender || "",
                   });

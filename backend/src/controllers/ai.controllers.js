@@ -2,6 +2,7 @@ import { generateContent } from "../config/gemini.js";
 import Application from "../models/application.model.js";
 import Job from "../models/job.model.js";
 import axios from "axios";
+import { isBertAvailable } from "../services/bertAvailability.js";
 import { getSmartSkillSuggestions } from "../utils/skillSuggestions.js";
 import { trainModel, getModelPerformance, predictAcceptance } from "../utils/mlModel.js";
 import { calculateJobMatch as calculateMatch, rankJobsWithTfidf } from "../utils/jobMatching.js";
@@ -619,6 +620,10 @@ Sort by score descending. Only include jobs with score > 10.`;
       try {
         console.log("🧠 Tier 2: Attempting BERT recommendations...");
 
+        if (!(await isBertAvailable())) {
+          throw new Error("BERT service unavailable");
+        }
+
         const bertResults = await Promise.all(
           jobs.map(async (job) => {
             try {
@@ -663,7 +668,7 @@ Sort by score descending. Only include jobs with score > 10.`;
                 else if (skillsScore < 20) finalScore = Math.min(finalScore, 30);
                 else if (skillsScore < 40) finalScore = Math.min(finalScore, 40);
 
-                return { job, matchScore: finalScore };
+                return { job, matchScore: finalScore, usedBert: true };
               }
               return { job, matchScore: traditionalMatch.overallScore };
             } catch {
@@ -673,9 +678,15 @@ Sort by score descending. Only include jobs with score > 10.`;
           })
         );
 
+        // If no job actually got a BERT score, these are keyword scores; let Tier 3 handle it
+        if (!bertResults.some((r) => r.usedBert)) {
+          throw new Error("BERT returned no scores");
+        }
+
         recommendations = bertResults
           .sort((a, b) => b.matchScore - a.matchScore)
-          .slice(0, 10);
+          .slice(0, 10)
+          .map(({ usedBert, ...rest }) => rest);
 
         source = 'bert';
         console.log(`✅ BERT returned ${recommendations.length} recommendations`);
