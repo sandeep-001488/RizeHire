@@ -30,7 +30,6 @@ export default function RegisterPage() {
     password: "",
     role: "", 
     gender: "",
-    walletAddress: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -49,10 +48,6 @@ const handleSubmit = async (e) => {
 
   if (formData.role === "poster") {
     delete cleanedData.gender;
-  }
-  
-  if (!cleanedData.walletAddress) {
-    delete cleanedData.walletAddress;
   }
 
   const result = await register(cleanedData);
@@ -193,18 +188,6 @@ const handleSubmit = async (e) => {
                 </Select>
               </div>
             ) : null}
-
-            <div className="space-y-2">
-              <Label htmlFor="walletAddress">Wallet Address (Optional)</Label>
-              <Input
-                id="walletAddress"
-                name="walletAddress"
-                placeholder="0x... (Required for posters to post jobs)"
-                value={formData.walletAddress}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (

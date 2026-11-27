@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 import Header from "./Header";
 import useThemeStore from "@/stores/themeStore";
-import { Toaster } from "@/components/ui/sonner"; 
 
+// The Toaster lives in the root layout; mounting a second one here showed every toast twice.
 export default function Layout({ children }) {
   const { theme } = useThemeStore();
 
@@ -16,8 +16,7 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-8">{children}</main>
-      <Toaster position="top-right" richColors />
+      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
 }

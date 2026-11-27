@@ -6,7 +6,6 @@ import { sendEmail } from "../utils/email.js";
 import Joi from "joi";
 import crypto from "crypto";
 import fs from "fs";
-import { uploadToCloudinary } from "../middleware/upload.middleware.js";
 
 const registerSchema = Joi.object({
   name: Joi.string().min(2).max(100).required(),
@@ -20,7 +19,6 @@ const registerSchema = Joi.object({
   }),
   bio: Joi.string().max(10000).optional().allow(""),
   linkedinUrl: Joi.string().uri().optional().allow(""),
-  walletAddress: Joi.string().optional().allow(""),
 });
 
 const loginSchema = Joi.object({
@@ -46,7 +44,6 @@ const register = async (req, res) => {
       gender,
       bio,
       linkedinUrl,
-      walletAddress,
     } = value;
 
     const existingUser = await User.findOne({ email });
@@ -64,7 +61,6 @@ const register = async (req, res) => {
       role,
       bio: bio || "",
       linkedinUrl,
-      walletAddress,
     };
 
     if (role === "seeker" && gender) {
@@ -233,7 +229,6 @@ const updateProfile = async (req, res) => {
       gender: Joi.string().valid("male", "female", "other").optional(),
       bio: Joi.string().max(10000).optional().allow(""),
       linkedinUrl: Joi.string().uri().optional().allow(""),
-      walletAddress: Joi.string().optional().allow(""),
       skills: Joi.array().items(Joi.string().max(50)).optional(),
       preferences: Joi.object({
         willingToRelocate: Joi.boolean().optional(),
@@ -326,7 +321,6 @@ const parseAndSaveResume = async (req, res) => {
     console.log("📝 Extracted text length:", resumeText.length);
     
     if (!resumeText || resumeText.trim().length < 50) {
-      fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
         message: "Could not extract meaningful text from resume.",
@@ -340,9 +334,6 @@ const parseAndSaveResume = async (req, res) => {
       skillsCount: parsedData.skills?.length || 0,
       skills: parsedData.skills,
     });
-
-    const resumeUrl = await uploadToCloudinary(req.file.path);
-    console.log("☁️ Uploaded to Cloudinary:", resumeUrl);
 
     const user = req.user;
 
@@ -407,11 +398,16 @@ const parseAndSaveResume = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Resume parsing error:", error);
-    res.status(500).json({
+    console.error("❌ Resume parsing error:", error.message);
+    // AI outage: tell the user plainly and leave their existing profile untouched
+    const status = error.code === "AI_PARSE_FAILED" ? 503 : 500;
+    res.status(status).json({
       success: false,
-      message: `Failed to parse resume: ${error.message}`,
+      message: error.code === "AI_PARSE_FAILED" ? error.message : `Failed to parse resume: ${error.message}`,
     });
+  } finally {
+    // The upload is only needed to extract text; never leave it on disk
+    if (req.file?.path) fs.promises.unlink(req.file.path).catch(() => {});
   }
 };
 

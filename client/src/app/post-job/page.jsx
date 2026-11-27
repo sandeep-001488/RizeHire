@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import RoleGuard from "@/components/auth-guard/RoleGuard";
 import { jobsAPI, aiAPI } from "@/lib/api";
-import { Loader2, Brain, AlertTriangle, Sparkles } from "lucide-react";
+import { Loader2, Brain, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import useAuthStore from "@/stores/authStore";
 
@@ -92,12 +92,6 @@ export default function PostJobPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!user?.walletAddress) {
-      toast.error("Please add a wallet address to your profile first.");
-      router.push("/profile");
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
@@ -110,11 +104,6 @@ export default function PostJobPage() {
           minYears: formData.hardConstraints.minYears && formData.hardConstraints.minYears !== ""
             ? Number(formData.hardConstraints.minYears)
             : 0,
-          location:
-            formData.hardConstraints.location.city ||
-            formData.hardConstraints.location.country
-              ? formData.hardConstraints.location
-              : undefined,
         },
       };
 
@@ -271,26 +260,6 @@ export default function PostJobPage() {
   return (
     <RoleGuard allowedRoles={["poster"]}>
       <div className="max-w-4xl mx-auto">
-        {!user?.walletAddress && (
-          <Card className="mb-6 bg-yellow-50 dark:bg-yellow-950 border-yellow-300 dark:border-yellow-800">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                <CardTitle className="text-yellow-800 dark:text-yellow-200">
-                  Wallet Address Required
-                </CardTitle>
-              </div>
-              <CardDescription className="text-yellow-700 dark:text-yellow-300">
-                You need to add a wallet address to your profile before posting
-                jobs.
-              </CardDescription>
-              <Button asChild className="mt-4 w-fit">
-                <a href="/profile">Go to Profile</a>
-              </Button>
-            </CardHeader>
-          </Card>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <h1 className="text-3xl font-bold">Post a New Job</h1>
@@ -717,7 +686,7 @@ export default function PostJobPage() {
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || !user?.walletAddress}
+              disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <>

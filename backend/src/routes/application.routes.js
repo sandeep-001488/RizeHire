@@ -1,6 +1,7 @@
 import express from "express";
 import {
   applyToJob,
+  getDashboardStats,
   getMyApplications,
   getJobApplicants,
   updateApplicationStatus,
@@ -17,6 +18,8 @@ router.use(protect);
 
 router.post("/jobs/:jobId/apply", uploadResume.single("resume"), applyToJob);
 router.get("/my-applications", getMyApplications);
+// Static path: must stay above "/:applicationId" or that param route would swallow it
+router.get("/dashboard-stats", getDashboardStats);
 
 router.get("/jobs/:jobId/applicants", isPoster, getJobApplicants);
 router.put("/:applicationId/status", isPoster, updateApplicationStatus);

@@ -1,11 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+import { generateContent } from "../config/gemini.js";
 
 export async function getSuggestedSkills(jobTitle, category, description = "") {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
     const prompt = `
 You are an expert HR consultant helping recruiters post job listings.
 
@@ -33,9 +29,7 @@ For creative jobs: Include design tools, creative software, portfolio skills
 
 Now provide the skills array:`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = await generateContent(prompt);
 
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {

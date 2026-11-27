@@ -10,7 +10,7 @@ import {
   searchSkills,
 } from "../controllers/job.controllers.js";
 import { protect, optionalAuth } from "../middleware/auth.middleware.js";
-import { isPoster, hasWallet } from "../middleware/role.middleware.js";
+import { isPoster } from "../middleware/role.middleware.js";
 
 const router = express.Router();
 
@@ -19,7 +19,7 @@ router.get("/skills/search", searchSkills); // Public: registered above protect
 
 router.use(protect);
 
-router.post("/", isPoster, hasWallet, createJob);
+router.post("/", isPoster, createJob);
 
 router.get("/my-posted-jobs", isPoster, getMyJobs);
 

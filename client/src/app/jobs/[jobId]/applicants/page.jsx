@@ -84,7 +84,7 @@ export default function JobApplicantsPage() {
 
   useEffect(() => {
     if (jobId && activeTab) {
-      fetchApplicants(activeTab);
+      fetchApplicants(activeTab, 1);
     }
   }, [activeTab]);
 
@@ -133,11 +133,11 @@ export default function JobApplicantsPage() {
     }
   };
 
-  const fetchApplicants = async (status = "all") => {
+  const fetchApplicants = async (status = "all", page = applicantsPagination.current) => {
     setIsLoadingApplicants(true);
     try {
       const params = {
-        page: applicantsPagination.current,
+        page,
         limit: applicantsPagination.limit,
       };
       if (status !== "all") {
@@ -147,7 +147,6 @@ export default function JobApplicantsPage() {
       const response = await applicationsAPI.getJobApplicants(jobId, params);
 
       const { applicants, pagination, stats } = response.data.data;
-      console.log("Fetched applicants:", applicants);
       setJobApplicants(applicants);
       setApplicantsPagination(pagination);
       setApplicantsStats(stats);
@@ -243,31 +242,9 @@ export default function JobApplicantsPage() {
   };
 
   const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > (applicantsPagination.pages || 1)) return;
     setApplicantsPagination((prev) => ({ ...prev, current: newPage }));
-    const params = {
-      page: newPage,
-      limit: applicantsPagination.limit,
-    };
-    if (activeTab !== "all") {
-      params.status = activeTab;
-    }
-
-    fetchApplicantsWithParams = async (params) => {
-      setIsLoadingApplicants(true);
-      try {
-        const response = await applicationsAPI.getJobApplicants(jobId, params);
-        const { applicants, pagination, stats } = response.data.data;
-        setJobApplicants(applicants);
-        setApplicantsPagination(pagination);
-        setApplicantsStats(stats);
-      } catch (error) {
-        console.error("Error fetching applicants:", error);
-        toast.error("Failed to load applicants");
-        router.push("/jobs");
-      } finally {
-        setIsLoadingApplicants(false);
-      }
-    };
+    fetchApplicants(activeTab, newPage);
   };
 
   return (

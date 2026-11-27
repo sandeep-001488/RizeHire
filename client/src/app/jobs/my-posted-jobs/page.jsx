@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import AuthGuard from "@/components/auth-guard/authGuard";
 import useJobStore from "@/stores/jobStore";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatLocation } from "@/lib/utils";
 import {
   Users,
   Eye,
@@ -306,7 +306,7 @@ export default function MyJobsPage() {
                         {job.location && (
                           <div className="flex items-center">
                             <MapPin className="h-4 w-4 mr-1" />
-                            {job.location.city}, {job.location.country}
+                            {formatLocation(job.location)}
                           </div>
                         )}
                       </div>

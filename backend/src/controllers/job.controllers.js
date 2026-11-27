@@ -2,6 +2,8 @@ import Job from "../models/job.model.js";
 import Application from "../models/application.model.js";
 import Joi from "joi";
 import axios from "axios";
+import { isBertAvailable } from "../services/bertAvailability.js";
+import { escapeRegex, stripEmptyFields } from "../utils/requestCleaning.js";
 import { calculateJobMatch, rankJobsWithTfidf } from "../utils/jobMatching.js";
 import { predictAcceptance } from "../utils/mlModel.js";
 import { generateContent } from "../config/gemini.js";
@@ -145,13 +147,7 @@ const createJobSchema = Joi.object({
 
 const createJob = async (req, res) => {
   try {
-    const cleanedBody = { ...req.body };
-    if (cleanedBody.applicationEmail === "") {
-      delete cleanedBody.applicationEmail;
-    }
-    if (cleanedBody.applicationUrl === "") {
-      delete cleanedBody.applicationUrl;
-    }
+    const cleanedBody = stripEmptyFields(req.body);
 
     const { error, value } = createJobSchema.validate(cleanedBody);
     if (error) {
@@ -212,8 +208,12 @@ const getJobs = async (req, res) => {
       appliedJobIdsArray = appliedJobIds.map((app) => app.jobId.toString());
     }
 
+    // Search terms are user input: escape them so "C++" or "(" can't break the regex (or be a ReDoS)
+    const textMatch = (value) => new RegExp(escapeRegex(String(value).trim()), "i");
+    const orGroups = [];
+
     if (skills) {
-      const skillsArray = skills.split(",").map((s) => new RegExp(s, "i"));
+      const skillsArray = skills.split(",").filter((s) => s.trim()).map(textMatch);
       filter.skills = { $in: skillsArray };
     }
 
@@ -226,11 +226,11 @@ const getJobs = async (req, res) => {
     }
 
     if (location) {
-      filter.$or = [
-        { "location.city": new RegExp(location, "i") },
-        { "location.state": new RegExp(location, "i") },
-        { "location.country": new RegExp(location, "i") },
-      ];
+      orGroups.push([
+        { "location.city": textMatch(location) },
+        { "location.state": textMatch(location) },
+        { "location.country": textMatch(location) },
+      ]);
     }
 
     if (experienceLevel) {
@@ -246,12 +246,17 @@ const getJobs = async (req, res) => {
     }
 
     if (search) {
-      filter.$or = [
-        { title: new RegExp(search, "i") },
-        { description: new RegExp(search, "i") },
-        { "company.name": new RegExp(search, "i") },
-      ];
+      orGroups.push([
+        { title: textMatch(search) },
+        { description: textMatch(search) },
+        { "company.name": textMatch(search) },
+      ]);
     }
+
+    // Location and search are each "any of these fields"; both must hold, so AND the groups
+    // (assigning filter.$or twice used to make search silently drop the location filter)
+    if (orGroups.length === 1) filter.$or = orGroups[0];
+    else if (orGroups.length > 1) filter.$and = orGroups.map((group) => ({ $or: group }));
 
     // Seekers fetch ALL jobs so we can sort by match score before paginating;
     // employers/guests use cheaper DB-level sorting + pagination
@@ -290,10 +295,11 @@ const getJobs = async (req, res) => {
         console.log("⚠️ User has no location - recommendations will show remote jobs only");
       }
 
+      const bertUp = await isBertAvailable();
       jobsWithMatchScores = await Promise.all(
         jobsWithApplicationCount.map(async (job) => {
           const match = calculateJobMatch(req.user, job);
-          const bertResult = await getBERTMatchScore(req.user, job, match);
+          const bertResult = bertUp ? await getBERTMatchScore(req.user, job, match) : null;
 
           let finalScore = match.overallScore;
           let matchSource = 'traditional';
@@ -812,6 +818,11 @@ Sort by score descending. Only include jobs with score > 10.`;
 }
 
 async function getBERTRecommendations(user, jobs) {
+  // Fail fast so the caller drops to the TF-IDF tier instead of waiting on per-job timeouts
+  if (!(await isBertAvailable())) {
+    throw new Error("BERT service unavailable");
+  }
+
   const results = [];
 
   for (const job of jobs.slice(0, 20)) {
@@ -872,6 +883,10 @@ async function getBERTRecommendations(user, jobs) {
         recommendationSource: 'traditional',
       });
     }
+  }
+
+  if (!results.some((r) => r.recommendationSource === 'bert')) {
+    throw new Error("BERT returned no scores");
   }
 
   return results.sort((a, b) => b.matchScore - a.matchScore);
